@@ -38,13 +38,13 @@
         </div>
 
         <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white leading-relaxed mb-6">
-          تابع <span class="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-600">كل الكوليات متاعك</span>
+          خلّي <span class="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-600">كل كولي</span>
           <br class="hidden sm:block" />
-          من بلاصة وحدة
+          تحت عينيك
         </h1>
 
         <p class="text-xl text-gray-600 dark:text-gray-400 leading-loose max-w-2xl mx-auto mb-10">
-          ما عادش لازم تنقّل بين السيتات. كل الكوليات، كل الشركات، في tableau وحدة.
+          شوف كل شي واضح. كل pickup، كل ليفريزون، كل retour. Rapports مفصّلة و pointage في 3 دقايق.
         </p>
 
         <!-- CTA Button -->
@@ -305,32 +305,7 @@
           </div>
         </div>
 
-        <div class="grid md:grid-cols-3 gap-6">
-          <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-shadow">
-            <div class="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center mb-4">
-              <LayoutDashboard class="w-6 h-6 text-orange-600" />
-            </div>
-            <h3 class="font-semibold text-gray-900 dark:text-white mb-2 text-lg">Tableau de bord واحد</h3>
-            <p class="text-gray-600 dark:text-gray-400">تابع كل الكوليات متاعك من بلاصة وحدة</p>
-          </div>
-
-          <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-shadow">
-            <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mb-4">
-              <Bell class="w-6 h-6 text-blue-600" />
-            </div>
-            <h3 class="font-semibold text-gray-900 dark:text-white mb-2 text-lg">Notifications فورية</h3>
-            <p class="text-gray-600 dark:text-gray-400">إشعارات ليك ولعملائك</p>
-          </div>
-
-          <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-shadow">
-            <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center mb-4">
-              <BarChart3 class="w-6 h-6 text-green-600" />
-            </div>
-            <h3 class="font-semibold text-gray-900 dark:text-white mb-2 text-lg">Rapports واضحين</h3>
-            <p class="text-gray-600 dark:text-gray-400">إحصائيات تعاونك في القرارات</p>
-          </div>
-        </div>
-      </div>
+              </div>
     </section>
 
     <!-- Footer -->
@@ -346,7 +321,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useThemeStore } from '@/stores/theme'
-import { Moon, Sun, UserPlus, ArrowLeft, Loader2, CheckCircle, LayoutDashboard, Bell, BarChart3, ChevronDown, Check } from 'lucide-vue-next'
+import { Moon, Sun, UserPlus, ArrowLeft, Loader2, CheckCircle, ChevronDown, Check } from 'lucide-vue-next'
 import { supabase } from '@/lib/supabase'
 
 const themeStore = useThemeStore()
