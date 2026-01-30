@@ -331,7 +331,7 @@
     <footer class="py-8 px-4 sm:px-6 border-t border-gray-100 dark:border-gray-800">
       <div class="max-w-4xl mx-auto text-center">
         <img src="@/logo/Group 16.svg" alt="Mouraqib" class="h-8 mx-auto mb-4" />
-        <p class="text-sm text-gray-500 dark:text-gray-400">© 2025 Mouraqib</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400">© 2026 Mouraqib</p>
       </div>
     </footer>
   </div>
