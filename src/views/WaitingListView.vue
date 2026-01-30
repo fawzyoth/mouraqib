@@ -149,15 +149,11 @@
             <ul class="space-y-3 text-gray-600 dark:text-gray-400">
               <li class="flex items-start gap-3">
                 <Check class="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                <span>باش نبعثولك إيمايل تأكيد</span>
-              </li>
-              <li class="flex items-start gap-3">
-                <Check class="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
                 <span>باش نتواصلو معاك قبل اللونسمون</span>
               </li>
               <li class="flex items-start gap-3">
                 <Check class="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                <span>شهر كامل ببلاش + 500 كولي مجاني</span>
+                <span>شهر كامل ببلاش</span>
               </li>
             </ul>
           </div>
