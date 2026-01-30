@@ -425,10 +425,12 @@ async function fetchRegisteredCount() {
       .select('*', { count: 'exact', head: true })
 
     if (!error && count !== null) {
-      registeredCount.value = Math.max(5, Math.min(count, 100))
+      // Start from 5 and add real count
+      registeredCount.value = Math.min(5 + count, 100)
     }
   } catch (e) {
     console.error('Error fetching count:', e)
+    // Keep default value of 5 on error
   }
 }
 
