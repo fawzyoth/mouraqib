@@ -17,7 +17,7 @@
               <Sun v-else class="w-5 h-5" />
             </button>
             <router-link to="/" class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
-              الرئيسية
+              الصفحة الكل
             </router-link>
           </div>
         </div>
@@ -34,17 +34,17 @@
       <div class="max-w-4xl mx-auto text-center w-full">
         <div class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-100 to-orange-50 dark:from-orange-900/30 dark:to-orange-800/20 rounded-full mb-8 border border-orange-200/50 dark:border-orange-700/30">
           <span class="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
-          <span class="text-sm font-medium text-orange-700 dark:text-orange-400">قريبا - {{ spotsLeft }} مقعد متاح</span>
+          <span class="text-sm font-medium text-orange-700 dark:text-orange-400">قريب - {{ spotsLeft }} بلاصة باقية</span>
         </div>
 
         <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white leading-relaxed mb-6">
-          تابع <span class="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-600">كل طرودك</span>
+          تابع <span class="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-600">كل الكوليات متاعك</span>
           <br class="hidden sm:block" />
-          من مكان واحد
+          من بلاصة وحدة
         </h1>
 
         <p class="text-xl text-gray-600 dark:text-gray-400 leading-loose max-w-2xl mx-auto mb-10">
-          لا مزيد من التنقل بين المواقع. كل شحناتك، كل الشركات، في لوحة واحدة.
+          ما عادش لازم تنقّل بين السيتات. كل الكوليات، كل الشركات، في tableau وحدة.
         </p>
 
         <!-- CTA Button -->
@@ -52,7 +52,7 @@
           @click="scrollToForm"
           class="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-2xl transition-all shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 text-lg"
         >
-          <span>سجل الآن مجانا</span>
+          <span>سجّل توّا ببلاش</span>
           <ChevronDown class="w-5 h-5 animate-bounce" />
         </button>
 
@@ -60,15 +60,15 @@
         <div class="mt-12 flex items-center justify-center gap-8 text-sm text-gray-500 dark:text-gray-400">
           <div class="flex items-center gap-2">
             <Check class="w-4 h-4 text-green-500" />
-            <span>مجاني 100%</span>
+            <span>ببلاش 100%</span>
           </div>
           <div class="flex items-center gap-2">
             <Check class="w-4 h-4 text-green-500" />
-            <span>بدون بطاقة بنكية</span>
+            <span>بلا كارت بنكية</span>
           </div>
           <div class="flex items-center gap-2">
             <Check class="w-4 h-4 text-green-500" />
-            <span>+15 شركة توصيل</span>
+            <span>+15 شركة ليفريزون</span>
           </div>
         </div>
       </div>
@@ -78,13 +78,13 @@
     <section class="py-8 px-4 sm:px-6">
       <div class="max-w-3xl mx-auto">
         <div class="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-8 shadow-lg shadow-orange-500/25">
-          <h2 class="text-xl font-semibold text-white text-center mb-6">الإطلاق بعد</h2>
+          <h2 class="text-xl font-semibold text-white text-center mb-6">اللونسمون بعد</h2>
           <div class="grid grid-cols-4 gap-4">
             <div class="text-center">
               <div class="bg-white/20 backdrop-blur rounded-xl p-4 mb-2">
                 <span class="text-3xl sm:text-4xl font-bold text-white">{{ String(countdown.days).padStart(2, '0') }}</span>
               </div>
-              <span class="text-sm text-white/80">يوم</span>
+              <span class="text-sm text-white/80">نهار</span>
             </div>
             <div class="text-center">
               <div class="bg-white/20 backdrop-blur rounded-xl p-4 mb-2">
@@ -115,15 +115,15 @@
         <div class="grid grid-cols-3 gap-4">
           <div class="bg-white dark:bg-gray-800/50 rounded-xl p-4 border border-gray-100 dark:border-gray-800 text-center">
             <div class="text-2xl sm:text-3xl font-bold text-orange-500">{{ registeredCount }}/100</div>
-            <div class="text-xs sm:text-sm text-gray-500">مسجل</div>
+            <div class="text-xs sm:text-sm text-gray-500">مسجّل</div>
           </div>
           <div class="bg-white dark:bg-gray-800/50 rounded-xl p-4 border border-gray-100 dark:border-gray-800 text-center">
             <div class="text-2xl sm:text-3xl font-bold text-orange-500">15+</div>
-            <div class="text-xs sm:text-sm text-gray-500">شركة توصيل</div>
+            <div class="text-xs sm:text-sm text-gray-500">شركة ليفريزون</div>
           </div>
           <div class="bg-white dark:bg-gray-800/50 rounded-xl p-4 border border-gray-100 dark:border-gray-800 text-center">
             <div class="text-2xl sm:text-3xl font-bold text-orange-500">100%</div>
-            <div class="text-xs sm:text-sm text-gray-500">مجاني</div>
+            <div class="text-xs sm:text-sm text-gray-500">ببلاش</div>
           </div>
         </div>
       </div>
@@ -137,20 +137,20 @@
             <div class="w-14 h-14 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center mx-auto mb-4">
               <UserPlus class="w-7 h-7 text-orange-600" />
             </div>
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">سجل الآن</h2>
-            <p class="text-gray-600 dark:text-gray-400">املأ البيانات وانضم لقائمة الانتظار</p>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">سجّل توّا</h2>
+            <p class="text-gray-600 dark:text-gray-400">عبّي المعلومات وادخل للّيست</p>
           </div>
 
           <form @submit.prevent="submitForm" class="space-y-5">
             <!-- Name Fields -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">الاسم <span class="text-red-500">*</span></label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">الإسم <span class="text-red-500">*</span></label>
                 <input
                   v-model="form.firstName"
                   type="text"
                   required
-                  placeholder="الاسم"
+                  placeholder="الإسم"
                   class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all text-base"
                 />
               </div>
@@ -168,7 +168,7 @@
 
             <!-- Email -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">البريد الإلكتروني <span class="text-red-500">*</span></label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">الإيمايل <span class="text-red-500">*</span></label>
               <input
                 v-model="form.email"
                 type="email"
@@ -181,7 +181,7 @@
 
             <!-- Phone -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">رقم الهاتف <span class="text-red-500">*</span></label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">نمرة التيليفون <span class="text-red-500">*</span></label>
               <input
                 v-model="form.phone"
                 type="tel"
@@ -194,30 +194,30 @@
 
             <!-- Website/Project -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">موقعك أو صفحتك</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">الموقع ولاّ الصفحة متاعك</label>
               <input
                 v-model="form.website"
                 type="text"
-                placeholder="رابط الموقع أو اسم الصفحة"
+                placeholder="اللينك ولاّ اسم الصفحة"
                 class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all text-base"
               />
             </div>
 
             <!-- Delivery Companies - Text Field -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">شركات التوصيل <span class="text-red-500">*</span></label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">شركات الليفريزون <span class="text-red-500">*</span></label>
               <input
                 v-model="form.deliveryCompanies"
                 type="text"
                 required
-                placeholder="مثال: Aramex, Rapid Poste, DHL"
+                placeholder="مثلا: Aramex, Rapid Poste, DHL"
                 class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all text-base"
               />
             </div>
 
             <!-- Main Problems - Multi Select -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">ما هي المشاكل التي تواجهها؟ <span class="text-red-500">*</span></label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">شنوّا المشاكل إلّي عندك؟ <span class="text-red-500">*</span></label>
               <div class="space-y-2">
                 <label
                   v-for="problem in commonProblems"
@@ -242,11 +242,11 @@
 
             <!-- Other Problem -->
             <div v-if="form.problems.includes('other')">
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">وضح المشكلة</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">فسّر المشكلة</label>
               <textarea
                 v-model="form.otherProblem"
                 rows="3"
-                placeholder="اكتب المشكلة..."
+                placeholder="أكتب المشكلة..."
                 class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all resize-none text-base"
               ></textarea>
             </div>
@@ -263,10 +263,10 @@
               class="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-lg"
             >
               <Loader2 v-if="isSubmitting" class="w-5 h-5 animate-spin" />
-              <span v-if="isSubmitting">جاري التسجيل...</span>
-              <span v-else-if="registeredCount >= 100">اكتمل العدد</span>
+              <span v-if="isSubmitting">راهو يسجّل...</span>
+              <span v-else-if="registeredCount >= 100">كمل العدد</span>
               <template v-else>
-                <span>سجل الآن</span>
+                <span>سجّل توّا</span>
                 <ArrowLeft class="w-5 h-5" />
               </template>
             </button>
@@ -276,9 +276,9 @@
           <div v-if="showSuccess" class="mt-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
             <div class="flex items-center gap-2 text-green-700 dark:text-green-400 mb-2">
               <CheckCircle class="w-5 h-5" />
-              <span class="font-semibold">تم التسجيل!</span>
+              <span class="font-semibold">تسجّلت!</span>
             </div>
-            <p class="text-sm text-green-600 dark:text-green-500">شكرا! سنتواصل معك قريبا.</p>
+            <p class="text-sm text-green-600 dark:text-green-500">يعيشك! باش نتواصلو معاك قريب.</p>
           </div>
         </div>
       </div>
@@ -288,8 +288,8 @@
     <section class="py-16 px-4 sm:px-6 bg-gray-50 dark:bg-gray-900">
       <div class="max-w-4xl mx-auto">
         <div class="text-center mb-12">
-          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">ماذا ستحصل؟</h2>
-          <p class="mt-4 text-gray-600 dark:text-gray-400">خدمات تسهل عليك العمل</p>
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">شنوّا باش تلقى؟</h2>
+          <p class="mt-4 text-gray-600 dark:text-gray-400">خدمات تسهّللك الخدمة</p>
         </div>
 
         <div class="grid md:grid-cols-3 gap-6">
@@ -297,24 +297,24 @@
             <div class="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center mb-4">
               <LayoutDashboard class="w-6 h-6 text-orange-600" />
             </div>
-            <h3 class="font-semibold text-gray-900 dark:text-white mb-2 text-lg">لوحة تحكم واحدة</h3>
-            <p class="text-gray-600 dark:text-gray-400">تابع كل طرودك من مكان واحد</p>
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-2 text-lg">Tableau de bord واحد</h3>
+            <p class="text-gray-600 dark:text-gray-400">تابع كل الكوليات متاعك من بلاصة وحدة</p>
           </div>
 
           <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-shadow">
             <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mb-4">
               <Bell class="w-6 h-6 text-blue-600" />
             </div>
-            <h3 class="font-semibold text-gray-900 dark:text-white mb-2 text-lg">تنبيهات فورية</h3>
-            <p class="text-gray-600 dark:text-gray-400">إشعارات لك ولعملائك</p>
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-2 text-lg">Notifications فورية</h3>
+            <p class="text-gray-600 dark:text-gray-400">إشعارات ليك ولعملائك</p>
           </div>
 
           <div class="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-shadow">
             <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center mb-4">
               <BarChart3 class="w-6 h-6 text-green-600" />
             </div>
-            <h3 class="font-semibold text-gray-900 dark:text-white mb-2 text-lg">تقارير واضحة</h3>
-            <p class="text-gray-600 dark:text-gray-400">إحصائيات تساعدك في القرارات</p>
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-2 text-lg">Rapports واضحين</h3>
+            <p class="text-gray-600 dark:text-gray-400">إحصائيات تعاونك في القرارات</p>
           </div>
         </div>
       </div>
@@ -403,11 +403,11 @@ const registeredCount = ref(5)
 const spotsLeft = computed(() => 100 - registeredCount.value)
 
 const commonProblems = [
-  { id: 'tracking', title: 'صعب أتابع الطرود' },
-  { id: 'returns', title: 'مشكلة في المرتجعات' },
-  { id: 'notifications', title: 'ما عندي إشعارات' },
-  { id: 'reports', title: 'أحتاج تقارير' },
-  { id: 'time', title: 'يضيع وقتي كثير' },
+  { id: 'tracking', title: 'صعيب نتابع الكوليات' },
+  { id: 'returns', title: 'مشكلة في الretours' },
+  { id: 'notifications', title: 'ما عنديش notifications' },
+  { id: 'reports', title: 'نحتاج rapports' },
+  { id: 'time', title: 'يضيّع برشا وقت' },
   { id: 'other', title: 'مشكلة أخرى' }
 ]
 
@@ -429,12 +429,12 @@ async function submitForm() {
   errorMessage.value = ''
 
   if (!form.firstName || !form.lastName || !form.email || !form.phone || !form.deliveryCompanies || form.problems.length === 0) {
-    errorMessage.value = 'الرجاء ملء كل الحقول المطلوبة'
+    errorMessage.value = 'لازم تعبّي الخانات الكل'
     return
   }
 
   if (registeredCount.value >= 100) {
-    errorMessage.value = 'عذرا، اكتمل العدد المسموح'
+    errorMessage.value = 'معذرة، كمل العدد'
     return
   }
 
@@ -456,9 +456,9 @@ async function submitForm() {
 
     if (error) {
       if (error.code === '23505') {
-        errorMessage.value = 'هذا البريد الإلكتروني مسجل مسبقا'
+        errorMessage.value = 'هذا الإيمايل مسجّل من قبل'
       } else {
-        errorMessage.value = 'حدث خطأ. حاول مرة أخرى'
+        errorMessage.value = 'صار مشكل. عاود حاول'
         console.error('Supabase error:', error)
       }
       return
@@ -477,7 +477,7 @@ async function submitForm() {
     form.problems = []
     form.otherProblem = ''
   } catch (e) {
-    errorMessage.value = 'حدث خطأ في الاتصال. حاول مرة أخرى'
+    errorMessage.value = 'صار مشكل في الconnexion. عاود حاول'
     console.error('Error:', e)
   } finally {
     isSubmitting.value = false
