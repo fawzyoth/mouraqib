@@ -125,10 +125,46 @@
       </div>
     </section>
 
-    <!-- Registration Form -->
+    <!-- Registration Form / Thank You Section -->
     <section id="registration-form" class="py-12 px-4 sm:px-6">
       <div class="max-w-2xl mx-auto">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl p-8 border border-gray-200 dark:border-gray-700 shadow-xl shadow-gray-200/50 dark:shadow-black/20">
+        <!-- Thank You View -->
+        <div v-if="showSuccess" class="bg-white dark:bg-gray-800 rounded-2xl p-8 border border-gray-200 dark:border-gray-700 shadow-xl shadow-gray-200/50 dark:shadow-black/20 text-center">
+          <div class="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle class="w-10 h-10 text-green-600" />
+          </div>
+          <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">يعيشك على التسجيل!</h2>
+          <p class="text-xl text-gray-600 dark:text-gray-400 mb-8">تسجّلت في الليست بنجاح</p>
+
+          <!-- Position Number -->
+          <div class="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-8 mb-8">
+            <p class="text-white/80 text-lg mb-2">رقمك في الليست</p>
+            <div class="text-6xl sm:text-7xl font-bold text-white mb-2">#{{ userPosition }}</div>
+            <p class="text-white/70 text-sm">من أصل 100 بلاصة</p>
+          </div>
+
+          <!-- What's Next -->
+          <div class="bg-gray-50 dark:bg-gray-900 rounded-xl p-6 text-right">
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-4">شنوّا باش يصير توّا؟</h3>
+            <ul class="space-y-3 text-gray-600 dark:text-gray-400">
+              <li class="flex items-start gap-3">
+                <Check class="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                <span>باش نبعثولك إيمايل تأكيد</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <Check class="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                <span>باش نتواصلو معاك قبل اللونسمون</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <Check class="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                <span>شهر كامل ببلاش + 500 كولي مجاني</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Registration Form -->
+        <div v-else class="bg-white dark:bg-gray-800 rounded-2xl p-8 border border-gray-200 dark:border-gray-700 shadow-xl shadow-gray-200/50 dark:shadow-black/20">
           <div class="text-center mb-8">
             <div class="w-14 h-14 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center mx-auto mb-4">
               <UserPlus class="w-7 h-7 text-orange-600" />
@@ -267,15 +303,6 @@
               </template>
             </button>
           </form>
-
-          <!-- Success Message -->
-          <div v-if="showSuccess" class="mt-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
-            <div class="flex items-center gap-2 text-green-700 dark:text-green-400 mb-2">
-              <CheckCircle class="w-5 h-5" />
-              <span class="font-semibold">تسجّلت!</span>
-            </div>
-            <p class="text-sm text-green-600 dark:text-green-500">يعيشك! باش نتواصلو معاك قريب.</p>
-          </div>
         </div>
       </div>
     </section>
@@ -382,6 +409,7 @@ const isSubmitting = ref(false)
 const showSuccess = ref(false)
 const errorMessage = ref('')
 const registeredCount = ref(5)
+const userPosition = ref(0)
 
 const spotsLeft = computed(() => 100 - registeredCount.value)
 
@@ -447,8 +475,10 @@ async function submitForm() {
       return
     }
 
-    showSuccess.value = true
+    // Set user position before incrementing
+    userPosition.value = registeredCount.value + 1
     registeredCount.value = Math.min(registeredCount.value + 1, 100)
+    showSuccess.value = true
 
     // Reset form
     form.firstName = ''
