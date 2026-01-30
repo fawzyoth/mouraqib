@@ -112,7 +112,7 @@
     <!-- Stats -->
     <section class="py-8 px-4 sm:px-6">
       <div class="max-w-3xl mx-auto">
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-2 gap-4">
           <div class="bg-white dark:bg-gray-800/50 rounded-xl p-4 border border-gray-100 dark:border-gray-800 text-center">
             <div class="text-2xl sm:text-3xl font-bold text-orange-500">{{ registeredCount }}/100</div>
             <div class="text-xs sm:text-sm text-gray-500">مسجّل</div>
@@ -120,10 +120,6 @@
           <div class="bg-white dark:bg-gray-800/50 rounded-xl p-4 border border-gray-100 dark:border-gray-800 text-center">
             <div class="text-2xl sm:text-3xl font-bold text-orange-500">15+</div>
             <div class="text-xs sm:text-sm text-gray-500">شركة ليفريزون</div>
-          </div>
-          <div class="bg-white dark:bg-gray-800/50 rounded-xl p-4 border border-gray-100 dark:border-gray-800 text-center">
-            <div class="text-2xl sm:text-3xl font-bold text-orange-500">100%</div>
-            <div class="text-xs sm:text-sm text-gray-500">ببلاش</div>
           </div>
         </div>
       </div>
@@ -181,7 +177,7 @@
 
             <!-- Phone -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">نمرة التيليفون <span class="text-red-500">*</span></label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">نومرو التيليفون <span class="text-red-500">*</span></label>
               <input
                 v-model="form.phone"
                 type="tel"
