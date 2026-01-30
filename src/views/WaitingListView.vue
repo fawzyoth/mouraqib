@@ -288,8 +288,21 @@
     <section class="py-16 px-4 sm:px-6 bg-gray-50 dark:bg-gray-900">
       <div class="max-w-4xl mx-auto">
         <div class="text-center mb-12">
-          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">شنوّا باش تلقى؟</h2>
-          <p class="mt-4 text-gray-600 dark:text-gray-400">خدمات تسهّللك الخدمة</p>
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">شنوّا باش تربح كي تسجّل؟</h2>
+          <p class="mt-4 text-gray-600 dark:text-gray-400">عرض خاص للمسجّلين الأوائل</p>
+        </div>
+
+        <!-- Main Offer -->
+        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-8 mb-8 text-white text-center shadow-xl shadow-orange-500/25">
+          <div class="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur rounded-full mb-6">
+            <span class="text-sm font-medium">عرض حصري</span>
+          </div>
+          <h3 class="text-3xl sm:text-4xl font-bold mb-4">شهر كامل ببلاش</h3>
+          <p class="text-xl text-white/90 mb-6">+ تتبّع 500 كولي مجاني</p>
+          <div class="flex items-center justify-center gap-2 text-white/80">
+            <Check class="w-5 h-5" />
+            <span>للمسجّلين في الليست فقط</span>
+          </div>
         </div>
 
         <div class="grid md:grid-cols-3 gap-6">
@@ -338,9 +351,8 @@ import { supabase } from '@/lib/supabase'
 
 const themeStore = useThemeStore()
 
-// Countdown timer
-const launchDate = new Date()
-launchDate.setDate(launchDate.getDate() + 14) // 2 weeks from now
+// Countdown timer - Fixed launch date: February 13, 2026
+const launchDate = new Date('2026-02-13T00:00:00')
 
 const countdown = reactive({
   days: 0,
