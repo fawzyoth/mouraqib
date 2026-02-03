@@ -16,8 +16,8 @@
               <Moon v-if="!themeStore.isDark" class="w-5 h-5" />
               <Sun v-else class="w-5 h-5" />
             </button>
-            <router-link to="/" class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
-              الصفحة الكل
+            <router-link to="/landing" class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
+              الصفحة الرئيسية
             </router-link>
           </div>
         </div>

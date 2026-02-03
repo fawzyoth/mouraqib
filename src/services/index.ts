@@ -1,0 +1,7 @@
+export { shipmentsService } from './shipments'
+export { clientsService } from './clients'
+export { boutiquesService } from './boutiques'
+export { carriersService } from './carriers'
+export { pickupsService } from './pickups'
+export { transactionsService } from './transactions'
+export { organizationsService } from './organizations'

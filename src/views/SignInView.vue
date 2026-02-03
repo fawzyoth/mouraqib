@@ -98,31 +98,35 @@
       </div>
     </div>
 
-    <!-- Right Side - Illustration -->
-    <div class="hidden lg:flex flex-1 items-center justify-center p-8" style="background-color: #222628;">
-      <div class="text-center max-w-lg">
-        <div class="mb-8">
-          <Package class="w-24 h-24 text-orange-500 mx-auto" />
-        </div>
-        <h2 class="text-3xl font-bold text-white mb-4">
+    <!-- Right Side - Animated Illustration -->
+    <div class="hidden lg:flex flex-1 items-center justify-center relative overflow-hidden" style="background-color: #222628;">
+      <!-- Header Text -->
+      <div class="absolute top-8 left-0 right-0 text-center z-20 px-8">
+        <h2 class="text-2xl font-bold text-white mb-2">
           Suivez vos colis en temps réel
         </h2>
-        <p class="text-gray-400 text-lg">
-          Gérez toutes vos expéditions depuis une seule plateforme.
-          Notifications automatiques, statistiques détaillées et plus encore.
+        <p class="text-gray-400 text-sm max-w-md mx-auto">
+          Visualisez en direct comment fonctionne votre futur tableau de bord
         </p>
-        <div class="mt-8 flex items-center justify-center space-x-8 text-gray-400">
+      </div>
+
+      <!-- Animation Component -->
+      <DeliveryAnimation class="w-full h-full" />
+
+      <!-- Bottom Stats -->
+      <div class="absolute bottom-8 left-0 right-0 z-20">
+        <div class="flex items-center justify-center space-x-8 text-gray-400">
           <div class="text-center">
-            <p class="text-2xl font-bold text-white">1000+</p>
-            <p class="text-sm">Colis suivis</p>
+            <p class="text-xl font-bold text-white">1000+</p>
+            <p class="text-xs">Colis suivis</p>
           </div>
           <div class="text-center">
-            <p class="text-2xl font-bold text-white">98%</p>
-            <p class="text-sm">Taux de livraison</p>
+            <p class="text-xl font-bold text-white">98%</p>
+            <p class="text-xs">Taux de livraison</p>
           </div>
           <div class="text-center">
-            <p class="text-2xl font-bold text-white">24/7</p>
-            <p class="text-sm">Support</p>
+            <p class="text-xl font-bold text-white">24/7</p>
+            <p class="text-xs">Support</p>
           </div>
         </div>
       </div>
@@ -135,7 +139,8 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
-import { Eye, EyeOff, Loader2, Moon, Sun, Package } from 'lucide-vue-next'
+import { Eye, EyeOff, Loader2, Moon, Sun } from 'lucide-vue-next'
+import DeliveryAnimation from '@/components/DeliveryAnimation.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()

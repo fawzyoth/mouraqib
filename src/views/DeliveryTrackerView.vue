@@ -1,7 +1,109 @@
 <template>
   <div class="flex h-screen bg-gray-100 dark:bg-gray-950">
-    <!-- Sidebar 1 - Main Sections -->
-    <aside class="w-56 text-white flex flex-col" style="background-color: #222628;">
+    <!-- Mobile Header -->
+    <div class="fixed top-0 left-0 right-0 z-40 lg:hidden bg-gray-900 text-white px-4 py-3 flex items-center justify-between">
+      <button @click="sidebarOpen = true" class="p-2 hover:bg-gray-800 rounded-lg">
+        <Menu class="w-6 h-6" />
+      </button>
+      <span class="text-base font-semibold">{{ getMainSectionLabel(mainSection) }}</span>
+      <div class="flex items-center gap-2">
+        <button @click="openGlobalSearch" class="p-2 hover:bg-gray-800 rounded-lg">
+          <Search class="w-5 h-5" />
+        </button>
+        <button @click="languageStore.toggleLanguage()" class="p-2 hover:bg-gray-800 rounded-lg">
+          <Globe class="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Full-Screen Main Menu Overlay -->
+    <div
+      :class="[
+        'fixed inset-0 z-50 lg:hidden text-white flex flex-col transform transition-transform duration-300 ease-in-out',
+        sidebarOpen ? 'translate-x-0' : (languageStore.isRTL ? 'translate-x-full' : '-translate-x-full')
+      ]"
+      style="background-color: #222628;"
+    >
+      <!-- Mobile Menu Header -->
+      <div class="flex items-center justify-between p-4 border-b border-gray-800">
+        <img src="@/logo/Group 14.svg" alt="Logo" class="h-8 w-auto" />
+        <button @click="sidebarOpen = false" class="p-2 hover:bg-gray-700 rounded-lg">
+          <X class="w-6 h-6" />
+        </button>
+      </div>
+
+      <!-- Mobile Menu Navigation -->
+      <nav class="flex-1 py-4 overflow-y-auto">
+        <ul class="space-y-1 px-3">
+          <li v-for="item in filteredMainNavigation" :key="item.id">
+            <button
+              @click="selectMainSection(item.id); sidebarOpen = false"
+              :class="[
+                'w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-base font-medium transition-colors',
+                mainSection === item.id
+                  ? 'text-orange-500'
+                  : 'text-gray-300 hover:text-white'
+              ]"
+              :style="mainSection === item.id ? { backgroundColor: '#111314' } : {}"
+            >
+              <component :is="item.icon" class="w-5 h-5" />
+              <span>{{ item.label }}</span>
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      <!-- Mobile Menu User Section -->
+      <div class="border-t border-gray-800 p-4">
+        <div class="flex items-center space-x-3 px-3 py-2">
+          <div class="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center">
+            <span class="text-base font-semibold text-white">{{ authStore.user?.name?.charAt(0) || organization.name.charAt(0) }}</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-base font-medium text-white truncate">{{ authStore.user?.name || organization.name }}</p>
+            <p class="text-sm text-gray-400 truncate">{{ authStore.user?.email || organization.email }}</p>
+          </div>
+          <button
+            @click="handleLogout"
+            class="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <LogOut class="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile SubMenu Panel (slides from top) -->
+    <div
+      :class="[
+        'fixed left-0 right-0 z-30 lg:hidden bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out overflow-hidden',
+        subMenuOpen ? 'translate-y-0' : '-translate-y-full'
+      ]"
+      style="top: 56px;"
+    >
+      <nav class="py-2 max-h-64 overflow-y-auto">
+        <ul class="space-y-0.5">
+          <li v-for="item in currentSubNavigation" :key="item.id">
+            <button
+              @click="activeSection = item.id; subMenuOpen = false"
+              :class="[
+                'w-full flex items-center space-x-3 py-2.5 px-4 text-sm font-medium transition-colors',
+                activeSection === item.id
+                  ? 'bg-gray-100 text-orange-500 dark:bg-gray-800 dark:text-orange-400'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+              ]"
+            >
+              <component :is="item.icon" class="w-4 h-4" />
+              <span>{{ item.label }}</span>
+              <span v-if="item.badge" class="ml-auto px-2 py-0.5 text-xs rounded-full" :class="item.badgeClass">{{ item.badge }}</span>
+            </button>
+          </li>
+        </ul>
+      </nav>
+    </div>
+
+    <!-- Sidebar 1 - Main Sections (Desktop only) -->
+    <aside class="hidden lg:flex w-56 text-white flex-col" style="background-color: #222628;">
       <!-- Logo -->
       <div class="p-4">
         <img src="@/logo/Group 14.svg" alt="Logo" class="h-8 w-auto" />
@@ -10,7 +112,7 @@
       <!-- Main Navigation -->
       <nav class="flex-1 py-2 overflow-y-auto">
         <ul class="space-y-1 px-3">
-          <li v-for="item in mainNavigation" :key="item.id">
+          <li v-for="item in filteredMainNavigation" :key="item.id">
             <button
               @click="selectMainSection(item.id)"
               :class="[
@@ -81,8 +183,19 @@
       </div>
     </aside>
 
-    <!-- Sidebar 2 - Sub-sections (dynamic based on mainSection) -->
-    <aside class="w-64 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col">
+    <!-- Sidebar 2 - Sub-sections (Desktop only) -->
+    <aside class="hidden lg:flex w-64 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex-col">
+      <!-- Global Search Button -->
+      <div class="p-3 border-b border-gray-200 dark:border-gray-800">
+        <button
+          @click="openGlobalSearch"
+          class="w-full flex items-center gap-3 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-500 hover:border-[#4959b4] hover:text-[#4959b4] transition-colors"
+        >
+          <Search class="w-4 h-4" />
+          <span>Rechercher un colis...</span>
+          <kbd class="ml-auto hidden sm:inline-flex px-2 py-0.5 text-xs font-medium text-gray-400 bg-gray-100 dark:bg-gray-700 rounded">⌘K</kbd>
+        </button>
+      </div>
       <!-- Section Title -->
       <div class="p-4 border-b border-gray-200 dark:border-gray-800">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ getMainSectionLabel(mainSection) }}</h2>
@@ -125,39 +238,39 @@
     </aside>
 
     <!-- Main Content -->
-    <div class="flex-1 flex flex-col overflow-hidden">
+    <div class="flex-1 flex flex-col overflow-hidden pt-14 lg:pt-0">
       <!-- Shipments Section -->
-      <template v-if="activeSection === 'all-shipments' || activeSection === 'shipment-status' || activeSection === 'search-filters' || activeSection === 'shipment-history'">
+      <template v-if="activeSection === 'all-shipments'">
         <!-- Header -->
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Colis</h1>
-              <p class="text-sm text-gray-500 mt-1">Gérez tous vos colis et expéditions</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Colis</h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Gérez tous vos colis et expéditions</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
-              <button class="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-                <Download class="w-4 h-4" />
-                <span>Import CSV</span>
-              </button>
-              <button class="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-                <Upload class="w-4 h-4" />
-                <span>Import application</span>
-              </button>
-              <button class="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+            <div class="flex items-center space-x-2 sm:space-x-3">
+              <button class="hidden sm:flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors border border-gray-200 dark:border-gray-700">
                 <Upload class="w-4 h-4" />
                 <span>Exporter</span>
               </button>
-              <button class="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-                <span>Plus d'actions</span>
-                <ChevronDown class="w-4 h-4" />
+              <button
+                @click="openBulkImport"
+                class="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors border border-gray-200 dark:border-gray-700"
+              >
+                <Download class="w-4 h-4" />
+                <span class="hidden sm:inline">Importer</span>
               </button>
               <button
                 @click="showAddShipmentModal = true"
-                class="btn-primary"
+                class="btn-primary text-xs sm:text-sm px-3 sm:px-4 py-2"
               >
                 <Plus class="w-4 h-4" />
-                <span>Ajouter un colis</span>
+                <span class="hidden sm:inline">Nouveau colis</span>
               </button>
             </div>
           </div>
@@ -224,6 +337,7 @@
             </div>
 
             <!-- Table -->
+            <div class="table-responsive">
             <table class="w-full">
               <thead class="bg-gray-50 dark:bg-gray-800/50">
                 <tr>
@@ -241,22 +355,22 @@
                   <td class="px-4 py-3" @click.stop>
                     <input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-primary-blue focus:ring-primary-blue" />
                   </td>
-                  <td class="px-4 py-3">
+                  <td class="px-4 py-3" data-label="N° Suivi">
                     <div class="flex items-center space-x-2">
                       <span class="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">Exemple</span>
                       <span class="font-mono text-sm text-gray-900 dark:text-white">{{ shipment.trackingNumber }}</span>
                     </div>
                   </td>
-                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ shipment.carrier }}</td>
-                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ shipment.service || '-' }}</td>
-                  <td class="px-4 py-3">
+                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Transporteur">{{ shipment.carrier }}</td>
+                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Service">{{ shipment.service || '-' }}</td>
+                  <td class="px-4 py-3" data-label="Statut">
                     <span :class="['inline-flex items-center space-x-1 text-sm font-medium', getStatusTextClass(shipment.status)]">
                       <span :class="['w-2 h-2 rounded-full', getStatusDotClass(shipment.status)]"></span>
                       <span>{{ getStatusLabel(shipment.status) }}</span>
                     </span>
                   </td>
-                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ shipment.latestEvent }}</td>
-                  <td class="px-4 py-3">
+                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Événement">{{ shipment.latestEvent }}</td>
+                  <td class="px-4 py-3" data-label="Origine">
                     <div class="flex items-center space-x-2">
                       <span class="text-lg">{{ shipment.originFlag }}</span>
                       <span class="text-sm text-gray-600 dark:text-gray-400">{{ shipment.origin }}</span>
@@ -265,6 +379,7 @@
                 </tr>
               </tbody>
             </table>
+            </div>
 
             <!-- Pagination -->
             <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
@@ -286,11 +401,16 @@
 
       <!-- ==================== CLIENTS SECTION: ALL CLIENTS ==================== -->
       <template v-if="activeSection === 'all-clients'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Tous les Clients</h1>
-              <p class="text-sm text-gray-500 mt-1">Gérez votre base de clients</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Tous les Clients</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Gérez votre base de clients</p>
+              </div>
             </div>
             <button @click="showAddClientModal = true" class="btn-primary">
               <Plus class="w-4 h-4" />
@@ -375,7 +495,7 @@
             </div>
 
             <!-- Clients Table -->
-            <div class="overflow-x-auto">
+            <div class="table-responsive">
               <table class="w-full">
                 <thead class="bg-gray-50 dark:bg-gray-800/50">
                   <tr>
@@ -391,7 +511,7 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                   <tr v-for="client in filteredClients" :key="client.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                    <td class="px-4 py-4">
+                    <td class="px-4 py-4" data-label="Client">
                       <div class="flex items-center space-x-3">
                         <div class="w-10 h-10 rounded-full bg-primary-blue/10 flex items-center justify-center">
                           <span class="text-sm font-semibold text-primary-blue">{{ client.name.charAt(0) }}</span>
@@ -402,25 +522,25 @@
                         </div>
                       </div>
                     </td>
-                    <td class="px-4 py-4">
+                    <td class="px-4 py-4" data-label="Contact">
                       <p class="text-sm text-gray-900 dark:text-white">{{ client.phone }}</p>
                     </td>
-                    <td class="px-4 py-4">
+                    <td class="px-4 py-4" data-label="Adresse">
                       <p class="text-sm text-gray-600 dark:text-gray-400">{{ client.address }}</p>
                       <p class="text-xs text-gray-500">{{ client.region }}</p>
                     </td>
-                    <td class="px-4 py-4">
+                    <td class="px-4 py-4" data-label="Commandes">
                       <p class="text-sm font-medium text-gray-900 dark:text-white">{{ client.totalOrders }}</p>
                     </td>
-                    <td class="px-4 py-4">
+                    <td class="px-4 py-4" data-label="Taux">
                       <span class="text-sm font-medium" :class="client.deliveryRate >= 80 ? 'text-green-600' : client.deliveryRate >= 50 ? 'text-yellow-600' : 'text-red-600'">
                         {{ client.deliveryRate }}%
                       </span>
                     </td>
-                    <td class="px-4 py-4">
+                    <td class="px-4 py-4" data-label="Total">
                       <p class="text-sm font-medium text-gray-900 dark:text-white">{{ client.totalSpent.toLocaleString() }} TND</p>
                     </td>
-                    <td class="px-4 py-4">
+                    <td class="px-4 py-4" data-label="Statut">
                       <span :class="[
                         'px-2 py-1 text-xs font-medium rounded-full',
                         client.status === 'active' ? 'bg-green-100 text-green-700' :
@@ -431,7 +551,7 @@
                         {{ client.status === 'active' ? 'Actif' : client.status === 'vip' ? 'VIP' : client.status === 'blocked' ? 'Bloqué' : 'Inactif' }}
                       </span>
                     </td>
-                    <td class="px-4 py-4">
+                    <td class="px-4 py-4" data-label="Actions">
                       <div class="flex items-center space-x-2">
                         <button @click="viewClientDetails(client)" class="p-2 text-gray-500 hover:text-primary-blue hover:bg-primary-blue/10 rounded-lg">
                           <Eye class="w-4 h-4" />
@@ -457,11 +577,16 @@
 
       <!-- ==================== CLIENTS SECTION: ADD CLIENT ==================== -->
       <template v-if="activeSection === 'add-client'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Ajouter un Client</h1>
-              <p class="text-sm text-gray-500 mt-1">Créer un nouveau profil client</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Ajouter un Client</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Créer un nouveau profil client</p>
+              </div>
             </div>
           </div>
         </header>
@@ -558,14 +683,19 @@
 
       <!-- ==================== CLIENTS SECTION: VIP CLIENTS ==================== -->
       <template v-if="activeSection === 'vip-clients'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
-                <Star class="w-6 h-6 mr-2 text-purple-600 fill-purple-600" />
-                Clients VIP
-              </h1>
-              <p class="text-sm text-gray-500 mt-1">Vos meilleurs clients avec privilèges spéciaux</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white flex items-center">
+                  <Star class="w-6 h-6 mr-2 text-purple-600 fill-purple-600" />
+                  Clients VIP
+                </h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Vos meilleurs clients avec privilèges spéciaux</p>
+              </div>
             </div>
           </div>
         </header>
@@ -654,14 +784,19 @@
 
       <!-- ==================== CLIENTS SECTION: BLOCKED CLIENTS ==================== -->
       <template v-if="activeSection === 'blocked-clients'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
-                <Ban class="w-6 h-6 mr-2 text-red-600" />
-                Clients Bloqués
-              </h1>
-              <p class="text-sm text-gray-500 mt-1">Clients avec des problèmes récurrents</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white flex items-center">
+                  <Ban class="w-6 h-6 mr-2 text-red-600" />
+                  Clients Bloqués
+                </h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Clients avec des problèmes récurrents</p>
+              </div>
             </div>
           </div>
         </header>
@@ -751,16 +886,21 @@
 
       <!-- ==================== CLIENTS SECTION: STATISTICS ==================== -->
       <template v-if="activeSection === 'client-stats'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
-                <BarChart2 class="w-6 h-6 mr-2 text-primary-blue" />
-                Statistiques Clients
-              </h1>
-              <p class="text-sm text-gray-500 mt-1">Analyse détaillée de votre base clients</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white flex items-center">
+                  <BarChart2 class="w-6 h-6 mr-2 text-primary-blue" />
+                  Statistiques Clients
+                </h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Analyse détaillée de votre base clients</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-2">
+            <div class="hidden sm:flex items-center space-x-2">
               <select v-model="statsTimeRange" class="px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm">
                 <option value="7d">7 derniers jours</option>
                 <option value="30d">30 derniers jours</option>
@@ -874,7 +1014,7 @@
           <!-- Top Clients -->
           <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 mb-6">
             <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Top 5 Clients par Chiffre d'Affaires</h3>
-            <div class="overflow-x-auto">
+            <div class="table-responsive">
               <table class="w-full">
                 <thead class="bg-gray-50 dark:bg-gray-800/50">
                   <tr>
@@ -887,7 +1027,7 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                   <tr v-for="(client, index) in topClientsByRevenue" :key="client.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                    <td class="px-4 py-4">
+                    <td class="px-4 py-4" data-label="Rang">
                       <span :class="[
                         'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold',
                         index === 0 ? 'bg-yellow-100 text-yellow-700' :
@@ -896,7 +1036,7 @@
                         'bg-gray-50 text-gray-500'
                       ]">{{ index + 1 }}</span>
                     </td>
-                    <td class="px-4 py-4">
+                    <td class="px-4 py-4" data-label="Client">
                       <div class="flex items-center space-x-3">
                         <div class="w-10 h-10 rounded-full bg-primary-blue/10 flex items-center justify-center">
                           <span class="text-sm font-semibold text-primary-blue">{{ client.name.charAt(0) }}</span>
@@ -907,15 +1047,15 @@
                         </div>
                       </div>
                     </td>
-                    <td class="px-4 py-4">
+                    <td class="px-4 py-4" data-label="Commandes">
                       <p class="text-sm font-medium text-gray-900 dark:text-white">{{ client.totalOrders }}</p>
                     </td>
-                    <td class="px-4 py-4">
+                    <td class="px-4 py-4" data-label="Taux Livraison">
                       <span class="text-sm font-medium" :class="client.deliveryRate >= 80 ? 'text-green-600' : client.deliveryRate >= 50 ? 'text-yellow-600' : 'text-red-600'">
                         {{ client.deliveryRate }}%
                       </span>
                     </td>
-                    <td class="px-4 py-4">
+                    <td class="px-4 py-4" data-label="Total Dépensé">
                       <p class="text-sm font-bold text-gray-900 dark:text-white">{{ client.totalSpent.toLocaleString() }} TND</p>
                     </td>
                   </tr>
@@ -1150,11 +1290,16 @@
 
       <!-- ==================== DASHBOARD: VUE D'ENSEMBLE ==================== -->
       <template v-if="activeSection === 'overview'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Vue d'ensemble</h1>
-              <p class="text-sm text-gray-500 mt-1">{{ new Date().toLocaleDateString('fr-TN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Vue d'ensemble</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">{{ new Date().toLocaleDateString('fr-TN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}</p>
+              </div>
             </div>
             <div class="flex items-center space-x-3">
               <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors relative">
@@ -1361,13 +1506,18 @@
 
       <!-- ==================== DASHBOARD: TÂCHES DU JOUR ==================== -->
       <template v-if="activeSection === 'today-shipments'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Tâches du jour</h1>
-              <p class="text-sm text-gray-500 mt-1">{{ new Date().toLocaleDateString('fr-TN', { weekday: 'long', day: 'numeric', month: 'long' }) }}</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Tâches du jour</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">{{ new Date().toLocaleDateString('fr-TN', { weekday: 'long', day: 'numeric', month: 'long' }) }}</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
+            <div class="hidden sm:flex items-center space-x-3">
               <span class="text-sm text-gray-500">
                 <span class="font-semibold text-green-600">{{ dailyTasksStats.completed }}</span> / {{ dailyTasksStats.total }} terminées
               </span>
@@ -1498,13 +1648,18 @@
 
       <!-- ==================== DASHBOARD: COLIS EN RETARD ==================== -->
       <template v-if="activeSection === 'delayed-shipments'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Colis en retard</h1>
-              <p class="text-sm text-gray-500 mt-1">{{ filteredDelayedShipmentsByDate.length }} colis nécessitent votre attention</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Colis en retard</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">{{ filteredDelayedShipmentsByDate.length }} colis nécessitent votre attention</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
+            <div class="hidden sm:flex items-center space-x-3">
               <button class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                 Exporter
               </button>
@@ -1712,15 +1867,20 @@
 
       <!-- ==================== DASHBOARD: ALERTES RETOURS ==================== -->
       <template v-if="activeSection === 'returns-alerts'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Alertes retours</h1>
-              <p class="text-sm text-gray-500 mt-1">Intervenez avant qu'il ne soit trop tard</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Alertes retours</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Intervenez avant qu'il ne soit trop tard</p>
+              </div>
             </div>
-            <button class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center space-x-2">
+            <button class="flex px-3 sm:px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors items-center space-x-0 sm:space-x-2">
               <MessageCircle class="w-4 h-4" />
-              <span>WhatsApp groupé</span>
+              <span class="hidden sm:inline">WhatsApp groupé</span>
             </button>
           </div>
         </header>
@@ -1879,13 +2039,18 @@
 
       <!-- ==================== DASHBOARD: APERÇU FINANCIER ==================== -->
       <template v-if="activeSection === 'financial-snapshot'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Aperçu financier</h1>
-              <p class="text-sm text-gray-500 mt-1">Suivi de votre trésorerie et paiements</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Aperçu financier</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Suivi de votre trésorerie et paiements</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
+            <div class="hidden sm:flex items-center space-x-3">
               <select class="text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300">
                 <option>Aujourd'hui</option>
                 <option>Cette semaine</option>
@@ -2021,13 +2186,18 @@
 
       <!-- ==================== DASHBOARD: JOURNAL D'ACTIVITÉ ==================== -->
       <template v-if="activeSection === 'activity-log'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Journal d'activité</h1>
-              <p class="text-sm text-gray-500 mt-1">Historique de toutes les actions et événements</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Journal d'activité</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Historique de toutes les actions et événements</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
+            <div class="hidden sm:flex items-center space-x-3">
               <button class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center space-x-2">
                 <Download class="w-4 h-4" />
                 <span>Exporter CSV</span>
@@ -2109,11 +2279,16 @@
 
       <!-- Create Shipment Section -->
       <template v-if="activeSection === 'create-shipment'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Ajouter un colis</h1>
-              <p class="text-sm text-gray-500 mt-1">Créer une nouvelle expédition</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Ajouter un colis</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Créer une nouvelle expédition</p>
+              </div>
             </div>
           </div>
         </header>
@@ -2398,25 +2573,44 @@
               </div>
               <div class="p-6">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Choisir le transporteur <span class="text-red-500">*</span></label>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <button
-                    v-for="carrier in deliveryCarriers"
-                    :key="carrier.id"
-                    type="button"
-                    @click="selectShipmentCarrier(carrier)"
-                    :class="[
-                      'p-4 rounded-xl border-2 text-center transition-all hover:shadow-md',
-                      newShipment.carrier === carrier.name
-                        ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                    ]"
-                  >
-                    <div class="w-12 h-12 rounded-xl mx-auto mb-2 flex items-center justify-center" :style="{ backgroundColor: carrier.color + '20' }">
-                      <Truck class="w-6 h-6" :style="{ color: carrier.color }" />
-                    </div>
-                    <span class="text-sm font-medium" :class="newShipment.carrier === carrier.name ? 'text-orange-600' : 'text-gray-700 dark:text-gray-300'">{{ carrier.name }}</span>
-                    <p class="text-xs text-gray-400 mt-1">{{ carrier.deliveryTime }}</p>
-                  </button>
+
+                <!-- Search input -->
+                <div class="relative mb-4">
+                  <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    v-model="carrierSearchQuery"
+                    type="text"
+                    placeholder="Rechercher un transporteur..."
+                    class="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  />
+                  <span v-if="carrierSearchQuery" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                    {{ filteredCarriers.length }} résultats
+                  </span>
+                </div>
+
+                <!-- Carrier grid with scroll -->
+                <div class="max-h-80 overflow-y-auto rounded-lg border border-gray-100 dark:border-gray-800 p-2">
+                  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <button
+                      v-for="carrier in filteredCarriers"
+                      :key="carrier.id"
+                      type="button"
+                      @click="selectShipmentCarrier(carrier)"
+                      :class="[
+                        'p-3 rounded-xl border-2 text-center transition-all hover:shadow-md',
+                        newShipment.carrier === carrier.name
+                          ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                      ]"
+                    >
+                      <div class="w-10 h-10 rounded-xl mx-auto mb-2 flex items-center justify-center font-bold text-sm" :style="{ backgroundColor: carrier.color + '20', color: carrier.color }">
+                        {{ getCarrierInitials(carrier.name) }}
+                      </div>
+                      <span class="text-xs font-medium block truncate" :class="newShipment.carrier === carrier.name ? 'text-orange-600' : 'text-gray-700 dark:text-gray-300'">{{ carrier.name }}</span>
+                      <p class="text-[10px] text-gray-400 mt-0.5">{{ carrier.deliveryTime }}</p>
+                    </button>
+                  </div>
+                  <p v-if="filteredCarriers.length === 0" class="text-center text-sm text-gray-500 py-8">Aucun transporteur trouvé</p>
                 </div>
                 <p v-if="!newShipment.carrier" class="text-xs text-red-500 mt-2">Veuillez sélectionner un transporteur</p>
               </div>
@@ -2523,7 +2717,7 @@
               <button @click="resetShipmentForm" type="button" class="px-6 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                 Annuler
               </button>
-              <button @click="addShipment" :disabled="!newShipment.carrier" :class="['px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2', !newShipment.carrier && 'opacity-50 cursor-not-allowed']">
+              <button @click="addShipment" :disabled="!newShipment.carrier" :class="['px-6 py-2.5 bg-[#4959b4] hover:bg-[#3a4791] text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2', !newShipment.carrier && 'opacity-50 cursor-not-allowed']">
                 <Plus class="w-4 h-4" />
                 Créer le colis
               </button>
@@ -2534,15 +2728,20 @@
 
       <!-- Notifications Section (Settings) -->
       <template v-if="activeSection === 'notifications'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Flows de notifications</h1>
-              <p class="text-sm text-gray-500 mt-1">Automatisez les notifications pour chaque statut de colis</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Flows de notifications</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Automatisez les notifications pour chaque statut de colis</p>
+              </div>
             </div>
-            <button class="btn-primary">
+            <button class="flex btn-primary px-3 sm:px-4">
               <Plus class="w-4 h-4" />
-              <span>Créer un flow</span>
+              <span class="hidden sm:inline ml-2">Créer un flow</span>
             </button>
           </div>
         </header>
@@ -2628,13 +2827,18 @@
 
       <!-- Analytics Section - KPIs Globaux -->
       <template v-if="activeSection === 'global-kpis'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">KPIs Globaux</h1>
-              <p class="text-sm text-gray-500 mt-1">Vue d'ensemble de vos indicateurs clés de performance</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">KPIs Globaux</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Vue d'ensemble de vos indicateurs clés de performance</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
+            <div class="hidden sm:flex items-center space-x-3">
               <select v-model="analyticsDateRange" class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm">
                 <option value="7">7 derniers jours</option>
                 <option value="30">30 derniers jours</option>
@@ -2754,6 +2958,7 @@
             <div class="p-4 border-b border-gray-200 dark:border-gray-800">
               <h3 class="font-semibold text-gray-900 dark:text-white">Comparaison par Période</h3>
             </div>
+            <div class="table-responsive">
             <table class="w-full">
               <thead class="bg-gray-50 dark:bg-gray-800/50">
                 <tr>
@@ -2765,10 +2970,10 @@
               </thead>
               <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                 <tr v-for="kpi in analyticsKpiComparison" :key="kpi.name" class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                  <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{{ kpi.name }}</td>
-                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ kpi.current }}</td>
-                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ kpi.previous }}</td>
-                  <td class="px-4 py-3">
+                  <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white" data-label="Indicateur">{{ kpi.name }}</td>
+                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Cette période">{{ kpi.current }}</td>
+                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Précédente">{{ kpi.previous }}</td>
+                  <td class="px-4 py-3" data-label="Variation">
                     <span :class="kpi.change > 0 ? 'text-green-600' : 'text-red-600'" class="text-sm font-medium">
                       {{ kpi.change > 0 ? '+' : '' }}{{ kpi.change }}%
                     </span>
@@ -2776,19 +2981,25 @@
                 </tr>
               </tbody>
             </table>
+            </div>
           </div>
         </main>
       </template>
 
       <!-- Analytics Section - Performance Livraison -->
       <template v-if="activeSection === 'delivery-performance'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Performance Livraison</h1>
-              <p class="text-sm text-gray-500 mt-1">Analysez les performances de livraison par transporteur et région</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Performance Livraison</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Analysez les performances de livraison par transporteur et région</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
+            <div class="hidden sm:flex items-center space-x-3">
               <select v-model="analyticsDateRange" class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm">
                 <option value="7">7 derniers jours</option>
                 <option value="30">30 derniers jours</option>
@@ -2827,6 +3038,7 @@
             <div class="p-4 border-b border-gray-200 dark:border-gray-800">
               <h3 class="font-semibold text-gray-900 dark:text-white">Performance par Transporteur</h3>
             </div>
+            <div class="table-responsive">
             <table class="w-full">
               <thead class="bg-gray-50 dark:bg-gray-800/50">
                 <tr>
@@ -2840,10 +3052,10 @@
               </thead>
               <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                 <tr v-for="carrier in carriers" :key="carrier.name" class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                  <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{{ carrier.name }}</td>
-                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ carrier.shipments }}</td>
-                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ carrier.delivered }}</td>
-                  <td class="px-4 py-3">
+                  <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white" data-label="Transporteur">{{ carrier.name }}</td>
+                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Colis">{{ carrier.shipments }}</td>
+                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Livrés">{{ carrier.delivered }}</td>
+                  <td class="px-4 py-3" data-label="Taux">
                     <div class="flex items-center space-x-2">
                       <div class="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div class="h-full bg-green-500 rounded-full" :style="{ width: carrier.deliveryRate + '%' }"></div>
@@ -2851,8 +3063,8 @@
                       <span class="text-sm text-gray-600 dark:text-gray-400">{{ carrier.deliveryRate }}%</span>
                     </div>
                   </td>
-                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ carrier.avgTime }} jours</td>
-                  <td class="px-4 py-3">
+                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Délai">{{ carrier.avgTime }} jours</td>
+                  <td class="px-4 py-3" data-label="Score">
                     <span :class="carrier.deliveryRate >= 90 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : carrier.deliveryRate >= 80 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'" class="px-2 py-1 rounded-full text-xs font-medium">
                       {{ carrier.deliveryRate >= 90 ? 'Excellent' : carrier.deliveryRate >= 80 ? 'Bon' : 'À améliorer' }}
                     </span>
@@ -2860,6 +3072,7 @@
                 </tr>
               </tbody>
             </table>
+            </div>
           </div>
 
           <!-- Regional Performance -->
@@ -2885,13 +3098,18 @@
 
       <!-- Analytics Section - Intelligence Retours -->
       <template v-if="activeSection === 'return-intelligence'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Intelligence Retours</h1>
-              <p class="text-sm text-gray-500 mt-1">Analysez les motifs de retour et identifiez les patterns</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Intelligence Retours</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Analysez les motifs de retour et identifiez les patterns</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
+            <div class="hidden sm:flex items-center space-x-3">
               <select v-model="analyticsDateRange" class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm">
                 <option value="7">7 derniers jours</option>
                 <option value="30">30 derniers jours</option>
@@ -3013,11 +3231,16 @@
 
       <!-- Analytics Section - Zones à Risque -->
       <template v-if="activeSection === 'risk-zones'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Zones à Risque</h1>
-              <p class="text-sm text-gray-500 mt-1">Identifiez les zones géographiques problématiques</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Zones à Risque</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Identifiez les zones géographiques problématiques</p>
+              </div>
             </div>
           </div>
         </header>
@@ -3075,6 +3298,7 @@
                 >Moyen</button>
               </div>
             </div>
+            <div class="table-responsive">
             <table class="w-full">
               <thead class="bg-gray-50 dark:bg-gray-800/50">
                 <tr>
@@ -3088,30 +3312,36 @@
               </thead>
               <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                 <tr v-for="zone in filteredRiskZones" :key="zone.name" class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                  <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{{ zone.name }}</td>
-                  <td class="px-4 py-3">
+                  <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white" data-label="Zone">{{ zone.name }}</td>
+                  <td class="px-4 py-3" data-label="Risque">
                     <span :class="zone.risk === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : zone.risk === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'" class="px-2 py-1 rounded-full text-xs font-medium">
                       {{ zone.risk === 'high' ? 'Haut' : zone.risk === 'medium' ? 'Moyen' : 'Faible' }}
                     </span>
                   </td>
-                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ zone.failureRate }}%</td>
-                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ zone.returnRate }}%</td>
-                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ zone.affectedShipments }}</td>
-                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ zone.mainReason }}</td>
+                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Taux Échec">{{ zone.failureRate }}%</td>
+                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Retours">{{ zone.returnRate }}%</td>
+                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Colis Affectés">{{ zone.affectedShipments }}</td>
+                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Raison Principale">{{ zone.mainReason }}</td>
                 </tr>
               </tbody>
             </table>
+            </div>
           </div>
         </main>
       </template>
 
       <!-- Analytics Section - Détection d'Anomalies -->
       <template v-if="activeSection === 'anomaly-detection'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Détection d'Anomalies</h1>
-              <p class="text-sm text-gray-500 mt-1">Surveillance automatique des patterns inhabituels</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Détection d'Anomalies</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Surveillance automatique des patterns inhabituels</p>
+              </div>
             </div>
           </div>
         </header>
@@ -3197,13 +3427,18 @@
 
       <!-- Analytics Section - Tendances -->
       <template v-if="activeSection === 'trends'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Tendances</h1>
-              <p class="text-sm text-gray-500 mt-1">Analysez les tendances et prévisions</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Tendances</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Analysez les tendances et prévisions</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
+            <div class="hidden sm:flex items-center space-x-3">
               <select v-model="trendsPeriod" class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm">
                 <option value="weekly">Hebdomadaire</option>
                 <option value="monthly">Mensuel</option>
@@ -3266,15 +3501,20 @@
 
       <!-- Analytics Section - Rapports -->
       <template v-if="activeSection === 'reports'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Rapports</h1>
-              <p class="text-sm text-gray-500 mt-1">Générez et téléchargez des rapports détaillés</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Rapports</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Générez et téléchargez des rapports détaillés</p>
+              </div>
             </div>
-            <button class="btn-primary btn-primary-sm">
-              <Plus class="w-4 h-4 mr-2" />
-              Nouveau Rapport
+            <button class="flex btn-primary btn-primary-sm px-3 sm:px-4">
+              <Plus class="w-4 h-4 sm:mr-2" />
+              <span class="hidden sm:inline">Nouveau Rapport</span>
             </button>
           </div>
         </header>
@@ -3301,6 +3541,7 @@
             <div class="p-4 border-b border-gray-200 dark:border-gray-800">
               <h3 class="font-semibold text-gray-900 dark:text-white">Rapports Récents</h3>
             </div>
+            <div class="table-responsive">
             <table class="w-full">
               <thead class="bg-gray-50 dark:bg-gray-800/50">
                 <tr>
@@ -3314,12 +3555,12 @@
               </thead>
               <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                 <tr v-for="report in reports.recentReports" :key="report.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                  <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{{ report.name }}</td>
-                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ report.type }}</td>
-                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ report.period }}</td>
-                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ report.generatedAt }}</td>
-                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ report.size }}</td>
-                  <td class="px-4 py-3">
+                  <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white" data-label="Nom">{{ report.name }}</td>
+                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Type">{{ report.type }}</td>
+                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Période">{{ report.period }}</td>
+                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Généré le">{{ report.generatedAt }}</td>
+                  <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Taille">{{ report.size }}</td>
+                  <td class="px-4 py-3" data-label="Actions">
                     <div class="flex items-center space-x-2">
                       <button class="p-1.5 text-gray-500 hover:text-primary-blue hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors">
                         <Eye class="w-4 h-4" />
@@ -3332,30 +3573,31 @@
                 </tr>
               </tbody>
             </table>
+            </div>
           </div>
         </main>
       </template>
 
-      <!-- Pickups Section -->
-      <template v-if="activeSection === 'schedule-pickup' || activeSection === 'pickup-requests' || activeSection === 'pickup-history' || activeSection === 'failed-pickups' || activeSection === 'pickup-performance'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+      <!-- Schedule Pickup Section -->
+      <template v-if="activeSection === 'schedule-pickup'">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Enlèvements</h1>
-              <p class="text-sm text-gray-500 mt-1">Gérez vos demandes d'enlèvement pour les colis en attente</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Planifier un enlèvement</h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Sélectionnez les colis à faire enlever par le transporteur</p>
+              </div>
             </div>
             <button
               @click="requestPickup"
               :disabled="selectedPickups.length === 0"
-              :class="[
-                'flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                selectedPickups.length > 0
-                  ? 'bg-primary-blue hover:bg-primary-blue-hover text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
-              ]"
+              class="btn-primary text-xs sm:text-sm px-3 sm:px-4 py-2"
             >
-              <PackageOpen class="w-4 h-4" />
-              <span>Demander un enlèvement ({{ selectedPickups.length }})</span>
+              <Truck class="w-4 h-4" />
+              <span class="hidden sm:inline">Planifier ({{ selectedPickups.length }})</span>
             </button>
           </div>
         </header>
@@ -3370,29 +3612,29 @@
                 </div>
                 <div>
                   <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ pendingPickups.length }}</p>
-                  <p class="text-sm text-gray-500">En attente d'enlèvement</p>
+                  <p class="text-sm text-gray-500">En attente</p>
                 </div>
               </div>
             </div>
             <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
               <div class="flex items-center space-x-3">
                 <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                  <Truck class="w-5 h-5 text-blue-600" />
+                  <CalendarClock class="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
                   <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ scheduledPickups.length }}</p>
-                  <p class="text-sm text-gray-500">Enlèvements programmés</p>
+                  <p class="text-sm text-gray-500">Programmés</p>
                 </div>
               </div>
             </div>
             <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
               <div class="flex items-center space-x-3">
                 <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                  <Check class="w-5 h-5 text-green-600" />
+                  <CheckCircle class="w-5 h-5 text-green-600" />
                 </div>
                 <div>
                   <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ completedPickupsCount }}</p>
-                  <p class="text-sm text-gray-500">Enlèvements terminés (ce mois)</p>
+                  <p class="text-sm text-gray-500">Terminés ce mois</p>
                 </div>
               </div>
             </div>
@@ -3403,10 +3645,7 @@
             <div class="p-4 border-b border-gray-200 dark:border-gray-800">
               <div class="flex items-center justify-between">
                 <h3 class="font-semibold text-gray-900 dark:text-white">Colis en attente d'enlèvement</h3>
-                <button
-                  @click="selectAllPickups"
-                  class="text-sm text-orange-500 hover:underline"
-                >
+                <button @click="selectAllPickups" class="text-sm text-[#4959b4] hover:underline">
                   {{ selectedPickups.length === pendingPickups.length && pendingPickups.length > 0 ? 'Tout désélectionner' : 'Tout sélectionner' }}
                 </button>
               </div>
@@ -3416,47 +3655,38 @@
               <div class="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Package class="w-8 h-8 text-gray-400" />
               </div>
-              <p class="text-gray-500 dark:text-gray-400">Aucune colis en attente d'enlèvement</p>
-              <p class="text-sm text-gray-400 mt-1">Les nouvelles colis créés apparaîtront ici</p>
+              <p class="text-gray-500 dark:text-gray-400">Aucun colis en attente d'enlèvement</p>
+              <p class="text-sm text-gray-400 mt-1">Les nouveaux colis apparaîtront ici</p>
             </div>
 
             <div v-else class="divide-y divide-gray-200 dark:divide-gray-800">
-              <div
-                v-for="shipment in pendingPickups"
-                :key="shipment.id"
-                class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-              >
+              <div v-for="shipment in pendingPickups" :key="shipment.id" class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                 <div class="flex items-start space-x-4">
-                  <input
-                    type="checkbox"
-                    :checked="selectedPickups.includes(shipment.id)"
-                    @change="togglePickupSelection(shipment.id)"
-                    class="mt-1 w-5 h-5 rounded border-gray-300 text-primary-blue focus:ring-primary-blue"
-                  />
+                  <input type="checkbox" :checked="selectedPickups.includes(shipment.id)" @change="togglePickupSelection(shipment.id)" class="mt-1 w-5 h-5 rounded" />
                   <div class="flex-1">
                     <div class="flex items-center justify-between mb-2">
                       <div class="flex items-center space-x-2">
                         <span class="font-mono font-semibold text-gray-900 dark:text-white">{{ shipment.trackingNumber }}</span>
-                        <span class="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded font-medium">En attente</span>
+                        <span class="px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-xs rounded font-medium">En attente</span>
                       </div>
                       <span class="text-sm text-gray-500">{{ shipment.carrier }}</span>
                     </div>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div>
-                        <p class="text-gray-500">Client</p>
-                        <p class="text-gray-900 dark:text-white font-medium">{{ shipment.customerName }}</p>
+                        <p class="text-gray-500">Destinataire</p>
+                        <p class="text-gray-900 dark:text-white font-medium">{{ shipment.recipient }}</p>
                       </div>
                       <div>
-                        <p class="text-gray-500">Origine</p>
-                        <p class="text-gray-900 dark:text-white">{{ shipment.origin }}</p>
+                        <p class="text-gray-500">Téléphone</p>
+                        <p class="text-gray-900 dark:text-white">{{ shipment.recipientPhone }}</p>
                       </div>
                       <div>
-                        <p class="text-gray-500">Destination</p>
-                        <p class="text-gray-900 dark:text-white">{{ shipment.destination }}</p>
+                        <p class="text-gray-500">Adresse</p>
+                        <p class="text-gray-900 dark:text-white">{{ shipment.recipientAddress }}</p>
                       </div>
                       <div>
-                        <p class="text-gray-500">Date de création</p>
-                        <p class="text-gray-900 dark:text-white">{{ shipment.events[shipment.events.length - 1]?.date || '-' }}</p>
+                        <p class="text-gray-500">Montant</p>
+                        <p class="text-gray-900 dark:text-white font-medium">{{ shipment.amount }} TND</p>
                       </div>
                     </div>
                   </div>
@@ -3464,29 +3694,208 @@
               </div>
             </div>
           </div>
+        </main>
+      </template>
 
-          <!-- Scheduled Pickups -->
-          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 mt-6" v-if="scheduledPickups.length > 0">
-            <div class="p-4 border-b border-gray-200 dark:border-gray-800">
-              <h3 class="font-semibold text-gray-900 dark:text-white">Enlèvements programmés</h3>
+      <!-- Pickup Requests Section -->
+      <template v-if="activeSection === 'pickup-requests'">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Demandes d'enlèvement</h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Suivez vos demandes d'enlèvement en cours</p>
+              </div>
             </div>
-            <div class="divide-y divide-gray-200 dark:divide-gray-800">
-              <div
-                v-for="pickup in scheduledPickups"
-                :key="pickup.id"
-                class="p-4"
-              >
+          </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-6">
+          <!-- Stats Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                  <PackageOpen class="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ pickupRequests.length }}</p>
+                  <p class="text-sm text-gray-500">Total demandes</p>
+                </div>
+              </div>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                  <Clock class="w-5 h-5 text-yellow-600" />
+                </div>
+                <div>
+                  <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ pickupRequests.filter(p => p.status === 'pending').length }}</p>
+                  <p class="text-sm text-gray-500">En attente confirmation</p>
+                </div>
+              </div>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                  <CheckCircle class="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ pickupRequests.filter(p => p.status === 'confirmed').length }}</p>
+                  <p class="text-sm text-gray-500">Confirmées aujourd'hui</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pickup Requests Table -->
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-800">
+              <div class="flex items-center justify-between">
+                <h3 class="font-semibold text-gray-900 dark:text-white">Demandes d'enlèvement</h3>
+                <select v-model="pickupRequestFilter" class="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                  <option value="all">Tous les statuts</option>
+                  <option value="pending">En attente</option>
+                  <option value="confirmed">Confirmée</option>
+                  <option value="cancelled">Annulée</option>
+                </select>
+              </div>
+            </div>
+
+            <div v-if="filteredPickupRequests.length === 0" class="p-8 text-center">
+              <div class="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <PackageOpen class="w-8 h-8 text-gray-400" />
+              </div>
+              <p class="text-gray-500 dark:text-gray-400">Aucune demande d'enlèvement</p>
+              <p class="text-sm text-gray-400 mt-1">Planifiez un enlèvement pour commencer</p>
+            </div>
+
+            <div v-else class="divide-y divide-gray-200 dark:divide-gray-800">
+              <div v-for="request in filteredPickupRequests" :key="request.id" @click="viewPickupDetail(request)" class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer">
                 <div class="flex items-center justify-between">
-                  <div class="flex items-center space-x-3">
-                    <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                      <Truck class="w-5 h-5 text-blue-600" />
+                  <div class="flex items-center space-x-4">
+                    <div class="p-2 rounded-lg" :class="request.status === 'confirmed' ? 'bg-green-100 dark:bg-green-900/30' : request.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900/30' : 'bg-red-100 dark:bg-red-900/30'">
+                      <Truck :class="['w-5 h-5', request.status === 'confirmed' ? 'text-green-600' : request.status === 'pending' ? 'text-yellow-600' : 'text-red-600']" />
                     </div>
                     <div>
-                      <p class="font-medium text-gray-900 dark:text-white">{{ pickup.shipmentCount }} colis</p>
-                      <p class="text-sm text-gray-500">{{ pickup.date }} • {{ pickup.timeSlot }}</p>
+                      <div class="flex items-center gap-2">
+                        <p class="font-semibold text-gray-900 dark:text-white">{{ request.id }}</p>
+                        <span :class="[
+                          'px-2 py-0.5 text-xs rounded-full font-medium',
+                          request.status === 'confirmed' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                          request.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
+                          'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                        ]">
+                          {{ request.status === 'confirmed' ? 'Confirmée' : request.status === 'pending' ? 'En attente' : 'Annulée' }}
+                        </span>
+                      </div>
+                      <p class="text-sm text-gray-500">{{ request.date }} • {{ request.timeSlot }} • {{ request.shipmentCount }} colis</p>
                     </div>
                   </div>
-                  <span class="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full font-medium">Programmé</span>
+                  <div class="flex items-center gap-2">
+                    <button @click.stop="viewPickupDetail(request)" class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                      <Eye class="w-4 h-4" />
+                    </button>
+                    <button v-if="request.status === 'pending'" @click.stop class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
+                      <X class="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </template>
+
+      <!-- Pickup History Section -->
+      <template v-if="activeSection === 'pickup-history'">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Historique des enlèvements</h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Consultez l'historique de tous vos enlèvements</p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-6">
+          <!-- Stats Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 bg-[#4959b4]/10 rounded-lg">
+                  <History class="w-5 h-5 text-[#4959b4]" />
+                </div>
+                <div>
+                  <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ pickupHistory.length }}</p>
+                  <p class="text-sm text-gray-500">Total enlèvements</p>
+                </div>
+              </div>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                  <CheckCircle class="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ pickupHistory.filter(p => p.status === 'completed').length }}</p>
+                  <p class="text-sm text-gray-500">Ce mois-ci</p>
+                </div>
+              </div>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                  <TrendingUp class="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <p class="text-2xl font-semibold text-gray-900 dark:text-white">98%</p>
+                  <p class="text-sm text-gray-500">Taux de succès</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- History Table -->
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-800">
+              <h3 class="font-semibold text-gray-900 dark:text-white">Historique complet</h3>
+            </div>
+
+            <div v-if="pickupHistory.length === 0" class="p-8 text-center">
+              <div class="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <History class="w-8 h-8 text-gray-400" />
+              </div>
+              <p class="text-gray-500 dark:text-gray-400">Aucun historique disponible</p>
+            </div>
+
+            <div v-else class="divide-y divide-gray-200 dark:divide-gray-800">
+              <div v-for="pickup in pickupHistory" :key="pickup.id" @click="viewPickupDetail(pickup)" class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center space-x-4">
+                    <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                      <CheckCircle class="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-2 mb-1">
+                        <p class="font-semibold text-gray-900 dark:text-white">{{ pickup.shipmentCount }} colis</p>
+                        <span class="text-xs px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded">{{ pickup.deliveredCount || 0 }} livrés</span>
+                        <span v-if="pickup.returnedCount > 0" class="text-xs px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded">{{ pickup.returnedCount }} retournés</span>
+                      </div>
+                      <p class="text-sm text-gray-500">{{ pickup.date }} • {{ pickup.timeSlot }} • {{ pickup.carrier }}</p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <Eye class="w-4 h-4 text-gray-400" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -3496,13 +3905,18 @@
 
       <!-- Bordereaux (Labels) Section -->
       <template v-if="activeSection === 'labels'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Bordereaux</h1>
-              <p class="text-sm text-gray-500 mt-1">Gérez et imprimez vos étiquettes d'envoi</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Bordereaux</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Gérez et imprimez vos étiquettes d'envoi</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
+            <div class="hidden sm:flex items-center space-x-3">
               <button
                 @click="printSelectedLabels"
                 :disabled="selectedLabels.length === 0"
@@ -3687,29 +4101,34 @@
 
       <!-- Returns Section -->
       <template v-if="activeSection === 'active-returns' || activeSection === 'recovered-returns' || activeSection === 'lost-returns'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">{{ returnsSectionTitle }}</h1>
-              <p class="text-sm text-gray-500 mt-1">
-                {{ activeSection === 'lost-returns' ? 'Colis déclarés perdus par les transporteurs' :
-                   activeSection === 'recovered-returns' ? 'Colis retournés et récupérés avec succès' :
-                   activeSection === 'active-returns' ? 'Colis en cours de retour vers votre entrepôt' :
-                   'Suivez les retours signalés par vos transporteurs' }}
-              </p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">{{ returnsSectionTitle }}</h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">
+                  {{ activeSection === 'lost-returns' ? 'Colis déclarés perdus par les transporteurs' :
+                     activeSection === 'recovered-returns' ? 'Colis retournés et récupérés avec succès' :
+                     activeSection === 'active-returns' ? 'Colis en cours de retour vers votre entrepôt' :
+                     'Suivez les retours signalés par vos transporteurs' }}
+                </p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
-              <!-- Sync Status -->
-              <div class="flex items-center space-x-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+            <div class="flex items-center space-x-2 sm:space-x-3">
+              <!-- Sync Status - hidden on mobile -->
+              <div class="hidden sm:flex items-center space-x-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                 <span class="relative flex h-2 w-2">
                   <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                   <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                 </span>
                 <span class="text-xs font-medium text-green-700 dark:text-green-400">Synchronisé avec transporteurs</span>
               </div>
-              <button @click="syncReturns" class="flex items-center space-x-2 px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors">
+              <button @click="syncReturns" class="flex items-center space-x-0 sm:space-x-2 px-3 sm:px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors">
                 <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isSyncingReturns }" />
-                <span>Actualiser</span>
+                <span class="hidden sm:inline">Actualiser</span>
               </button>
             </div>
           </div>
@@ -4037,13 +4456,18 @@
 
       <!-- Return Value Statistics Section -->
       <template v-if="activeSection === 'return-value'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Valeur des retours</h1>
-              <p class="text-sm text-gray-500 mt-1">Statistiques et détails par entreprise de livraison</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Valeur des retours</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Statistiques et détails par entreprise de livraison</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
+            <div class="hidden sm:flex items-center space-x-3">
               <select class="px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
                 <option value="month">Ce mois</option>
                 <option value="quarter">Ce trimestre</option>
@@ -4222,13 +4646,18 @@
 
       <!-- Return Reports & Analytics Section -->
       <template v-if="activeSection === 'return-reports'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Rapports & Analyse des retours</h1>
-              <p class="text-sm text-gray-500 mt-1">Comprenez les raisons des retours et prenez de meilleures décisions</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Rapports & Analyse des retours</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Comprenez les raisons des retours et prenez de meilleures décisions</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
+            <div class="hidden sm:flex items-center space-x-3">
               <select v-model="reportPeriod" class="px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
                 <option value="week">Cette semaine</option>
                 <option value="month">Ce mois</option>
@@ -4354,7 +4783,7 @@
                 <p class="text-sm text-gray-500 mt-1">Analysez la performance de vos transporteurs pour les retours</p>
               </div>
             </div>
-            <div class="overflow-x-auto">
+            <div class="table-responsive">
               <table class="w-full">
                 <thead>
                   <tr class="border-b border-gray-200 dark:border-gray-700">
@@ -4369,7 +4798,7 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                   <tr v-for="carrier in reportAnalytics.carrierComparison" :key="carrier.name" class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                    <td class="py-4 px-4">
+                    <td class="py-4 px-4" data-label="Transporteur">
                       <div class="flex items-center space-x-3">
                         <div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                           <Building2 class="w-5 h-5 text-gray-500" />
@@ -4380,7 +4809,7 @@
                         </div>
                       </div>
                     </td>
-                    <td class="py-4 px-4 text-center">
+                    <td class="py-4 px-4 text-center" data-label="Taux retour">
                       <span :class="[
                         'px-2 py-1 text-xs font-semibold rounded-full',
                         carrier.returnRate <= 5 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
@@ -4390,20 +4819,20 @@
                         {{ carrier.returnRate }}%
                       </span>
                     </td>
-                    <td class="py-4 px-4 text-center">
+                    <td class="py-4 px-4 text-center" data-label="Tentatives moy.">
                       <span :class="carrier.avgAttempts <= 1.5 ? 'text-green-600' : carrier.avgAttempts <= 2 ? 'text-yellow-600' : 'text-red-600'" class="font-semibold">
                         {{ carrier.avgAttempts }}
                       </span>
                     </td>
-                    <td class="py-4 px-4 text-center">
+                    <td class="py-4 px-4 text-center" data-label="Taux récup.">
                       <span :class="carrier.recoveryRate >= 90 ? 'text-green-600' : carrier.recoveryRate >= 80 ? 'text-yellow-600' : 'text-red-600'" class="font-semibold">
                         {{ carrier.recoveryRate }}%
                       </span>
                     </td>
-                    <td class="py-4 px-4 text-center">
+                    <td class="py-4 px-4 text-center" data-label="Délai retour">
                       <span class="text-gray-700 dark:text-gray-300">{{ carrier.avgReturnDays }} jours</span>
                     </td>
-                    <td class="py-4 px-4 text-center">
+                    <td class="py-4 px-4 text-center" data-label="Score">
                       <div class="flex items-center justify-center space-x-1">
                         <div :class="[
                           'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold',
@@ -4416,7 +4845,7 @@
                         <span class="text-xs text-gray-400">/10</span>
                       </div>
                     </td>
-                    <td class="py-4 px-4 text-right">
+                    <td class="py-4 px-4 text-right" data-label="Recommandation">
                       <span :class="[
                         'px-3 py-1.5 text-xs font-medium rounded-lg',
                         carrier.recommendation === 'Excellent' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
@@ -4549,65 +4978,159 @@
         </main>
       </template>
 
-      <!-- Carriers Section -->
-      <template v-if="activeSection === 'connected-carriers' || activeSection === 'add-carrier' || activeSection === 'api-status' || activeSection === 'carrier-performance' || activeSection === 'sla-metrics' || activeSection === 'carrier-issues'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+      <!-- Carriers Section - Connected Carriers -->
+      <template v-if="activeSection === 'connected-carriers'">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Transporteurs</h1>
-              <p class="text-sm text-gray-500 mt-1">Gérez vos partenaires de livraison et leurs tarifs</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Transporteurs connectés</h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Gérez vos partenaires de livraison</p>
+              </div>
             </div>
-            <button @click="openAddCarrierModal" class="flex items-center space-x-2 px-4 py-2 bg-primary-blue hover:bg-primary-blue-hover text-white rounded-lg text-sm font-medium transition-colors">
+            <button @click="activeSection = 'add-carrier'" class="flex items-center space-x-2 px-4 py-2.5 bg-[#4959b4] hover:bg-[#3a4791] text-white rounded-xl text-sm font-medium transition-all shadow-sm hover:shadow-md">
               <Plus class="w-4 h-4" />
-              <span>Ajouter un transporteur</span>
+              <span class="hidden sm:inline">Ajouter</span>
             </button>
           </div>
         </header>
-        <main class="flex-1 overflow-y-auto p-6">
-          <!-- Carrier Cards Grid -->
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
-            <div v-for="carrier in carriers" :key="carrier.id" @click="selectCarrier(carrier)" class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800 hover:shadow-lg hover:border-orange-300 dark:hover:border-orange-600 transition-all cursor-pointer" :class="{ 'ring-2 ring-orange-500': selectedCarrier?.id === carrier.id }">
-              <div class="flex items-center justify-between mb-3">
-                <span class="font-semibold text-gray-900 dark:text-white">{{ carrier.name }}</span>
-                <div class="flex items-center space-x-2">
-                  <span :class="carrier.apiStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'" class="w-2 h-2 rounded-full"></span>
-                  <span class="text-xs" :class="carrier.apiStatus === 'connected' ? 'text-green-600' : 'text-red-600'">{{ carrier.apiStatus === 'connected' ? 'Connecté' : 'Déconnecté' }}</span>
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6">
+          <!-- Stats Cards -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-gray-500 uppercase">Total</span>
+                <div class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                  <Building2 class="w-4 h-4 text-blue-600" />
                 </div>
               </div>
-              <div class="space-y-2 text-sm">
-                <div class="flex justify-between">
-                  <span class="text-gray-500">API ID</span>
-                  <span class="font-mono text-xs text-gray-900 dark:text-white">{{ carrier.apiId }}</span>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ carriers.length }}</p>
+              <p class="text-xs text-gray-500 mt-1">transporteurs</p>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-gray-500 uppercase">Connectés</span>
+                <div class="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                  <CheckCircle class="w-4 h-4 text-green-600" />
                 </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-500">Colis</span>
-                  <span class="font-medium text-gray-900 dark:text-white">{{ carrier.shipments }}</span>
+              </div>
+              <p class="text-2xl font-bold text-green-600">{{ carriers.filter(c => c.apiStatus === 'connected').length }}</p>
+              <p class="text-xs text-gray-500 mt-1">actifs</p>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-gray-500 uppercase">Colis total</span>
+                <div class="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                  <Package class="w-4 h-4 text-orange-600" />
                 </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-500">Taux livraison</span>
-                  <span class="font-medium text-green-600">{{ carrier.deliveryRate }}%</span>
+              </div>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ carriers.reduce((sum, c) => sum + c.shipments, 0).toLocaleString() }}</p>
+              <p class="text-xs text-gray-500 mt-1">envoyés</p>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-gray-500 uppercase">Disponibles</span>
+                <div class="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                  <Truck class="w-4 h-4 text-purple-600" />
                 </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-500">Frais livraison</span>
-                  <span class="font-medium text-orange-600">{{ carrier.fraisColisLivres.toFixed(2) }} DT</span>
+              </div>
+              <p class="text-2xl font-bold text-purple-600">{{ deliveryCarriers.length }}</p>
+              <p class="text-xs text-gray-500 mt-1">à ajouter</p>
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div v-if="carriers.length === 0" class="bg-white dark:bg-gray-900 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 p-8 sm:p-12 text-center">
+            <div class="w-16 h-16 rounded-2xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mx-auto mb-4">
+              <Truck class="w-8 h-8 text-orange-500" />
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Aucun transporteur configuré</h3>
+            <p class="text-gray-500 mb-6 max-w-md mx-auto">Ajoutez vos premiers transporteurs pour commencer à gérer vos livraisons. Choisissez parmi plus de 65 transporteurs tunisiens.</p>
+            <button @click="activeSection = 'add-carrier'" class="inline-flex items-center space-x-2 px-6 py-3 bg-[#4959b4] hover:bg-[#3a4791] text-white rounded-xl font-medium transition-all shadow-sm hover:shadow-md">
+              <Plus class="w-5 h-5" />
+              <span>Ajouter mon premier transporteur</span>
+            </button>
+          </div>
+
+          <!-- Carrier Cards Grid -->
+          <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
+            <!-- Add New Card -->
+            <button @click="activeSection = 'add-carrier'" class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-orange-400 dark:hover:border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/10 transition-all group flex flex-col items-center justify-center min-h-[200px]">
+              <div class="w-14 h-14 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <Plus class="w-7 h-7 text-orange-500" />
+              </div>
+              <span class="font-medium text-gray-700 dark:text-gray-300 group-hover:text-orange-600 dark:group-hover:text-orange-400">Ajouter un transporteur</span>
+              <span class="text-xs text-gray-400 mt-1">65+ transporteurs disponibles</span>
+            </button>
+
+            <!-- Carrier Cards -->
+            <div
+              v-for="carrier in carriers"
+              :key="carrier.id"
+              @click="selectCarrier(carrier)"
+              class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 hover:shadow-lg hover:border-orange-300 dark:hover:border-orange-600 transition-all cursor-pointer overflow-hidden"
+              :class="{ 'ring-2 ring-orange-500 border-orange-500': selectedCarrier?.id === carrier.id }"
+            >
+              <!-- Carrier Header with Color Bar -->
+              <div class="h-1.5 bg-gradient-to-r" :class="carrier.apiStatus === 'connected' ? 'from-green-400 to-green-500' : 'from-red-400 to-red-500'"></div>
+
+              <div class="p-4">
+                <div class="flex items-start justify-between mb-4">
+                  <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center font-bold text-orange-600 text-sm">
+                      {{ carrier.name.substring(0, 2).toUpperCase() }}
+                    </div>
+                    <div>
+                      <h3 class="font-semibold text-gray-900 dark:text-white">{{ carrier.name }}</h3>
+                      <div class="flex items-center gap-1.5 mt-0.5">
+                        <span :class="carrier.apiStatus === 'connected' ? 'bg-green-500' : 'bg-red-500'" class="w-1.5 h-1.5 rounded-full"></span>
+                        <span class="text-xs" :class="carrier.apiStatus === 'connected' ? 'text-green-600' : 'text-red-600'">
+                          {{ carrier.apiStatus === 'connected' ? 'Connecté' : 'Déconnecté' }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <button @click.stop="editCarrier(carrier)" class="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors" title="Modifier">
+                      <FileText class="w-4 h-4" />
+                    </button>
+                    <button @click.stop="deleteCarrier(carrier.id)" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Supprimer">
+                      <Trash2 class="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-                <div class="flex justify-between items-center">
+
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                  <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-2 text-center">
+                    <p class="text-lg font-bold text-gray-900 dark:text-white">{{ carrier.shipments }}</p>
+                    <p class="text-[10px] text-gray-500 uppercase">Colis</p>
+                  </div>
+                  <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-2 text-center">
+                    <p class="text-lg font-bold text-green-600">{{ carrier.deliveryRate }}%</p>
+                    <p class="text-[10px] text-gray-500 uppercase">Livraison</p>
+                  </div>
+                  <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-2 text-center">
+                    <p class="text-lg font-bold text-orange-600">{{ carrier.fraisColisLivres.toFixed(0) }}</p>
+                    <p class="text-[10px] text-gray-500 uppercase">DT/colis</p>
+                  </div>
+                </div>
+
+                <!-- Coverage Badge -->
+                <div class="flex items-center justify-between text-sm">
                   <span class="text-gray-500">Couverture</span>
-                  <span v-if="carrier.allRegions" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                  <span v-if="carrier.allRegions" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                    <MapPin class="w-3 h-3" />
                     Tout le pays
                   </span>
-                  <span v-else class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+                  <span v-else class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+                    <MapPin class="w-3 h-3" />
                     {{ carrier.regions.length }} région(s)
                   </span>
                 </div>
-              </div>
-              <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex justify-end space-x-2">
-                <button @click.stop="editCarrier(carrier)" class="p-1.5 text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded transition-colors">
-                  <FileText class="w-4 h-4" />
-                </button>
-                <button @click.stop="deleteCarrier(carrier.id)" class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors">
-                  <X class="w-4 h-4" />
-                </button>
               </div>
             </div>
           </div>
@@ -4777,21 +5300,561 @@
         </main>
       </template>
 
+      <!-- Add Carrier Section - Improved Wizard -->
+      <template v-if="activeSection === 'add-carrier'">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
+                  {{ editingCarrier ? 'Modifier le transporteur' : 'Ajouter un transporteur' }}
+                </h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">
+                  {{ editingCarrier ? 'Modifiez les informations du transporteur' : 'Configurez votre nouveau partenaire de livraison' }}
+                </p>
+              </div>
+            </div>
+            <button @click="activeSection = 'connected-carriers'; resetCarrierForm()" class="flex items-center space-x-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl text-sm font-medium transition-all">
+              <X class="w-4 h-4" />
+              <span class="hidden sm:inline">Fermer</span>
+            </button>
+          </div>
+        </header>
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50 dark:bg-gray-950">
+          <div class="max-w-5xl mx-auto">
+            <!-- Progress Stepper -->
+            <div v-if="!editingCarrier" class="mb-8">
+              <div class="flex items-center justify-between relative">
+                <!-- Progress Line Background -->
+                <div class="absolute top-5 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-700 mx-16"></div>
+                <!-- Progress Line Active -->
+                <div class="absolute top-5 left-0 h-0.5 bg-orange-500 mx-16 transition-all duration-500" :style="{ width: `${((carrierWizardStep - 1) / 3) * 100}%` }"></div>
+
+                <!-- Step 1 -->
+                <div class="relative flex flex-col items-center z-10">
+                  <button @click="carrierWizardStep = 1" :class="[
+                    'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all',
+                    carrierWizardStep >= 1 ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
+                  ]">
+                    <Truck v-if="carrierWizardStep > 1" class="w-5 h-5" />
+                    <span v-else>1</span>
+                  </button>
+                  <span class="mt-2 text-xs font-medium" :class="carrierWizardStep >= 1 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400'">Transporteur</span>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="relative flex flex-col items-center z-10">
+                  <button @click="selectedModalCarrier && (carrierWizardStep = 2)" :disabled="!selectedModalCarrier" :class="[
+                    'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all',
+                    carrierWizardStep >= 2 ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' : 'bg-gray-200 dark:bg-gray-700 text-gray-500',
+                    !selectedModalCarrier && 'cursor-not-allowed opacity-50'
+                  ]">
+                    <Key v-if="carrierWizardStep > 2" class="w-5 h-5" />
+                    <span v-else>2</span>
+                  </button>
+                  <span class="mt-2 text-xs font-medium" :class="carrierWizardStep >= 2 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400'">Connexion API</span>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="relative flex flex-col items-center z-10">
+                  <button @click="newCarrier.apiId && newCarrier.apiKey && (carrierWizardStep = 3)" :disabled="!newCarrier.apiId || !newCarrier.apiKey" :class="[
+                    'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all',
+                    carrierWizardStep >= 3 ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' : 'bg-gray-200 dark:bg-gray-700 text-gray-500',
+                    (!newCarrier.apiId || !newCarrier.apiKey) && 'cursor-not-allowed opacity-50'
+                  ]">
+                    <Receipt v-if="carrierWizardStep > 3" class="w-5 h-5" />
+                    <span v-else>3</span>
+                  </button>
+                  <span class="mt-2 text-xs font-medium" :class="carrierWizardStep >= 3 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400'">Tarification</span>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="relative flex flex-col items-center z-10">
+                  <button @click="carrierWizardStep >= 3 && (carrierWizardStep = 4)" :disabled="carrierWizardStep < 3" :class="[
+                    'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all',
+                    carrierWizardStep >= 4 ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' : 'bg-gray-200 dark:bg-gray-700 text-gray-500',
+                    carrierWizardStep < 3 && 'cursor-not-allowed opacity-50'
+                  ]">
+                    <MapPinned v-if="carrierWizardStep > 4" class="w-5 h-5" />
+                    <span v-else>4</span>
+                  </button>
+                  <span class="mt-2 text-xs font-medium" :class="carrierWizardStep >= 4 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400'">Couverture</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <!-- Main Form Column -->
+              <div class="lg:col-span-2 space-y-6">
+                <!-- Step 1: Sélection du transporteur -->
+                <div v-if="!editingCarrier && carrierWizardStep === 1" class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm">
+                  <div class="px-6 py-5 border-b border-gray-200 dark:border-gray-800">
+                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                      <Truck class="w-5 h-5 mr-2 text-orange-500" />
+                      Choisissez votre transporteur
+                    </h4>
+                    <p class="text-gray-500 text-sm mt-1">Plus de 65 transporteurs tunisiens disponibles</p>
+                  </div>
+                  <div class="p-6">
+                    <!-- Search input -->
+                    <div class="relative mb-5">
+                      <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        v-model="modalCarrierSearchQuery"
+                        type="text"
+                        placeholder="Rechercher un transporteur..."
+                        class="w-full pl-12 pr-4 py-3.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white"
+                      />
+                      <span v-if="modalCarrierSearchQuery" class="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-orange-600 bg-orange-100 dark:bg-orange-900/30 px-2.5 py-1 rounded-full font-medium">
+                        {{ filteredModalCarriers.length }} trouvés
+                      </span>
+                    </div>
+
+                    <!-- Quick filter chips -->
+                    <div class="flex flex-wrap gap-2 mb-5">
+                      <button class="px-3 py-1.5 text-xs font-medium rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">
+                        Tous
+                      </button>
+                      <button class="px-3 py-1.5 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200">
+                        Express
+                      </button>
+                      <button class="px-3 py-1.5 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200">
+                        Standard
+                      </button>
+                      <button class="px-3 py-1.5 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200">
+                        Économique
+                      </button>
+                    </div>
+
+                    <!-- Carrier selection grid -->
+                    <div class="max-h-96 overflow-y-auto rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 p-4">
+                      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <button
+                          v-for="carrier in filteredModalCarriers"
+                          :key="carrier.id"
+                          type="button"
+                          @click="selectCarrierFromList(carrier)"
+                          :class="[
+                            'group p-4 rounded-xl border-2 text-left transition-all duration-200',
+                            selectedModalCarrier?.id === carrier.id
+                              ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20 shadow-lg shadow-orange-500/10 scale-[1.02]'
+                              : 'border-transparent bg-white dark:bg-gray-900 hover:border-orange-200 dark:hover:border-orange-800 hover:shadow-md'
+                          ]"
+                        >
+                          <div class="flex flex-col items-center text-center gap-3">
+                            <div class="relative">
+                              <div class="w-14 h-14 rounded-xl flex items-center justify-center text-sm font-bold transition-transform group-hover:scale-110" :style="{ backgroundColor: carrier.color + '15', color: carrier.color }">
+                                {{ getCarrierInitials(carrier.name) }}
+                              </div>
+                              <div v-if="selectedModalCarrier?.id === carrier.id" class="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center">
+                                <CheckCircle class="w-3 h-3 text-white" />
+                              </div>
+                            </div>
+                            <div class="min-w-0 w-full">
+                              <p class="font-semibold text-gray-900 dark:text-white text-sm truncate">{{ carrier.name }}</p>
+                              <div class="flex items-center justify-center gap-1 mt-1">
+                                <Clock class="w-3 h-3 text-gray-400" />
+                                <p class="text-xs text-gray-500">{{ carrier.deliveryTime }}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      </div>
+                      <p v-if="filteredModalCarriers.length === 0" class="text-center text-sm text-gray-500 py-12">
+                        <Search class="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                        Aucun transporteur trouvé
+                      </p>
+                    </div>
+                  </div>
+
+                  <!-- Step 1 Footer -->
+                  <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-800 flex justify-between items-center">
+                    <button @click="activeSection = 'connected-carriers'; resetCarrierForm()" class="text-sm text-gray-500 hover:text-gray-700">
+                      Annuler
+                    </button>
+                    <button
+                      @click="carrierWizardStep = 2"
+                      :disabled="!selectedModalCarrier"
+                      :class="[
+                        'px-6 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2',
+                        selectedModalCarrier
+                          ? 'bg-[#4959b4] hover:bg-[#3a4791] text-white shadow-sm hover:shadow-md'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                      ]"
+                    >
+                      Continuer
+                      <ArrowRight class="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Step 2: API Configuration -->
+                <div v-if="carrierWizardStep === 2 || editingCarrier" class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm">
+                  <div class="px-6 py-5 border-b border-gray-200 dark:border-gray-800">
+                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                      <Key class="w-5 h-5 mr-2 text-orange-500" />
+                      Configuration API
+                    </h4>
+                    <p class="text-gray-500 text-sm mt-1">Connectez votre compte transporteur</p>
+                  </div>
+                  <div class="p-6 space-y-5">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Nom du transporteur
+                      </label>
+                      <input v-model="newCarrier.name" type="text" placeholder="Ex: Aramex, DHL, etc." class="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white" :readonly="!!selectedModalCarrier" />
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          API ID <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                          <input v-model="newCarrier.apiId" type="text" placeholder="CARRIER-API-001" class="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                        </div>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          API Key <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                          <input v-model="newCarrier.apiKey" :type="showApiKey ? 'text' : 'password'" placeholder="Votre clé API secrète" class="w-full px-4 py-3 pr-12 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                          <button type="button" @click="showApiKey = !showApiKey" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            <Eye v-if="!showApiKey" class="w-5 h-5" />
+                            <EyeOff v-else class="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Step 2 Footer -->
+                  <div v-if="!editingCarrier" class="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-800 flex justify-between items-center">
+                    <button @click="carrierWizardStep = 1" class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+                      <ArrowLeft class="w-4 h-4" />
+                      Retour
+                    </button>
+                    <button
+                      @click="carrierWizardStep = 3"
+                      :disabled="!newCarrier.apiId || !newCarrier.apiKey"
+                      :class="[
+                        'px-6 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2',
+                        newCarrier.apiId && newCarrier.apiKey
+                          ? 'bg-[#4959b4] hover:bg-[#3a4791] text-white shadow-sm hover:shadow-md'
+                          : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                      ]"
+                    >
+                      Continuer
+                      <ArrowRight class="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Step 3: Tarification -->
+                <div v-if="carrierWizardStep === 3 || editingCarrier" class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm">
+                  <div class="px-6 py-5 border-b border-gray-200 dark:border-gray-800">
+                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                      <Receipt class="w-5 h-5 mr-2 text-orange-500" />
+                      Grille tarifaire
+                    </h4>
+                    <p class="text-gray-500 text-sm mt-1">Définissez vos tarifs de livraison</p>
+                  </div>
+                  <div class="p-6">
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
+                        <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Colis livrés</label>
+                        <div class="flex items-baseline gap-1">
+                          <input v-model.number="newCarrier.fraisColisLivres" type="number" step="0.01" min="0" class="w-full px-0 py-1 border-0 border-b-2 border-gray-200 dark:border-gray-600 bg-transparent text-xl font-bold text-gray-900 dark:text-white focus:ring-0 focus:border-orange-500" />
+                          <span class="text-sm text-gray-400 font-medium">DT</span>
+                        </div>
+                      </div>
+                      <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
+                        <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Colis retour</label>
+                        <div class="flex items-baseline gap-1">
+                          <input v-model.number="newCarrier.fraisColisRetour" type="number" step="0.01" min="0" class="w-full px-0 py-1 border-0 border-b-2 border-gray-200 dark:border-gray-600 bg-transparent text-xl font-bold text-gray-900 dark:text-white focus:ring-0 focus:border-orange-500" />
+                          <span class="text-sm text-gray-400 font-medium">DT</span>
+                        </div>
+                      </div>
+                      <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
+                        <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Colis échange</label>
+                        <div class="flex items-baseline gap-1">
+                          <input v-model.number="newCarrier.fraisColisEchange" type="number" step="0.01" min="0" class="w-full px-0 py-1 border-0 border-b-2 border-gray-200 dark:border-gray-600 bg-transparent text-xl font-bold text-gray-900 dark:text-white focus:ring-0 focus:border-orange-500" />
+                          <span class="text-sm text-gray-400 font-medium">DT</span>
+                        </div>
+                      </div>
+                      <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
+                        <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Colis BIG</label>
+                        <div class="flex items-baseline gap-1">
+                          <input v-model.number="newCarrier.fraisColisBig" type="number" step="0.01" min="0" class="w-full px-0 py-1 border-0 border-b-2 border-gray-200 dark:border-gray-600 bg-transparent text-xl font-bold text-gray-900 dark:text-white focus:ring-0 focus:border-orange-500" />
+                          <span class="text-sm text-gray-400 font-medium">DT</span>
+                        </div>
+                      </div>
+                      <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
+                        <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Pickup</label>
+                        <div class="flex items-baseline gap-1">
+                          <input v-model.number="newCarrier.fraisColisPickup" type="number" step="0.01" min="0" class="w-full px-0 py-1 border-0 border-b-2 border-gray-200 dark:border-gray-600 bg-transparent text-xl font-bold text-gray-900 dark:text-white focus:ring-0 focus:border-orange-500" />
+                          <span class="text-sm text-gray-400 font-medium">DT</span>
+                        </div>
+                      </div>
+                      <div class="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-4 border border-orange-200 dark:border-orange-800/30">
+                        <label class="block text-xs font-medium text-orange-600 dark:text-orange-400 mb-2 uppercase tracking-wide">Total livraison</label>
+                        <div class="flex items-baseline gap-1">
+                          <input v-model.number="newCarrier.totalFraisLivraison" type="number" step="0.01" min="0" class="w-full px-0 py-1 border-0 border-b-2 border-orange-300 dark:border-orange-600 bg-transparent text-xl font-bold text-orange-700 dark:text-orange-400 focus:ring-0 focus:border-orange-500" />
+                          <span class="text-sm text-orange-500 font-medium">DT</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Frais additionnels -->
+                    <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
+                      <h5 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center">
+                        <DollarSign class="w-4 h-4 mr-2 text-gray-400" />
+                        Frais additionnels
+                      </h5>
+                      <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
+                          <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Frais paiement COD</label>
+                          <div class="flex items-baseline gap-1">
+                            <input v-model.number="newCarrier.fraisPaiement" type="number" step="0.01" min="0" class="w-full px-0 py-1 border-0 border-b-2 border-gray-200 dark:border-gray-600 bg-transparent text-xl font-bold text-gray-900 dark:text-white focus:ring-0 focus:border-orange-500" />
+                            <span class="text-sm text-gray-400 font-medium">%</span>
+                          </div>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
+                          <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Retenu passage</label>
+                          <div class="flex items-baseline gap-1">
+                            <input v-model.number="newCarrier.retenuPassage" type="number" step="0.01" min="0" class="w-full px-0 py-1 border-0 border-b-2 border-gray-200 dark:border-gray-600 bg-transparent text-xl font-bold text-gray-900 dark:text-white focus:ring-0 focus:border-orange-500" />
+                            <span class="text-sm text-gray-400 font-medium">DT</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Step 3 Footer -->
+                  <div v-if="!editingCarrier" class="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-800 flex justify-between items-center">
+                    <button @click="carrierWizardStep = 2" class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+                      <ArrowLeft class="w-4 h-4" />
+                      Retour
+                    </button>
+                    <button
+                      @click="carrierWizardStep = 4"
+                      class="px-6 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2 bg-[#4959b4] hover:bg-[#3a4791] text-white shadow-sm hover:shadow-md"
+                    >
+                      Continuer
+                      <ArrowRight class="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Step 4: Zones de couverture -->
+                <div v-if="carrierWizardStep === 4 || editingCarrier" class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm">
+                  <div class="px-6 py-5 border-b border-gray-200 dark:border-gray-800">
+                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                      <MapPinned class="w-5 h-5 mr-2 text-orange-500" />
+                      Zones de couverture
+                    </h4>
+                    <p class="text-gray-500 text-sm mt-1">Sélectionnez les régions desservies</p>
+                  </div>
+                  <div class="p-6">
+                    <!-- All regions toggle -->
+                    <label class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 cursor-pointer mb-4 hover:border-orange-300 dark:hover:border-orange-700 transition-colors">
+                      <div class="flex items-center gap-3">
+                        <div class="p-2 bg-orange-100 dark:bg-orange-800/30 rounded-lg">
+                          <Globe class="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                        </div>
+                        <div>
+                          <p class="font-semibold text-gray-900 dark:text-white">Couverture nationale</p>
+                          <p class="text-xs text-gray-500">Activer pour tout le territoire tunisien</p>
+                        </div>
+                      </div>
+                      <div class="relative">
+                        <input
+                          type="checkbox"
+                          v-model="newCarrier.allRegions"
+                          @change="handleAllRegionsToggle"
+                          class="sr-only peer"
+                        />
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 dark:peer-focus:ring-orange-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-orange-500"></div>
+                      </div>
+                    </label>
+
+                    <!-- Region selection grid -->
+                    <div v-if="!newCarrier.allRegions" class="space-y-4">
+                      <div class="flex items-center justify-between">
+                        <p class="text-sm text-gray-600 dark:text-gray-400">
+                          <span class="font-semibold text-orange-600">{{ newCarrier.regions.length }}</span> / 24 gouvernorats
+                        </p>
+                        <div class="flex gap-2">
+                          <button @click="selectAllRegions" type="button" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 hover:bg-orange-200 transition-colors">
+                            Tout sélectionner
+                          </button>
+                          <button @click="clearAllRegions" type="button" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 transition-colors">
+                            Effacer
+                          </button>
+                        </div>
+                      </div>
+                      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-64 overflow-y-auto p-1">
+                        <label
+                          v-for="gov in gouvernorats"
+                          :key="gov"
+                          :class="[
+                            'flex items-center gap-2 p-3 rounded-xl cursor-pointer transition-all',
+                            newCarrier.regions.includes(gov)
+                              ? 'bg-orange-100 dark:bg-orange-900/30 border-2 border-orange-400 dark:border-orange-600'
+                              : 'bg-gray-50 dark:bg-gray-800 border-2 border-transparent hover:border-gray-200 dark:hover:border-gray-700'
+                          ]"
+                        >
+                          <input
+                            type="checkbox"
+                            :value="gov"
+                            v-model="newCarrier.regions"
+                            class="hidden"
+                          />
+                          <MapPin :class="[
+                            'w-4 h-4',
+                            newCarrier.regions.includes(gov) ? 'text-orange-500' : 'text-gray-400'
+                          ]" />
+                          <span :class="[
+                            'text-sm font-medium',
+                            newCarrier.regions.includes(gov) ? 'text-orange-700 dark:text-orange-300' : 'text-gray-600 dark:text-gray-400'
+                          ]">{{ gov }}</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Final Footer -->
+                  <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-800 flex justify-between items-center">
+                    <button v-if="!editingCarrier" @click="carrierWizardStep = 3" class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+                      <ArrowLeft class="w-4 h-4" />
+                      Retour
+                    </button>
+                    <button v-else @click="activeSection = 'connected-carriers'; resetCarrierForm()" class="text-sm text-gray-500 hover:text-gray-700">
+                      Annuler
+                    </button>
+                    <button
+                      @click="saveCarrierFromPage"
+                      class="px-8 py-3 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 bg-[#4959b4] hover:bg-[#3a4791] text-white shadow-sm hover:shadow-md"
+                    >
+                      <CheckCircle class="w-5 h-5" />
+                      {{ editingCarrier ? 'Enregistrer' : 'Ajouter le transporteur' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Preview Column -->
+              <div class="lg:col-span-1">
+                <div class="sticky top-6 space-y-4">
+                  <!-- Live Preview Card -->
+                  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm">
+                    <div class="px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800">
+                      <h5 class="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center">
+                        <Eye class="w-4 h-4 mr-2 text-gray-400" />
+                        Aperçu en direct
+                      </h5>
+                    </div>
+                    <div class="p-4">
+                      <!-- Mini Carrier Card Preview -->
+                      <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                        <div class="h-1.5 bg-gradient-to-r from-orange-400 to-orange-500 rounded-t-xl -mt-4 -mx-4 mb-4"></div>
+                        <div class="flex items-start gap-3 mb-4">
+                          <div class="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-sm" :style="selectedModalCarrier ? { backgroundColor: selectedModalCarrier.color + '20', color: selectedModalCarrier.color } : { backgroundColor: '#f97316' + '20', color: '#f97316' }">
+                            {{ newCarrier.name ? getCarrierInitials(newCarrier.name) : '??' }}
+                          </div>
+                          <div class="flex-1 min-w-0">
+                            <p class="font-semibold text-gray-900 dark:text-white truncate">{{ newCarrier.name || 'Nom du transporteur' }}</p>
+                            <div class="flex items-center gap-1.5 mt-0.5">
+                              <span class="w-1.5 h-1.5 rounded-full" :class="newCarrier.apiId && newCarrier.apiKey ? 'bg-green-500' : 'bg-gray-300'"></span>
+                              <span class="text-xs" :class="newCarrier.apiId && newCarrier.apiKey ? 'text-green-600' : 'text-gray-400'">
+                                {{ newCarrier.apiId && newCarrier.apiKey ? 'Prêt' : 'API non configurée' }}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2 mb-3">
+                          <div class="text-center p-2 bg-white dark:bg-gray-900 rounded-lg">
+                            <p class="text-sm font-bold text-gray-900 dark:text-white">{{ newCarrier.fraisColisLivres.toFixed(1) }}</p>
+                            <p class="text-[9px] text-gray-400 uppercase">Livré</p>
+                          </div>
+                          <div class="text-center p-2 bg-white dark:bg-gray-900 rounded-lg">
+                            <p class="text-sm font-bold text-gray-900 dark:text-white">{{ newCarrier.fraisColisRetour.toFixed(1) }}</p>
+                            <p class="text-[9px] text-gray-400 uppercase">Retour</p>
+                          </div>
+                          <div class="text-center p-2 bg-white dark:bg-gray-900 rounded-lg">
+                            <p class="text-sm font-bold text-orange-600">{{ newCarrier.totalFraisLivraison.toFixed(1) }}</p>
+                            <p class="text-[9px] text-gray-400 uppercase">Total</p>
+                          </div>
+                        </div>
+
+                        <div class="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                          <span class="text-xs text-gray-500">Couverture</span>
+                          <span v-if="newCarrier.allRegions" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">
+                            <Globe class="w-3 h-3" />
+                            National
+                          </span>
+                          <span v-else class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                            <MapPin class="w-3 h-3" />
+                            {{ newCarrier.regions.length }} régions
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Tips Card -->
+                  <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4">
+                    <h5 class="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center mb-3">
+                      <Lightbulb class="w-4 h-4 mr-2 text-orange-500" />
+                      Conseils
+                    </h5>
+                    <ul class="space-y-2 text-xs text-gray-600 dark:text-gray-400">
+                      <li class="flex items-start gap-2">
+                        <CheckCircle class="w-3 h-3 mt-0.5 flex-shrink-0 text-orange-500" />
+                        <span>Obtenez vos identifiants API depuis le portail de votre transporteur</span>
+                      </li>
+                      <li class="flex items-start gap-2">
+                        <CheckCircle class="w-3 h-3 mt-0.5 flex-shrink-0 text-orange-500" />
+                        <span>Les tarifs peuvent être ajustés à tout moment</span>
+                      </li>
+                      <li class="flex items-start gap-2">
+                        <CheckCircle class="w-3 h-3 mt-0.5 flex-shrink-0 text-orange-500" />
+                        <span>Activez la couverture nationale pour une configuration rapide</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </template>
+
       <!-- Tracking Page Section -->
       <template v-if="activeSection === 'page-templates' || activeSection === 'my-tracking-page' || activeSection === 'page-branding' || activeSection === 'page-analytics' || activeSection === 'failed-searches'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">
-                {{ activeSection === 'page-templates' ? 'Modèles de page' : activeSection === 'my-tracking-page' ? 'Ma page de suivi' : activeSection === 'page-branding' ? 'Personnalisation' : activeSection === 'page-analytics' ? 'Analytiques page' : 'Recherches échouées' }}
-              </h1>
-              <p class="text-sm text-gray-500 mt-1">
-                {{ activeSection === 'page-templates' ? 'Choisissez un modèle pour votre page de suivi' : activeSection === 'my-tracking-page' ? 'Prévisualisez et gérez votre page de suivi' : activeSection === 'page-branding' ? 'Personnalisez votre page avec votre branding' : activeSection === 'page-analytics' ? 'Statistiques de votre page de suivi' : 'Clients qui n\'ont pas trouvé leur commande' }}
-              </p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
+                  {{ activeSection === 'page-templates' ? 'Modèles de page' : activeSection === 'my-tracking-page' ? 'Ma page de suivi' : activeSection === 'page-branding' ? 'Personnalisation' : activeSection === 'page-analytics' ? 'Analytiques page' : 'Recherches échouées' }}
+                </h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">
+                  {{ activeSection === 'page-templates' ? 'Choisissez un modèle pour votre page de suivi' : activeSection === 'my-tracking-page' ? 'Prévisualisez et gérez votre page de suivi' : activeSection === 'page-branding' ? 'Personnalisez votre page avec votre branding' : activeSection === 'page-analytics' ? 'Statistiques de votre page de suivi' : 'Clients qui n\'ont pas trouvé leur commande' }}
+                </p>
+              </div>
             </div>
-            <button v-if="activeSection === 'page-templates'" class="flex items-center space-x-2 px-4 py-2 bg-primary-blue hover:bg-primary-blue-hover text-white rounded-lg text-sm font-medium transition-colors">
+            <button v-if="activeSection === 'page-templates'" class="flex items-center space-x-0 sm:space-x-2 px-3 sm:px-4 py-2 bg-primary-blue hover:bg-primary-blue-hover text-white rounded-lg text-sm font-medium transition-colors">
               <Plus class="w-4 h-4" />
-              <span>Créer une page</span>
+              <span class="hidden sm:inline">Créer une page</span>
             </button>
           </div>
         </header>
@@ -5120,7 +6183,7 @@
                   </select>
                 </div>
                 <div class="h-48 flex items-end space-x-2">
-                  <div v-for="(day, index) in [{name: 'Lun', value: 145}, {name: 'Mar', value: 178}, {name: 'Mer', value: 165}, {name: 'Jeu', value: 192}, {name: 'Ven', value: 210}, {name: 'Sam', value: 185}, {name: 'Dim', value: 159}]" :key="index" class="flex-1 flex flex-col items-center">
+                  <div v-for="(day, index) in []" :key="index" class="flex-1 flex flex-col items-center">
                     <div class="w-full bg-gradient-to-t from-orange-500 to-orange-400 rounded-t transition-all hover:from-orange-600 hover:to-orange-500" :style="{ height: (day.value / 210 * 100) + '%' }"></div>
                     <span class="text-xs text-gray-500 mt-2">{{ day.name }}</span>
                     <span class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ day.value }}</span>
@@ -5166,7 +6229,7 @@
               <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
                 <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Recherches les plus fréquentes</h3>
                 <div class="space-y-3">
-                  <div v-for="(item, index) in [{tracking: 'YAL-2026-001234', searches: 12, status: 'Livré'}, {tracking: 'ZR-2026-005678', searches: 8, status: 'En transit'}, {tracking: 'MAY-2026-009012', searches: 6, status: 'En livraison'}, {tracking: 'ECO-2026-003456', searches: 5, status: 'En attente'}, {tracking: 'YAL-2026-007890', searches: 4, status: 'Livré'}]" :key="index"
+                  <div v-for="(item, index) in []" :key="index"
                     class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                     <div class="flex items-center space-x-3">
                       <span class="w-6 h-6 flex items-center justify-center text-xs font-bold rounded-full bg-orange-100 text-orange-600">{{ index + 1 }}</span>
@@ -5230,6 +6293,7 @@
                 <p class="text-sm text-gray-500">{{ failedSearches.length }} recherches sans résultat</p>
                 <button class="text-sm text-orange-500 hover:text-orange-600 font-medium">Exporter CSV</button>
               </div>
+              <div class="table-responsive">
               <table class="w-full">
                 <thead class="bg-gray-50 dark:bg-gray-800/50">
                   <tr>
@@ -5242,15 +6306,15 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                   <tr v-for="search in failedSearches" :key="search.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/30">
-                    <td class="px-4 py-3">
+                    <td class="px-4 py-3" data-label="Recherche">
                       <span class="font-mono text-sm text-gray-900 dark:text-white">{{ search.query }}</span>
                     </td>
-                    <td class="px-4 py-3">
+                    <td class="px-4 py-3" data-label="Téléphone">
                       <span v-if="search.phone" class="text-sm text-gray-600 dark:text-gray-400">{{ search.phone }}</span>
                       <span v-else class="text-sm text-gray-400">Non fourni</span>
                     </td>
-                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ search.date }}</td>
-                    <td class="px-4 py-3">
+                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Date">{{ search.date }}</td>
+                    <td class="px-4 py-3" data-label="Statut">
                       <span :class="[
                         'px-2 py-0.5 text-xs rounded font-medium',
                         search.contacted ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
@@ -5258,7 +6322,7 @@
                         {{ search.contacted ? 'Contacté' : 'À contacter' }}
                       </span>
                     </td>
-                    <td class="px-4 py-3 text-right">
+                    <td class="px-4 py-3 text-right" data-label="Actions">
                       <div class="flex items-center justify-end space-x-2">
                         <button v-if="search.phone" class="p-1.5 text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 rounded" title="WhatsApp">
                           <MessageCircle class="w-4 h-4" />
@@ -5271,6 +6335,7 @@
                   </tr>
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         </main>
@@ -5279,13 +6344,18 @@
       <!-- Finance Section -->
       <!-- ==================== FINANCE - PAIEMENTS ATTENDUS ==================== -->
       <template v-if="activeSection === 'expected-payments'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Paiements attendus</h1>
-              <p class="text-sm text-gray-500 mt-1">Montants que les transporteurs vous doivent (COD collecté - Frais)</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Paiements attendus</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Montants que les transporteurs vous doivent (COD collecté - Frais)</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
+            <div class="hidden sm:flex items-center space-x-3">
               <select v-model="expectedPaymentsCarrierFilter" class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm">
                 <option value="all">Tous les transporteurs</option>
                 <option v-for="carrier in carriersList" :key="carrier.id" :value="carrier.id">{{ carrier.name }}</option>
@@ -5366,7 +6436,7 @@
             </div>
 
             <!-- Shipments Table (Manifest) -->
-            <div class="overflow-x-auto">
+            <div class="table-responsive">
               <table class="w-full text-sm">
                 <thead class="bg-gray-100 dark:bg-gray-800">
                   <tr>
@@ -5383,15 +6453,15 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                   <tr v-for="shipment in carrier.shipments" :key="shipment.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/30">
-                    <td class="px-4 py-2.5 font-mono text-xs text-gray-900 dark:text-white">{{ shipment.tracking }}</td>
-                    <td class="px-4 py-2.5 text-gray-700 dark:text-gray-300">{{ shipment.client }}</td>
-                    <td class="px-4 py-2.5 text-gray-600 dark:text-gray-400">{{ shipment.destination }}</td>
-                    <td class="px-4 py-2.5 text-gray-600 dark:text-gray-400">{{ shipment.deliveryDate }}</td>
-                    <td class="px-4 py-2.5 text-right font-medium text-gray-900 dark:text-white">{{ shipment.cod.toLocaleString() }} TND</td>
-                    <td class="px-4 py-2.5 text-right text-red-600">-{{ shipment.deliveryFee.toLocaleString() }} TND</td>
-                    <td class="px-4 py-2.5 text-right text-red-600">{{ shipment.otherFees > 0 ? '-' + shipment.otherFees.toLocaleString() : '0' }} TND</td>
-                    <td class="px-4 py-2.5 text-right font-semibold text-green-600">{{ shipment.net.toLocaleString() }} TND</td>
-                    <td class="px-4 py-2.5 text-center">
+                    <td class="px-4 py-2.5 font-mono text-xs text-gray-900 dark:text-white" data-label="N° Tracking">{{ shipment.tracking }}</td>
+                    <td class="px-4 py-2.5 text-gray-700 dark:text-gray-300" data-label="Client">{{ shipment.client }}</td>
+                    <td class="px-4 py-2.5 text-gray-600 dark:text-gray-400" data-label="Destination">{{ shipment.destination }}</td>
+                    <td class="px-4 py-2.5 text-gray-600 dark:text-gray-400" data-label="Date Livraison">{{ shipment.deliveryDate }}</td>
+                    <td class="px-4 py-2.5 text-right font-medium text-gray-900 dark:text-white" data-label="COD">{{ shipment.cod.toLocaleString() }} TND</td>
+                    <td class="px-4 py-2.5 text-right text-red-600" data-label="Frais Livr.">-{{ shipment.deliveryFee.toLocaleString() }} TND</td>
+                    <td class="px-4 py-2.5 text-right text-red-600" data-label="Autres Frais">{{ shipment.otherFees > 0 ? '-' + shipment.otherFees.toLocaleString() : '0' }} TND</td>
+                    <td class="px-4 py-2.5 text-right font-semibold text-green-600" data-label="Net">{{ shipment.net.toLocaleString() }} TND</td>
+                    <td class="px-4 py-2.5 text-center" data-label="Statut">
                       <span :class="[
                         'px-2 py-0.5 text-xs font-medium rounded-full',
                         shipment.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' :
@@ -5428,13 +6498,18 @@
 
       <!-- ==================== FINANCE - PAIEMENTS REÇUS ==================== -->
       <template v-if="activeSection === 'received-payments'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Paiements reçus</h1>
-              <p class="text-sm text-gray-500 mt-1">Historique des versements reçus avec détail par colis</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Paiements reçus</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Historique des versements reçus avec détail par colis</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
+            <div class="hidden sm:flex items-center space-x-3">
               <input type="month" v-model="receivedPaymentsMonth" class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" />
               <select v-model="receivedPaymentsCarrierFilter" class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm">
                 <option value="all">Tous les transporteurs</option>
@@ -5513,7 +6588,7 @@
             </div>
 
             <!-- Detailed Shipments Table (Collapsible) -->
-            <div v-show="payment.expanded" class="overflow-x-auto">
+            <div v-show="payment.expanded" class="table-responsive">
               <table class="w-full text-sm">
                 <thead class="bg-gray-100 dark:bg-gray-800">
                   <tr>
@@ -5529,14 +6604,14 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                   <tr v-for="shipment in payment.shipments" :key="shipment.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/30">
-                    <td class="px-4 py-2.5 font-mono text-xs text-gray-900 dark:text-white">{{ shipment.tracking }}</td>
-                    <td class="px-4 py-2.5 text-gray-700 dark:text-gray-300">{{ shipment.client }}</td>
-                    <td class="px-4 py-2.5 text-gray-600 dark:text-gray-400">{{ shipment.destination }}</td>
-                    <td class="px-4 py-2.5 text-gray-600 dark:text-gray-400">{{ shipment.deliveryDate }}</td>
-                    <td class="px-4 py-2.5 text-right font-medium text-gray-900 dark:text-white">{{ shipment.cod.toLocaleString() }} TND</td>
-                    <td class="px-4 py-2.5 text-right text-red-600">-{{ shipment.deliveryFee.toLocaleString() }} TND</td>
-                    <td class="px-4 py-2.5 text-right text-red-600">{{ shipment.otherFees > 0 ? '-' + shipment.otherFees.toLocaleString() : '0' }} TND</td>
-                    <td class="px-4 py-2.5 text-right font-semibold text-green-600">{{ shipment.net.toLocaleString() }} TND</td>
+                    <td class="px-4 py-2.5 font-mono text-xs text-gray-900 dark:text-white" data-label="N° Tracking">{{ shipment.tracking }}</td>
+                    <td class="px-4 py-2.5 text-gray-700 dark:text-gray-300" data-label="Client">{{ shipment.client }}</td>
+                    <td class="px-4 py-2.5 text-gray-600 dark:text-gray-400" data-label="Destination">{{ shipment.destination }}</td>
+                    <td class="px-4 py-2.5 text-gray-600 dark:text-gray-400" data-label="Date Livraison">{{ shipment.deliveryDate }}</td>
+                    <td class="px-4 py-2.5 text-right font-medium text-gray-900 dark:text-white" data-label="COD">{{ shipment.cod.toLocaleString() }} TND</td>
+                    <td class="px-4 py-2.5 text-right text-red-600" data-label="Frais Livr.">-{{ shipment.deliveryFee.toLocaleString() }} TND</td>
+                    <td class="px-4 py-2.5 text-right text-red-600" data-label="Autres Frais">{{ shipment.otherFees > 0 ? '-' + shipment.otherFees.toLocaleString() : '0' }} TND</td>
+                    <td class="px-4 py-2.5 text-right font-semibold text-green-600" data-label="Net">{{ shipment.net.toLocaleString() }} TND</td>
                   </tr>
                 </tbody>
                 <tfoot class="bg-gray-50 dark:bg-gray-800 font-semibold">
@@ -5589,13 +6664,18 @@
 
       <!-- ==================== FINANCE - ÉCARTS DE PAIEMENT ==================== -->
       <template v-if="activeSection === 'payment-discrepancies'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Écarts de paiement</h1>
-              <p class="text-sm text-gray-500 mt-1">Comparaison entre nos calculs et les paiements reçus des transporteurs</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Écarts de paiement</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Comparaison entre nos calculs et les paiements reçus des transporteurs</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
+            <div class="hidden sm:flex items-center space-x-3">
               <select v-model="discrepancyCarrierFilter" class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm">
                 <option value="all">Tous les transporteurs</option>
                 <option v-for="carrier in carriersList" :key="carrier.id" :value="carrier.id">{{ carrier.name }}</option>
@@ -5709,7 +6789,7 @@
             </div>
 
             <!-- Detailed Shipment Reconciliation -->
-            <div class="overflow-x-auto">
+            <div class="table-responsive">
               <table class="w-full text-sm">
                 <thead class="bg-gray-100 dark:bg-gray-800">
                   <tr>
@@ -5820,13 +6900,18 @@
 
       <!-- ==================== FINANCE - REVENUS ==================== -->
       <template v-if="activeSection === 'revenue'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Revenus</h1>
-              <p class="text-sm text-gray-500 mt-1">Vue d'ensemble de vos revenus et marges</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Revenus</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Vue d'ensemble de vos revenus et marges</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
+            <div class="hidden sm:flex items-center space-x-3">
               <select v-model="revenuePeriod" class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm">
                 <option value="week">Cette semaine</option>
                 <option value="month">Ce mois</option>
@@ -5968,13 +7053,18 @@
 
       <!-- ==================== FINANCE - PERTES RETOURS ==================== -->
       <template v-if="activeSection === 'return-losses'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Pertes retours</h1>
-              <p class="text-sm text-gray-500 mt-1">Impact financier des retours et colis perdus</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Pertes retours</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Impact financier des retours et colis perdus</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
+            <div class="hidden sm:flex items-center space-x-3">
               <input type="month" v-model="returnLossesMonth" class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" />
               <button class="flex items-center space-x-2 px-4 py-2 bg-primary-blue hover:bg-primary-blue-hover text-white rounded-lg text-sm font-medium">
                 <FileDown class="w-4 h-4" />
@@ -6086,7 +7176,7 @@
             <div class="p-4 border-b border-gray-200 dark:border-gray-800">
               <h3 class="font-semibold text-gray-900 dark:text-white">Détail des pertes</h3>
             </div>
-            <div class="overflow-x-auto">
+            <div class="table-responsive">
               <table class="w-full">
                 <thead class="bg-gray-50 dark:bg-gray-800">
                   <tr>
@@ -6101,10 +7191,10 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                   <tr v-for="loss in returnLossesDetails" :key="loss.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                    <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{{ loss.reference }}</td>
-                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ loss.customer }}</td>
-                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ loss.carrier }}</td>
-                    <td class="px-4 py-3">
+                    <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white" data-label="Référence">{{ loss.reference }}</td>
+                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Client">{{ loss.customer }}</td>
+                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Transporteur">{{ loss.carrier }}</td>
+                    <td class="px-4 py-3" data-label="Motif">
                       <span :class="[
                         'px-2 py-1 text-xs font-medium rounded-full',
                         loss.reason === 'Refusé' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
@@ -6112,9 +7202,9 @@
                         'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
                       ]">{{ loss.reason }}</span>
                     </td>
-                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ loss.value.toLocaleString() }} TND</td>
-                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ loss.shippingFee.toLocaleString() }} TND</td>
-                    <td class="px-4 py-3 text-sm font-semibold text-red-600">-{{ loss.totalLoss.toLocaleString() }} TND</td>
+                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Valeur colis">{{ loss.value.toLocaleString() }} TND</td>
+                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Frais port">{{ loss.shippingFee.toLocaleString() }} TND</td>
+                    <td class="px-4 py-3 text-sm font-semibold text-red-600" data-label="Perte totale">-{{ loss.totalLoss.toLocaleString() }} TND</td>
                   </tr>
                 </tbody>
               </table>
@@ -6125,13 +7215,18 @@
 
       <!-- ==================== FINANCE - FACTURES ==================== -->
       <template v-if="activeSection === 'invoices'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Factures</h1>
-              <p class="text-sm text-gray-500 mt-1">Gérez vos factures transporteurs et clients</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Factures</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Gérez vos factures transporteurs et clients</p>
+              </div>
             </div>
-            <div class="flex items-center space-x-3">
+            <div class="hidden sm:flex items-center space-x-3">
               <button
                 v-for="tab in ['received', 'sent']"
                 :key="tab"
@@ -6219,7 +7314,7 @@
                 <span>Nouvelle facture</span>
               </button>
             </div>
-            <div class="overflow-x-auto">
+            <div class="table-responsive">
               <table class="w-full">
                 <thead class="bg-gray-50 dark:bg-gray-800">
                   <tr>
@@ -6234,14 +7329,14 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                   <tr v-for="invoice in filteredInvoices" :key="invoice.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                    <td class="px-4 py-3">
+                    <td class="px-4 py-3" data-label="N° Facture">
                       <span class="text-sm font-medium text-gray-900 dark:text-white">{{ invoice.number }}</span>
                     </td>
-                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ invoice.party }}</td>
-                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ invoice.date }}</td>
-                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{{ invoice.dueDate }}</td>
-                    <td class="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">{{ invoice.amount.toLocaleString() }} TND</td>
-                    <td class="px-4 py-3">
+                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Client">{{ invoice.party }}</td>
+                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Date">{{ invoice.date }}</td>
+                    <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Échéance">{{ invoice.dueDate }}</td>
+                    <td class="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white" data-label="Montant">{{ invoice.amount.toLocaleString() }} TND</td>
+                    <td class="px-4 py-3" data-label="Statut">
                       <span :class="[
                         'px-2 py-1 text-xs font-medium rounded-full',
                         invoice.status === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
@@ -6251,7 +7346,7 @@
                         {{ invoice.status === 'paid' ? 'Payée' : invoice.status === 'overdue' ? 'En retard' : 'En attente' }}
                       </span>
                     </td>
-                    <td class="px-4 py-3">
+                    <td class="px-4 py-3" data-label="Actions">
                       <div class="flex items-center space-x-2">
                         <button class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded" title="Voir">
                           <Eye class="w-4 h-4 text-gray-500" />
@@ -6274,11 +7369,16 @@
 
       <!-- ==================== FINANCE - EXPORTS ==================== -->
       <template v-if="activeSection === 'exports'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Exports financiers</h1>
-              <p class="text-sm text-gray-500 mt-1">Exportez vos données financières pour la comptabilité</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Exports financiers</h1>
+              <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Exportez vos données financières pour la comptabilité</p>
+              </div>
             </div>
           </div>
         </header>
@@ -6440,18 +7540,22 @@
 
       <!-- Users & Roles Section -->
       <template v-if="activeSection === 'users-roles'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Membres</h1>
-              <p class="text-sm text-gray-500 mt-1">
-                Ajoutez et gérez des membres et leurs rôles, et consultez l'utilisation des sièges pour votre organisation.
-                <a href="#" class="text-blue-600 hover:underline">Voir les sièges</a>
-              </p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Utilisateurs & Rôles</h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">
+                  Gérez les membres de votre équipe et leurs permissions
+                </p>
+              </div>
             </div>
-            <button class="flex items-center space-x-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
-              <Lock class="w-4 h-4" />
-              <span>Exportation</span>
+            <button @click="exportMembers" class="flex items-center space-x-0 sm:space-x-2 px-3 sm:px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+              <Download class="w-4 h-4" />
+              <span class="hidden sm:inline">Exporter</span>
             </button>
           </div>
         </header>
@@ -6465,22 +7569,22 @@
                   :class="[
                     'py-4 text-sm font-medium border-b-2 -mb-px transition-colors',
                     membersTab === 'members'
-                      ? 'border-blue-600 text-blue-600'
+                      ? 'border-[#4959b4] text-[#4959b4]'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   ]"
                 >
-                  Membres
+                  Membres ({{ filteredMembers.length }})
                 </button>
                 <button
                   @click="membersTab = 'roles'"
                   :class="[
                     'py-4 text-sm font-medium border-b-2 -mb-px transition-colors',
                     membersTab === 'roles'
-                      ? 'border-blue-600 text-blue-600'
+                      ? 'border-[#4959b4] text-[#4959b4]'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   ]"
                 >
-                  Rôles
+                  Rôles ({{ availableRoles.length }})
                 </button>
               </nav>
             </div>
@@ -6488,238 +7592,943 @@
             <!-- Members Tab Content -->
             <div v-if="membersTab === 'members'" class="p-6">
               <!-- Add Members Button -->
-              <button class="mb-6 flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">
-                <span>Ajouter des membres</span>
+              <button @click="openAddMemberModal" class="mb-6 flex items-center space-x-2 px-4 py-2 bg-[#4959b4] hover:bg-[#3a4791] text-white rounded-lg text-sm font-medium transition-colors">
+                <Plus class="w-4 h-4" />
+                <span>Ajouter un membre</span>
               </button>
 
               <!-- Search and Filter -->
-              <div class="flex items-center space-x-4 mb-6">
+              <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:space-x-4 mb-6">
                 <div class="flex-1 relative">
                   <Search class="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <input
                     v-model="memberSearchQuery"
                     type="text"
-                    placeholder="Search by name or email"
-                    class="w-full pl-9 pr-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400"
+                    placeholder="Rechercher par nom ou email"
+                    class="w-full pl-9 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-[#4959b4] focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400"
                   />
                 </div>
                 <div class="relative">
                   <button
                     @click="showRoleFilter = !showRoleFilter"
-                    class="flex items-center space-x-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    class="w-full sm:w-auto flex items-center justify-between sm:justify-start space-x-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                   >
-                    <span>Poste</span>
+                    <span>Filtrer par rôle</span>
                     <ChevronDown class="w-4 h-4" />
                   </button>
                   <!-- Role Filter Dropdown -->
-                  <div v-if="showRoleFilter" class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-10">
+                  <div v-if="showRoleFilter" class="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-10">
                     <label v-for="role in availableRoles" :key="role.id" class="flex items-center px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
                       <input type="checkbox" :value="role.id" v-model="selectedRoleFilters" class="mr-3 rounded border-gray-300" />
                       <span class="text-sm text-gray-700 dark:text-gray-300">{{ role.name }}</span>
                     </label>
-                    <div class="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2 px-4">
+                    <div class="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2 px-4 flex justify-between">
                       <button @click="selectedRoleFilters = []; showRoleFilter = false" class="text-sm text-gray-500 hover:text-gray-700">Effacer</button>
+                      <button @click="showRoleFilter = false" class="text-sm text-[#4959b4] font-medium">Appliquer</button>
                     </div>
                   </div>
                 </div>
               </div>
 
               <!-- Members Table -->
-              <table class="w-full">
-                <thead>
-                  <tr class="border-b border-gray-200 dark:border-gray-800">
-                    <th class="text-left py-3 text-sm font-semibold text-gray-900 dark:text-white">Nom</th>
-                    <th class="text-left py-3 text-sm font-semibold text-gray-900 dark:text-white">
-                      Dernière connexion
-                      <HelpCircle class="w-4 h-4 inline-block ml-1 text-gray-400" />
-                    </th>
-                    <th class="text-left py-3 text-sm font-semibold text-gray-900 dark:text-white">Poste</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
-                  <tr v-for="member in teamMembers" :key="member.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/30">
-                    <td class="py-4">
-                      <div class="flex items-center space-x-3">
-                        <div :class="['w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold', member.avatarColor]">
-                          {{ member.initials }}
+              <div class="table-responsive">
+                <table class="w-full">
+                  <thead>
+                    <tr class="border-b border-gray-200 dark:border-gray-800">
+                      <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Membre</th>
+                      <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase hidden sm:table-cell">Email</th>
+                      <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Rôle</th>
+                      <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Statut</th>
+                      <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Dernière connexion</th>
+                      <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+                    <tr v-for="member in filteredMembers" :key="member.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/30">
+                      <td class="py-3 px-4" data-label="Membre">
+                        <div class="flex items-center space-x-3">
+                          <div :class="['w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-sm', member.avatarColor]">
+                            {{ member.initials }}
+                          </div>
+                          <span class="font-medium text-gray-900 dark:text-white">{{ member.name }}</span>
                         </div>
-                        <div>
-                          <p class="font-medium text-gray-900 dark:text-white">{{ member.name }}</p>
-                          <p class="text-sm text-gray-500">{{ member.email }}</p>
+                      </td>
+                      <td class="py-3 px-4 text-sm text-gray-600 dark:text-gray-400 hidden sm:table-cell" data-label="Email">{{ member.email }}</td>
+                      <td class="py-3 px-4" data-label="Rôle">
+                        <span :class="[
+                          'px-2 py-1 rounded-full text-xs font-medium',
+                          member.role === 'Owner' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' :
+                          member.role === 'Admin' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
+                          member.role === 'Manager' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                          'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400'
+                        ]">{{ member.role }}</span>
+                      </td>
+                      <td class="py-3 px-4 hidden md:table-cell" data-label="Statut">
+                        <span :class="[
+                          'px-2 py-1 rounded-full text-xs font-medium',
+                          member.status === 'active' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                          member.status === 'invited' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
+                          'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                        ]">
+                          {{ member.status === 'active' ? 'Actif' : member.status === 'invited' ? 'Invité' : 'Inactif' }}
+                        </span>
+                      </td>
+                      <td class="py-3 px-4 text-sm text-gray-500 hidden lg:table-cell" data-label="Dernière connexion">{{ member.lastLogin }}</td>
+                      <td class="py-3 px-4 text-right" data-label="Actions">
+                        <div class="flex items-center justify-end space-x-2">
+                          <button @click="editMember(member)" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg" title="Modifier">
+                            <Settings class="w-4 h-4 text-gray-500" />
+                          </button>
+                          <button v-if="member.role !== 'Owner'" @click="confirmDeleteMember(member)" class="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg" title="Supprimer">
+                            <Trash2 class="w-4 h-4 text-red-500" />
+                          </button>
                         </div>
-                      </div>
-                    </td>
-                    <td class="py-4 text-sm text-gray-600 dark:text-gray-400">{{ member.lastLogin }}</td>
-                    <td class="py-4 text-sm text-gray-600 dark:text-gray-400">{{ member.role }}</td>
-                  </tr>
-                </tbody>
-              </table>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
 
-              <!-- Pagination -->
-              <div class="flex items-center justify-center space-x-2 mt-6">
-                <button class="p-2 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <ChevronLeft class="w-4 h-4 text-gray-400" />
-                </button>
-                <span class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm">1</span>
-                <span class="text-gray-500">/ 1</span>
-                <button class="p-2 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <ChevronRight class="w-4 h-4 text-gray-400" />
-                </button>
+              <!-- Empty State -->
+              <div v-if="filteredMembers.length === 0" class="text-center py-12">
+                <Users class="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p class="text-gray-500">Aucun membre trouvé</p>
               </div>
             </div>
 
             <!-- Roles Tab Content -->
             <div v-if="membersTab === 'roles'" class="p-6">
-              <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Pour un contrôle plus précis des autorisations, vous pouvez créer des rôles personnalisés avec des autorisations spécifiques.
-                <a href="#" class="text-blue-600 hover:underline">Pour en savoir plus</a>
-              </p>
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                  Créez des rôles personnalisés avec des permissions spécifiques pour un meilleur contrôle d'accès.
+                </p>
+                <button @click="openAddRoleModal" class="flex items-center space-x-2 px-4 py-2 bg-[#4959b4] hover:bg-[#3a4791] text-white rounded-lg text-sm font-medium transition-colors">
+                  <Plus class="w-4 h-4" />
+                  <span>Créer un rôle</span>
+                </button>
+              </div>
 
-              <!-- Create Role Button -->
-              <button class="mb-6 flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">
-                <Lock class="w-4 h-4" />
-                <span>Créer un rôle</span>
+              <!-- Roles Grid -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div v-for="role in availableRoles" :key="role.id" class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                  <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center gap-3">
+                      <div :class="[
+                        'w-10 h-10 rounded-lg flex items-center justify-center',
+                        role.id === 'owner' ? 'bg-purple-100 dark:bg-purple-900/30' :
+                        role.id === 'admin' ? 'bg-blue-100 dark:bg-blue-900/30' :
+                        role.id === 'manager' ? 'bg-green-100 dark:bg-green-900/30' :
+                        'bg-gray-100 dark:bg-gray-700'
+                      ]">
+                        <Shield :class="[
+                          'w-5 h-5',
+                          role.id === 'owner' ? 'text-purple-600' :
+                          role.id === 'admin' ? 'text-blue-600' :
+                          role.id === 'manager' ? 'text-green-600' :
+                          'text-gray-500'
+                        ]" />
+                      </div>
+                      <div>
+                        <div class="flex items-center gap-2">
+                          <h3 class="font-semibold text-gray-900 dark:text-white">{{ role.name }}</h3>
+                          <span v-if="role.isDefault" class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-[10px] rounded uppercase">Défaut</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ role.memberCount }} membre{{ role.memberCount > 1 ? 's' : '' }}</p>
+                      </div>
+                    </div>
+                    <div v-if="!role.isOwner" class="flex items-center gap-1">
+                      <button @click="editRole(role)" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg">
+                        <Settings class="w-4 h-4 text-gray-500" />
+                      </button>
+                      <button v-if="!role.isDefault" @click="confirmDeleteRole(role)" class="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
+                        <Trash2 class="w-4 h-4 text-red-500" />
+                      </button>
+                    </div>
+                  </div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">{{ role.description || 'Aucune description' }}</p>
+                  <div class="flex flex-wrap gap-1.5">
+                    <span v-for="perm in (role.permissions || []).slice(0, 4)" :key="perm" class="px-2 py-0.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded text-xs text-gray-600 dark:text-gray-400">
+                      {{ perm }}
+                    </span>
+                    <span v-if="(role.permissions || []).length > 4" class="px-2 py-0.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded text-xs text-gray-600 dark:text-gray-400">
+                      +{{ role.permissions.length - 4 }} autres
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        <!-- Add/Edit Member Modal -->
+        <div v-if="showMemberModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div class="bg-white dark:bg-gray-900 rounded-xl w-full max-w-md shadow-xl">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ editingMember ? 'Modifier le membre' : 'Ajouter un membre' }}
+              </h2>
+              <button @click="closeMemberModal" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <X class="w-5 h-5 text-gray-500" />
               </button>
+            </div>
+            <div class="p-4 space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nom complet *</label>
+                <input v-model="memberForm.name" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white" placeholder="Jean Dupont" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email *</label>
+                <input v-model="memberForm.email" type="email" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white" placeholder="jean@exemple.tn" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rôle *</label>
+                <select v-model="memberForm.role" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white">
+                  <option value="">Sélectionner un rôle</option>
+                  <option v-for="role in availableRoles.filter(r => !r.isOwner)" :key="role.id" :value="role.name">{{ role.name }}</option>
+                </select>
+              </div>
+              <div v-if="editingMember">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Statut</label>
+                <select v-model="memberForm.status" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white">
+                  <option value="active">Actif</option>
+                  <option value="inactive">Inactif</option>
+                </select>
+              </div>
+            </div>
+            <div class="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-800">
+              <button @click="closeMemberModal" class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+                Annuler
+              </button>
+              <button @click="saveMember" class="px-4 py-2 bg-[#4959b4] hover:bg-[#3a4791] text-white rounded-lg text-sm font-medium">
+                {{ editingMember ? 'Enregistrer' : 'Inviter' }}
+              </button>
+            </div>
+          </div>
+        </div>
 
-              <!-- Roles Table -->
+        <!-- Add/Edit Role Modal -->
+        <div v-if="showRoleModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div class="bg-white dark:bg-gray-900 rounded-xl w-full max-w-lg shadow-xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ editingRole ? 'Modifier le rôle' : 'Créer un rôle' }}
+              </h2>
+              <button @click="closeRoleModal" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <X class="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div class="p-4 space-y-4 overflow-y-auto flex-1">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nom du rôle *</label>
+                <input v-model="roleForm.name" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white" placeholder="Gestionnaire de stock" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                <textarea v-model="roleForm.description" rows="2" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white resize-none" placeholder="Décrivez les responsabilités de ce rôle"></textarea>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Permissions</label>
+                <div class="space-y-3">
+                  <div v-for="category in permissionCategories" :key="category.name" class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                    <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-2">{{ category.name }}</h4>
+                    <div class="grid grid-cols-2 gap-2">
+                      <label v-for="perm in category.permissions" :key="perm.id" class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" :value="perm.id" v-model="roleForm.permissions" class="rounded border-gray-300" />
+                        <span class="text-sm text-gray-700 dark:text-gray-300">{{ perm.label }}</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-800">
+              <button @click="closeRoleModal" class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+                Annuler
+              </button>
+              <button @click="saveRole" class="px-4 py-2 bg-[#4959b4] hover:bg-[#3a4791] text-white rounded-lg text-sm font-medium">
+                {{ editingRole ? 'Enregistrer' : 'Créer' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div class="bg-white dark:bg-gray-900 rounded-xl w-full max-w-sm shadow-xl">
+            <div class="p-6 text-center">
+              <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle class="w-6 h-6 text-red-600" />
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Confirmer la suppression</h3>
+              <p class="text-sm text-gray-600 dark:text-gray-400">
+                {{ deleteConfirmMessage }}
+              </p>
+            </div>
+            <div class="flex items-center gap-3 p-4 border-t border-gray-200 dark:border-gray-800">
+              <button @click="showDeleteConfirm = false" class="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+                Annuler
+              </button>
+              <button @click="executeDelete" class="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium">
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Administration - Users List Section -->
+      <template v-if="activeSection === 'admin-users'">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Liste des utilisateurs</h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Gérez les comptes utilisateurs et leurs soldes</p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-6">
+          <!-- Stats Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                  <Users class="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ adminStats.totalUsers }}</p>
+                  <p class="text-sm text-gray-500">Total utilisateurs</p>
+                </div>
+              </div>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                  <CheckCircle class="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ adminStats.activeUsers }}</p>
+                  <p class="text-sm text-gray-500">Utilisateurs actifs</p>
+                </div>
+              </div>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 bg-[#4959b4]/10 rounded-lg">
+                  <Wallet class="w-5 h-5 text-[#4959b4]" />
+                </div>
+                <div>
+                  <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ adminStats.totalBalance.toFixed(2) }} TND</p>
+                  <p class="text-sm text-gray-500">Solde total</p>
+                </div>
+              </div>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                  <AlertTriangle class="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ adminStats.negativeBalances }}</p>
+                  <p class="text-sm text-gray-500">Soldes négatifs</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Search and Filter -->
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 mb-6">
+            <div class="p-4 flex flex-col sm:flex-row gap-4">
+              <div class="flex-1 relative">
+                <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  v-model="adminUserSearch"
+                  type="text"
+                  placeholder="Rechercher par nom, email ou entreprise..."
+                  class="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm"
+                />
+              </div>
+              <select v-model="adminUserFilter" class="px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm">
+                <option value="all">Tous les statuts</option>
+                <option value="active">Actifs</option>
+                <option value="suspended">Suspendus</option>
+                <option value="inactive">Inactifs</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Users Table -->
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+            <div class="overflow-x-auto">
               <table class="w-full">
-                <thead>
-                  <tr class="border-b border-gray-200 dark:border-gray-800">
-                    <th class="text-left py-3 text-sm font-semibold text-gray-500">Poste</th>
-                    <th class="text-left py-3 text-sm font-semibold text-gray-500">Member count</th>
-                    <th class="text-right py-3"></th>
+                <thead class="bg-gray-50 dark:bg-gray-800/50">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Utilisateur</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Entreprise</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">Colis</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Solde</th>
+                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Statut</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
-                  <tr v-for="role in availableRoles" :key="role.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/30">
-                    <td class="py-4">
-                      <div>
-                        <div class="flex items-center space-x-2">
-                          <span class="font-medium text-gray-900 dark:text-white">{{ role.name }}</span>
-                          <span v-if="role.isDefault" class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded">Faire défaut</span>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                  <tr v-for="user in filteredAdminUsers" :key="user.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td class="px-4 py-4">
+                      <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-[#4959b4] flex items-center justify-center text-white font-medium text-sm">
+                          {{ user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2) }}
                         </div>
-                        <p v-if="role.description" class="text-sm text-gray-500 mt-0.5">{{ role.description }}</p>
+                        <div>
+                          <p class="font-medium text-gray-900 dark:text-white">{{ user.name }}</p>
+                          <p class="text-sm text-gray-500">{{ user.email }}</p>
+                        </div>
                       </div>
                     </td>
-                    <td class="py-4 text-sm text-gray-600 dark:text-gray-400">{{ role.memberCount }}</td>
-                    <td class="py-4 text-right">
-                      <div class="flex items-center justify-end space-x-3">
-                        <button class="text-sm text-blue-600 hover:underline">Vue</button>
-                        <button v-if="!role.isOwner" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">
-                          <MoreHorizontal class="w-5 h-5 text-gray-400" />
+                    <td class="px-4 py-4 hidden md:table-cell">
+                      <p class="text-gray-900 dark:text-white">{{ user.company }}</p>
+                      <p class="text-xs text-gray-500">{{ user.phone }}</p>
+                    </td>
+                    <td class="px-4 py-4 hidden lg:table-cell">
+                      <span class="text-gray-900 dark:text-white font-medium">{{ user.shipmentsCount }}</span>
+                    </td>
+                    <td class="px-4 py-4 text-right">
+                      <span :class="[
+                        'font-semibold',
+                        user.balance > 0 ? 'text-green-600' : user.balance < 0 ? 'text-red-600' : 'text-gray-500'
+                      ]">
+                        {{ user.balance >= 0 ? '+' : '' }}{{ user.balance.toFixed(2) }} TND
+                      </span>
+                    </td>
+                    <td class="px-4 py-4 text-center">
+                      <span :class="[
+                        'px-2 py-1 text-xs rounded-full font-medium',
+                        user.status === 'active' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                        user.status === 'suspended' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
+                        'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                      ]">
+                        {{ user.status === 'active' ? 'Actif' : user.status === 'suspended' ? 'Suspendu' : 'Inactif' }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-4 text-right">
+                      <div class="flex items-center justify-end gap-2">
+                        <button @click="openChargeModal(user)" class="px-3 py-1.5 bg-[#4959b4] hover:bg-[#3a4791] text-white text-xs font-medium rounded-lg flex items-center gap-1">
+                          <Wallet class="w-3.5 h-3.5" />
+                          Charger
+                        </button>
+                        <button class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                          <Eye class="w-4 h-4" />
                         </button>
                       </div>
                     </td>
                   </tr>
                 </tbody>
               </table>
+            </div>
 
-              <!-- Pagination -->
-              <div class="flex items-center justify-center space-x-2 mt-6">
-                <button class="p-2 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <ChevronLeft class="w-4 h-4 text-gray-400" />
-                </button>
-                <span class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm">1</span>
-                <span class="text-gray-500">/ 1</span>
-                <button class="p-2 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <ChevronRight class="w-4 h-4 text-gray-400" />
-                </button>
+            <div v-if="filteredAdminUsers.length === 0" class="p-8 text-center">
+              <Users class="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p class="text-gray-500">Aucun utilisateur trouvé</p>
+            </div>
+          </div>
+        </main>
+      </template>
+
+      <!-- Administration - Billing Section -->
+      <template v-if="activeSection === 'admin-billing'">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Facturation comptes</h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Gérez les soldes et les paiements des utilisateurs</p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-6">
+          <!-- Quick Actions -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center justify-between mb-4">
+                <div class="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
+                  <TrendingUp class="w-6 h-6 text-green-600" />
+                </div>
+                <span class="text-xs text-gray-500">Ce mois</span>
+              </div>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ adminTransactions.filter(t => t.type === 'credit').reduce((s, t) => s + t.amount, 0).toFixed(2) }} TND</p>
+              <p class="text-sm text-gray-500">Total crédits</p>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center justify-between mb-4">
+                <div class="p-3 bg-red-100 dark:bg-red-900/30 rounded-xl">
+                  <TrendingDown class="w-6 h-6 text-red-600" />
+                </div>
+                <span class="text-xs text-gray-500">Ce mois</span>
+              </div>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ adminTransactions.filter(t => t.type === 'debit').reduce((s, t) => s + t.amount, 0).toFixed(2) }} TND</p>
+              <p class="text-sm text-gray-500">Total débits</p>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center justify-between mb-4">
+                <div class="p-3 bg-[#4959b4]/10 rounded-xl">
+                  <Receipt class="w-6 h-6 text-[#4959b4]" />
+                </div>
+                <span class="text-xs text-gray-500">Ce mois</span>
+              </div>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ adminTransactions.length }}</p>
+              <p class="text-sm text-gray-500">Transactions</p>
+            </div>
+          </div>
+
+          <!-- Users with Balances -->
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-800">
+              <h3 class="font-semibold text-gray-900 dark:text-white">Soldes des comptes</h3>
+            </div>
+            <div class="divide-y divide-gray-200 dark:divide-gray-700">
+              <div v-for="user in adminUsers" :key="user.id" class="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 font-medium text-sm">
+                    {{ user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2) }}
+                  </div>
+                  <div>
+                    <p class="font-medium text-gray-900 dark:text-white">{{ user.name }}</p>
+                    <p class="text-sm text-gray-500">{{ user.company }}</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-4">
+                  <div class="text-right">
+                    <p :class="[
+                      'text-lg font-semibold',
+                      user.balance > 0 ? 'text-green-600' : user.balance < 0 ? 'text-red-600' : 'text-gray-500'
+                    ]">
+                      {{ user.balance >= 0 ? '+' : '' }}{{ user.balance.toFixed(2) }} TND
+                    </p>
+                    <p class="text-xs text-gray-400">{{ user.shipmentsCount }} colis</p>
+                  </div>
+                  <button @click="openChargeModal(user)" class="px-4 py-2 bg-[#4959b4] hover:bg-[#3a4791] text-white text-sm font-medium rounded-lg flex items-center gap-2">
+                    <Plus class="w-4 h-4" />
+                    Charger
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </main>
       </template>
 
-      <!-- Other Settings Sections -->
-      <template v-if="activeSection === 'company-profile' || activeSection === 'integrations' || activeSection === 'billing' || activeSection === 'api-keys' || activeSection === 'security'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+      <!-- Administration - Transactions Section -->
+      <template v-if="activeSection === 'admin-transactions'">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-xl font-semibold text-gray-900 dark:text-white">Paramètres</h1>
-              <p class="text-sm text-gray-500 mt-1">Configurez votre compte et vos préférences</p>
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Historique des transactions</h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Consultez toutes les transactions de facturation</p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-6">
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50 dark:bg-gray-800/50">
+                  <tr>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Utilisateur</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Note</th>
+                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Type</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Montant</th>
+                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase hidden sm:table-cell">Date</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                  <tr v-for="tx in adminTransactions" :key="tx.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td class="px-4 py-3">
+                      <span class="font-mono text-sm text-gray-600 dark:text-gray-400">{{ tx.id }}</span>
+                    </td>
+                    <td class="px-4 py-3">
+                      <p class="font-medium text-gray-900 dark:text-white">{{ tx.userName }}</p>
+                      <p class="text-xs text-gray-500">{{ tx.company }}</p>
+                    </td>
+                    <td class="px-4 py-3 hidden md:table-cell">
+                      <p class="text-sm text-gray-600 dark:text-gray-400">{{ tx.note }}</p>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                      <span :class="[
+                        'px-2 py-1 text-xs rounded-full font-medium',
+                        tx.type === 'credit' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                      ]">
+                        {{ tx.type === 'credit' ? 'Crédit' : 'Débit' }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                      <span :class="[
+                        'font-semibold',
+                        tx.type === 'credit' ? 'text-green-600' : 'text-red-600'
+                      ]">
+                        {{ tx.type === 'credit' ? '+' : '-' }}{{ tx.amount.toFixed(2) }} TND
+                      </span>
+                    </td>
+                    <td class="px-4 py-3 text-right hidden sm:table-cell">
+                      <span class="text-sm text-gray-500">{{ tx.date }}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div v-if="adminTransactions.length === 0" class="p-8 text-center">
+              <Receipt class="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p class="text-gray-500">Aucune transaction</p>
+            </div>
+          </div>
+        </main>
+      </template>
+
+      <!-- Company Profile Section -->
+      <template v-if="activeSection === 'company-profile'">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Profil entreprise</h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Gérez les informations de votre entreprise</p>
+              </div>
+            </div>
+            <button @click="saveCompanyProfile" class="btn-cta">
+              <Save class="w-4 h-4" />
+              <span class="hidden sm:inline ml-2">Enregistrer</span>
+            </button>
+          </div>
+        </header>
+        <main class="flex-1 overflow-y-auto p-6">
+          <div class="max-w-3xl space-y-6">
+            <!-- Logo Section -->
+            <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+              <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Logo de l'entreprise</h3>
+              <div class="flex items-center gap-6">
+                <div class="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600">
+                  <Building class="w-10 h-10 text-gray-400" />
+                </div>
+                <div>
+                  <button class="px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors">
+                    Changer le logo
+                  </button>
+                  <p class="text-xs text-gray-500 mt-2">PNG, JPG jusqu'à 2MB. Taille recommandée: 200x200px</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Company Information -->
+            <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+              <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Informations générales</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nom de l'entreprise</label>
+                  <input v-model="companyProfile.name" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white" placeholder="Ma Société SARL" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Matricule fiscal</label>
+                  <input v-model="companyProfile.taxId" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white" placeholder="1234567ABC" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+                  <input v-model="companyProfile.email" type="email" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white" placeholder="contact@entreprise.tn" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Téléphone</label>
+                  <input v-model="companyProfile.phone" type="tel" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white" placeholder="+216 XX XXX XXX" />
+                </div>
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Adresse</label>
+                  <input v-model="companyProfile.address" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white" placeholder="123 Rue de la Liberté" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ville</label>
+                  <input v-model="companyProfile.city" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white" placeholder="Tunis" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Code postal</label>
+                  <input v-model="companyProfile.postalCode" type="text" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white" placeholder="1000" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Business Settings -->
+            <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+              <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Paramètres commerciaux</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Devise</label>
+                  <select v-model="companyProfile.currency" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white">
+                    <option value="TND">Dinar Tunisien (TND)</option>
+                    <option value="EUR">Euro (EUR)</option>
+                    <option value="USD">Dollar US (USD)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fuseau horaire</label>
+                  <select v-model="companyProfile.timezone" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white">
+                    <option value="Africa/Tunis">Tunis (GMT+1)</option>
+                    <option value="Europe/Paris">Paris (GMT+1)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </template>
+
+      <!-- Security Section -->
+      <template v-if="activeSection === 'security'">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Sécurité</h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Gérez la sécurité de votre compte</p>
+              </div>
             </div>
           </div>
         </header>
         <main class="flex-1 overflow-y-auto p-6">
-          <div class="max-w-2xl space-y-6">
-            <!-- Organization Configuration Card -->
-            <div
-              @click="showOrganizationModal = true"
-              class="p-6 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-xl border-2 border-orange-200 dark:border-orange-800 cursor-pointer hover:shadow-lg transition-all group"
-            >
-              <div class="flex items-start space-x-4">
-                <div class="w-14 h-14 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg">
-                  <Building class="w-7 h-7 text-white" />
+          <div class="max-w-3xl space-y-6">
+            <!-- Change Password -->
+            <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+              <div class="flex items-center gap-3 mb-4">
+                <div class="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                  <Key class="w-5 h-5 text-orange-600" />
                 </div>
-                <div class="flex-1">
-                  <h3 class="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-orange-600 transition-colors">Configuration de l'organisation</h3>
-                  <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Gérez votre équipe, vos transporteurs et vos zones de livraison</p>
-                  <div class="flex items-center space-x-4 mt-3">
-                    <span class="flex items-center space-x-1 text-xs text-gray-500">
-                      <Users class="w-4 h-4" />
-                      <span>{{ teamMembers.length }} membres</span>
-                    </span>
-                    <span class="flex items-center space-x-1 text-xs text-gray-500">
-                      <Truck class="w-4 h-4" />
-                      <span>{{ configuredCarriers.length }} transporteurs</span>
-                    </span>
-                  </div>
+                <div>
+                  <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Changer le mot de passe</h3>
+                  <p class="text-xs text-gray-500">Dernière modification il y a 30 jours</p>
                 </div>
-                <ChevronRight class="w-6 h-6 text-orange-400 group-hover:translate-x-1 transition-transform" />
+              </div>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mot de passe actuel</label>
+                  <input v-model="securitySettings.currentPassword" type="password" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nouveau mot de passe</label>
+                  <input v-model="securitySettings.newPassword" type="password" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirmer le nouveau mot de passe</label>
+                  <input v-model="securitySettings.confirmPassword" type="password" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white" />
+                </div>
+                <button @click="changePassword" class="btn-cta">
+                  Mettre à jour le mot de passe
+                </button>
               </div>
             </div>
 
-            <!-- Other Settings -->
-            <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 divide-y divide-gray-200 dark:divide-gray-800">
-              <div class="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
-                <div class="flex items-center space-x-3">
-                  <Bell class="w-5 h-5 text-gray-500" />
+            <!-- Two-Factor Authentication -->
+            <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                    <Shield class="w-5 h-5 text-green-600" />
+                  </div>
                   <div>
-                    <p class="font-medium text-gray-900 dark:text-white">Notifications</p>
-                    <p class="text-sm text-gray-500">Email, Push</p>
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Authentification à deux facteurs (2FA)</h3>
+                    <p class="text-xs text-gray-500">Ajoutez une couche de sécurité supplémentaire</p>
                   </div>
                 </div>
-                <ChevronRight class="w-5 h-5 text-gray-400" />
+                <button
+                  @click="securitySettings.twoFactorEnabled = !securitySettings.twoFactorEnabled"
+                  :class="[
+                    'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out',
+                    securitySettings.twoFactorEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                  ]"
+                >
+                  <span
+                    :class="[
+                      'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                      securitySettings.twoFactorEnabled ? 'translate-x-5' : 'translate-x-0'
+                    ]"
+                  />
+                </button>
               </div>
-              <div class="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
-                <div class="flex items-center space-x-3">
-                  <Plug class="w-5 h-5 text-gray-500" />
-                  <div>
-                    <p class="font-medium text-gray-900 dark:text-white">Intégrations</p>
-                    <p class="text-sm text-gray-500">Connecter vos outils</p>
-                  </div>
+              <div v-if="securitySettings.twoFactorEnabled" class="mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                <div class="flex items-center gap-2 text-green-700 dark:text-green-400">
+                  <CheckCircle class="w-4 h-4" />
+                  <span class="text-sm font-medium">2FA est activé</span>
                 </div>
-                <ChevronRight class="w-5 h-5 text-gray-400" />
+                <p class="text-xs text-green-600 dark:text-green-500 mt-1">Votre compte est protégé par l'authentification à deux facteurs.</p>
               </div>
-              <div class="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
-                <div class="flex items-center space-x-3">
-                  <CreditCard class="w-5 h-5 text-gray-500" />
-                  <div>
-                    <p class="font-medium text-gray-900 dark:text-white">Facturation</p>
-                    <p class="text-sm text-gray-500">Abonnement et paiements</p>
-                  </div>
+              <div v-else class="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                <div class="flex items-center gap-2 text-yellow-700 dark:text-yellow-400">
+                  <AlertTriangle class="w-4 h-4" />
+                  <span class="text-sm font-medium">2FA n'est pas activé</span>
                 </div>
-                <ChevronRight class="w-5 h-5 text-gray-400" />
+                <p class="text-xs text-yellow-600 dark:text-yellow-500 mt-1">Activez 2FA pour une meilleure sécurité de votre compte.</p>
               </div>
-              <div class="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
-                <div class="flex items-center space-x-3">
-                  <Key class="w-5 h-5 text-gray-500" />
-                  <div>
-                    <p class="font-medium text-gray-900 dark:text-white">Clés API</p>
-                    <p class="text-sm text-gray-500">Gérer vos clés d'accès</p>
-                  </div>
+            </div>
+
+            <!-- Active Sessions -->
+            <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
+              <div class="flex items-center gap-3 mb-4">
+                <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                  <Monitor class="w-5 h-5 text-blue-600" />
                 </div>
-                <ChevronRight class="w-5 h-5 text-gray-400" />
+                <div>
+                  <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Sessions actives</h3>
+                  <p class="text-xs text-gray-500">Appareils actuellement connectés à votre compte</p>
+                </div>
               </div>
-              <div class="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer">
-                <div class="flex items-center space-x-3">
-                  <Lock class="w-5 h-5 text-gray-500" />
-                  <div>
-                    <p class="font-medium text-gray-900 dark:text-white">Sécurité</p>
-                    <p class="text-sm text-gray-500">Mot de passe, 2FA</p>
+              <div class="space-y-3">
+                <div v-for="session in activeSessions" :key="session.id" class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <div class="flex items-center gap-3">
+                    <Monitor class="w-5 h-5 text-gray-400" />
+                    <div>
+                      <p class="text-sm font-medium text-gray-900 dark:text-white">{{ session.device }}</p>
+                      <p class="text-xs text-gray-500">{{ session.location }} • {{ session.lastActive }}</p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span v-if="session.current" class="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full">Actuelle</span>
+                    <button v-else class="text-xs text-red-600 hover:text-red-700">Déconnecter</button>
                   </div>
                 </div>
-                <ChevronRight class="w-5 h-5 text-gray-400" />
+              </div>
+            </div>
+          </div>
+        </main>
+      </template>
+
+      <!-- Payment History Section -->
+      <template v-if="activeSection === 'payment-history'">
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Historique de paiement</h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Consultez vos transactions et factures</p>
+              </div>
+            </div>
+            <button class="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+              <Download class="w-4 h-4" />
+              <span class="hidden sm:inline">Exporter</span>
+            </button>
+          </div>
+        </header>
+        <main class="flex-1 overflow-y-auto p-6">
+          <div class="max-w-5xl space-y-6">
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                    <CheckCircle class="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ paymentStats.totalPaid }} TND</p>
+                    <p class="text-xs text-gray-500">Total payé</p>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                    <Clock class="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ paymentStats.pending }} TND</p>
+                    <p class="text-xs text-gray-500">En attente</p>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+                <div class="flex items-center gap-3">
+                  <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                    <FileText class="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ paymentStats.invoiceCount }}</p>
+                    <p class="text-xs text-gray-500">Factures</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payment History Table -->
+            <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+              <div class="p-4 border-b border-gray-200 dark:border-gray-800">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Transactions récentes</h3>
+                  <select v-model="paymentFilter" class="px-3 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm">
+                    <option value="all">Toutes</option>
+                    <option value="paid">Payées</option>
+                    <option value="pending">En attente</option>
+                    <option value="failed">Échouées</option>
+                  </select>
+                </div>
+              </div>
+              <div class="table-responsive">
+                <table class="w-full">
+                  <thead>
+                    <tr class="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+                      <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
+                      <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Description</th>
+                      <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Montant</th>
+                      <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Statut</th>
+                      <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Facture</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="payment in filteredPayments" :key="payment.id" class="border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30">
+                      <td class="px-4 py-3 text-sm text-gray-900 dark:text-white" data-label="Date">{{ payment.date }}</td>
+                      <td class="px-4 py-3" data-label="Description">
+                        <div>
+                          <p class="text-sm font-medium text-gray-900 dark:text-white">{{ payment.description }}</p>
+                          <p class="text-xs text-gray-500">{{ payment.reference }}</p>
+                        </div>
+                      </td>
+                      <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white" data-label="Montant">{{ payment.amount }} TND</td>
+                      <td class="px-4 py-3" data-label="Statut">
+                        <span :class="[
+                          'px-2 py-1 rounded-full text-xs font-medium',
+                          payment.status === 'paid' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                          payment.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
+                          'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                        ]">
+                          {{ payment.status === 'paid' ? 'Payé' : payment.status === 'pending' ? 'En attente' : 'Échoué' }}
+                        </span>
+                      </td>
+                      <td class="px-4 py-3" data-label="Facture">
+                        <button class="text-orange-600 hover:text-orange-700 text-sm font-medium flex items-center gap-1">
+                          <Download class="w-4 h-4" />
+                          PDF
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -6730,30 +8539,30 @@
     <!-- Shipment Detail Panel -->
     <div
       v-if="selectedShipment"
-      class="fixed inset-y-0 right-0 w-[480px] bg-white dark:bg-gray-900 shadow-2xl z-50 flex flex-col overflow-hidden"
+      class="fixed inset-y-0 right-0 w-full sm:w-[480px] bg-white dark:bg-gray-900 shadow-2xl z-50 flex flex-col overflow-hidden"
     >
       <!-- Panel Header -->
-      <div class="p-4 border-b border-gray-200 dark:border-gray-800">
-        <div class="flex items-center justify-between mb-2">
-          <div class="flex items-center space-x-2">
-            <span class="font-mono text-lg font-semibold text-gray-900 dark:text-white">{{ selectedShipment.trackingNumber }}</span>
-            <span class="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium">Échantillon</span>
+      <div class="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-800">
+        <div class="flex items-start justify-between gap-2 mb-2">
+          <div class="flex flex-wrap items-center gap-2 min-w-0">
+            <span class="font-mono text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">{{ selectedShipment.trackingNumber }}</span>
+            <span class="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium flex-shrink-0">Échantillon</span>
           </div>
-          <button @click="selectedShipment = null" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+          <button @click="selectedShipment = null" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex-shrink-0">
             <X class="w-5 h-5 text-gray-500" />
           </button>
         </div>
-        <div class="flex items-center space-x-4 text-sm">
+        <div class="flex flex-wrap items-center gap-2 sm:gap-4 text-sm">
           <button
             @click="openLabelPreview(selectedShipment)"
             class="flex items-center space-x-1 text-orange-500 hover:text-orange-600 font-medium"
           >
-            <Printer class="w-4 h-4" />
-            <span>Imprimer le bordereau</span>
+            <Printer class="w-4 h-4 flex-shrink-0" />
+            <span class="whitespace-nowrap">Imprimer le bordereau</span>
           </button>
           <button class="flex items-center space-x-1 text-gray-600 dark:text-gray-400 hover:text-orange-500">
-            <Eye class="w-4 h-4" />
-            <span>Page de suivi</span>
+            <Eye class="w-4 h-4 flex-shrink-0" />
+            <span class="whitespace-nowrap">Page de suivi</span>
           </button>
         </div>
       </div>
@@ -6761,27 +8570,27 @@
       <!-- Panel Content -->
       <div class="flex-1 overflow-y-auto">
         <!-- Delivery Status Header -->
-        <div class="p-4 border-b border-gray-200 dark:border-gray-800">
-          <div class="flex items-center justify-between mb-4">
-            <div>
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+        <div class="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-800">
+          <div class="flex items-start justify-between gap-2 mb-4">
+            <div class="min-w-0 flex-1">
+              <h3 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                 {{ selectedShipment.status === 'Delivered' ? 'Livrée' : selectedShipment.status === 'Out for delivery' ? 'En livraison' : selectedShipment.status === 'Pending' ? 'En attente' : selectedShipment.status }}
                 {{ selectedShipment.deliveryDate ? 'le ' + selectedShipment.deliveryDate : '' }}
               </h3>
             </div>
-            <div class="flex items-center space-x-2">
-              <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+            <div class="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
+              <button class="p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
                 <ExternalLink class="w-4 h-4 text-gray-500" />
               </button>
-              <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+              <button class="p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
                 <Mail class="w-4 h-4 text-gray-500" />
               </button>
             </div>
           </div>
 
           <!-- Transit Time Progress -->
-          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Temps de transit : {{ selectedShipment.transitDays }} jour{{ selectedShipment.transitDays !== 1 ? 's' : '' }}</p>
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 sm:p-4">
+            <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-2">Temps de transit : {{ selectedShipment.transitDays }} jour{{ selectedShipment.transitDays !== 1 ? 's' : '' }}</p>
             <div class="relative h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
               <div
                 class="absolute inset-y-0 left-0 bg-green-500 rounded-full"
@@ -6801,31 +8610,31 @@
         </div>
 
         <!-- Route -->
-        <div class="p-4 border-b border-gray-200 dark:border-gray-800">
+        <div class="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-800">
           <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Route</h4>
-          <p class="text-sm text-gray-600 dark:text-gray-400">{{ selectedShipment.origin }} → {{ selectedShipment.destination }}</p>
+          <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{{ selectedShipment.origin }} → {{ selectedShipment.destination }}</p>
         </div>
 
         <!-- Events Timeline -->
-        <div class="p-4 border-b border-gray-200 dark:border-gray-800">
-          <div class="space-y-4">
-            <div v-for="(event, index) in selectedShipment.events" :key="index" class="flex space-x-3">
-              <div class="flex flex-col items-center">
+        <div class="p-3 sm:p-4 border-b border-gray-200 dark:border-gray-800">
+          <div class="space-y-3 sm:space-y-4">
+            <div v-for="(event, index) in selectedShipment.events" :key="index" class="flex space-x-2 sm:space-x-3">
+              <div class="flex flex-col items-center flex-shrink-0">
                 <div
                   :class="[
-                    'w-6 h-6 rounded-full flex items-center justify-center',
+                    'w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center',
                     event.status === 'Livrée' ? 'bg-green-500' : event.status === 'En livraison' || event.status === 'En transit' ? 'bg-blue-500' : 'bg-gray-400'
                   ]"
                 >
-                  <Check v-if="event.completed && event.status === 'Livrée'" class="w-3 h-3 text-white" />
-                  <Truck v-else-if="event.status === 'En livraison' || event.status === 'En transit'" class="w-3 h-3 text-white" />
-                  <FileText v-else class="w-3 h-3 text-white" />
+                  <Check v-if="event.completed && event.status === 'Livrée'" class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" />
+                  <Truck v-else-if="event.status === 'En livraison' || event.status === 'En transit'" class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" />
+                  <FileText v-else class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" />
                 </div>
                 <div v-if="index < selectedShipment.events.length - 1" class="w-0.5 flex-1 bg-gray-200 dark:bg-gray-700 mt-1"></div>
               </div>
-              <div class="flex-1 pb-4">
-                <p class="font-medium text-gray-900 dark:text-white">{{ event.status }}</p>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ event.description }}</p>
+              <div class="flex-1 min-w-0 pb-3 sm:pb-4">
+                <p class="text-sm sm:font-medium text-gray-900 dark:text-white">{{ event.status }}</p>
+                <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">{{ event.description }}</p>
                 <p class="text-xs text-gray-500 mt-1">{{ event.location }} • {{ selectedShipment.carrier }}</p>
                 <p class="text-xs text-orange-500 mt-1 underline decoration-dotted cursor-help">{{ event.date }}</p>
               </div>
@@ -6834,10 +8643,10 @@
         </div>
 
         <!-- Shipment Information -->
-        <div class="p-4">
-          <div class="flex items-center justify-between mb-4">
+        <div class="p-3 sm:p-4">
+          <div class="flex items-center justify-between gap-2 mb-4">
             <h4 class="text-sm font-semibold text-gray-900 dark:text-white">Informations sur le colis</h4>
-            <button class="text-sm text-orange-500 hover:underline">Modifier</button>
+            <button class="text-xs sm:text-sm text-orange-500 hover:underline flex-shrink-0">Modifier</button>
           </div>
           <div class="space-y-3">
             <div>
@@ -7171,11 +8980,10 @@
                   v-model="newShipment.carrier"
                   class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 >
-                  <option value="">Sélectionner</option>
-                  <option value="Yalidine">Yalidine</option>
-                  <option value="ZR Express">ZR Express</option>
-                  <option value="Maystro">Maystro</option>
-                  <option value="Ecotrack">Ecotrack</option>
+                  <option value="">Sélectionner un transporteur</option>
+                  <option v-for="carrier in deliveryCarriers" :key="carrier.id" :value="carrier.name">
+                    {{ carrier.name }}
+                  </option>
                 </select>
               </div>
             </div>
@@ -7229,6 +9037,62 @@
           </div>
 
           <div class="p-6 space-y-6">
+            <!-- Section 0: Sélection du transporteur -->
+            <div v-if="!editingCarrier" class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 border border-orange-200 dark:border-orange-800/30">
+              <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center">
+                <Truck class="w-4 h-4 mr-2 text-orange-500" />
+                Choisir un transporteur
+              </h4>
+
+              <!-- Search input -->
+              <div class="relative mb-4">
+                <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  v-model="modalCarrierSearchQuery"
+                  type="text"
+                  placeholder="Rechercher parmi 65+ transporteurs tunisiens..."
+                  class="w-full pl-9 pr-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                />
+                <span v-if="modalCarrierSearchQuery" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                  {{ filteredModalCarriers.length }} résultats
+                </span>
+              </div>
+
+              <!-- Carrier selection grid -->
+              <div class="max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-2">
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  <button
+                    v-for="carrier in filteredModalCarriers"
+                    :key="carrier.id"
+                    type="button"
+                    @click="selectCarrierFromList(carrier)"
+                    :class="[
+                      'p-2 rounded-lg border-2 text-left transition-all hover:shadow-sm',
+                      selectedModalCarrier?.id === carrier.id
+                        ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/30'
+                        : 'border-gray-100 dark:border-gray-700 hover:border-orange-300'
+                    ]"
+                  >
+                    <div class="flex items-center gap-2">
+                      <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0" :style="{ backgroundColor: carrier.color + '20', color: carrier.color }">
+                        {{ getCarrierInitials(carrier.name) }}
+                      </div>
+                      <div class="min-w-0">
+                        <p class="font-medium text-gray-900 dark:text-white text-xs truncate">{{ carrier.name }}</p>
+                        <p class="text-[10px] text-gray-500">{{ carrier.deliveryTime }}</p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+                <p v-if="filteredModalCarriers.length === 0" class="text-center text-sm text-gray-500 py-4">Aucun transporteur trouvé</p>
+              </div>
+
+              <p v-if="selectedModalCarrier" class="mt-3 text-sm text-green-600 dark:text-green-400 flex items-center gap-2">
+                <CheckCircle class="w-4 h-4" />
+                {{ selectedModalCarrier.name }} sélectionné
+              </p>
+            </div>
+
             <!-- Section 1: Informations générales -->
             <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
               <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center">
@@ -7240,7 +9104,8 @@
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Nom du transporteur <span class="text-red-500">*</span>
                   </label>
-                  <input v-model="newCarrier.name" type="text" placeholder="Ex: Aramex, DHL, etc." class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                  <input v-model="newCarrier.name" type="text" placeholder="Ex: Aramex, DHL, etc." class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" :class="selectedModalCarrier ? 'bg-gray-100 dark:bg-gray-700' : ''" :readonly="!!selectedModalCarrier" />
+                  <p v-if="selectedModalCarrier" class="text-xs text-gray-500 mt-1">Nom auto-rempli depuis la sélection ci-dessus</p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -7625,7 +9490,7 @@
                 </div>
                 <button
                   @click="showAddMemberForm = true"
-                  class="flex items-center space-x-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
+                  class="flex items-center space-x-2 px-4 py-2 bg-[#4959b4] hover:bg-[#3a4791] text-white text-sm font-medium rounded-lg transition-colors"
                 >
                   <Plus class="w-4 h-4" />
                   <span>Ajouter un membre</span>
@@ -7673,7 +9538,7 @@
                   <button
                     @click="addTeamMember"
                     :disabled="!newMemberForm.name || !newMemberForm.email || !newMemberForm.role"
-                    class="px-4 py-2 text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    class="px-4 py-2 text-sm font-medium text-white bg-[#4959b4] hover:bg-[#3a4791] rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
                   >
                     Ajouter
                   </button>
@@ -7717,7 +9582,7 @@
                 </div>
                 <button
                   @click="showAddCarrierForm = true"
-                  class="flex items-center space-x-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
+                  class="flex items-center space-x-2 px-4 py-2 bg-[#4959b4] hover:bg-[#3a4791] text-white text-sm font-medium rounded-lg transition-colors"
                 >
                   <Plus class="w-4 h-4" />
                   <span>Ajouter un transporteur</span>
@@ -7727,24 +9592,43 @@
               <!-- Carrier Selection -->
               <div v-if="showAddCarrierForm" class="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                 <h5 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Sélectionner un transporteur</h5>
-                <div class="grid grid-cols-3 gap-3">
-                  <button
-                    v-for="carrier in availableCarriers"
-                    :key="carrier.id"
-                    @click="selectCarrierToAdd(carrier)"
-                    class="p-4 border-2 rounded-xl text-left transition-all hover:border-orange-300"
-                    :class="selectedCarrierToAdd?.id === carrier.id ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20' : 'border-gray-200 dark:border-gray-700'"
-                  >
-                    <div class="flex items-center space-x-3">
-                      <div class="w-10 h-10 rounded-lg flex items-center justify-center" :style="{ backgroundColor: carrier.bgColor }">
-                        <Truck class="w-5 h-5" :style="{ color: carrier.color }" />
+
+                <!-- Search input for carriers -->
+                <div class="relative mb-4">
+                  <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    v-model="orgCarrierSearchQuery"
+                    type="text"
+                    placeholder="Rechercher un transporteur..."
+                    class="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                  />
+                  <span v-if="orgCarrierSearchQuery" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                    {{ filteredAvailableCarriers.length }} résultats
+                  </span>
+                </div>
+
+                <!-- Scrollable carrier grid -->
+                <div class="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 p-2">
+                  <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    <button
+                      v-for="carrier in filteredAvailableCarriers"
+                      :key="carrier.id"
+                      @click="selectCarrierToAdd(carrier)"
+                      class="p-3 border-2 rounded-xl text-left transition-all hover:border-orange-300"
+                      :class="selectedCarrierToAdd?.id === carrier.id ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20' : 'border-gray-200 dark:border-gray-700'"
+                    >
+                      <div class="flex items-center space-x-2">
+                        <div class="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0" :style="{ backgroundColor: carrier.bgColor, color: carrier.color }">
+                          {{ getCarrierInitials(carrier.name) }}
+                        </div>
+                        <div class="min-w-0">
+                          <p class="font-medium text-gray-900 dark:text-white text-xs truncate">{{ carrier.name }}</p>
+                          <p class="text-[10px] text-gray-500">{{ carrier.deliveryTime }}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p class="font-medium text-gray-900 dark:text-white text-sm">{{ carrier.name }}</p>
-                        <p class="text-xs text-gray-500">{{ carrier.deliveryTime }}</p>
-                      </div>
-                    </div>
-                  </button>
+                    </button>
+                  </div>
+                  <p v-if="filteredAvailableCarriers.length === 0" class="text-center text-sm text-gray-500 py-6">Aucun transporteur trouvé</p>
                 </div>
 
                 <!-- Carrier Config Form -->
@@ -7787,7 +9671,7 @@
                   <button
                     @click="testAndAddCarrier"
                     :disabled="!selectedCarrierToAdd || testingConnection === 'new'"
-                    class="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    class="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-[#4959b4] hover:bg-[#3a4791] rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
                   >
                     <RefreshCw v-if="testingConnection === 'new'" class="w-4 h-4 animate-spin" />
                     <span>{{ testingConnection === 'new' ? 'Connexion...' : 'Tester et ajouter' }}</span>
@@ -7871,7 +9755,7 @@
             </button>
             <button
               @click="saveOrganization"
-              class="flex items-center space-x-2 px-5 py-2.5 text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors"
+              class="flex items-center space-x-2 px-5 py-2.5 text-sm font-medium text-white bg-[#4959b4] hover:bg-[#3a4791] rounded-lg transition-colors"
             >
               <Check class="w-4 h-4" />
               <span>Enregistrer</span>
@@ -8052,7 +9936,7 @@
             :class="[
               'px-5 py-2.5 text-sm font-medium text-white rounded-lg transition-colors flex items-center gap-2',
               rechargeTotalPrice > 0
-                ? 'bg-orange-500 hover:bg-orange-600'
+                ? 'bg-[#4959b4] hover:bg-[#3a4791]'
                 : 'bg-gray-300 cursor-not-allowed'
             ]"
           >
@@ -8063,10 +9947,805 @@
       </div>
     </div>
   </div>
+
+  <!-- Global Search Modal (Notion-style Command Palette) -->
+  <Teleport to="body">
+    <Transition name="search-modal">
+      <div v-if="showGlobalSearch" class="fixed inset-0 z-[100] flex items-start justify-center pt-[12vh]" @click.self="closeGlobalSearch">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="closeGlobalSearch"></div>
+
+        <!-- Search Modal -->
+        <div class="relative w-full max-w-2xl mx-4 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <!-- Search Input -->
+          <div class="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+            <Search class="w-5 h-5 text-gray-400 flex-shrink-0" />
+            <input
+              ref="globalSearchInput"
+              v-model="globalSearchQuery"
+              type="text"
+              placeholder="Rechercher un colis, client, numéro de suivi..."
+              class="flex-1 bg-transparent border-none outline-none text-gray-900 dark:text-white placeholder-gray-400 text-base"
+              @keydown.down.prevent="navigateSearchResults(1)"
+              @keydown.up.prevent="navigateSearchResults(-1)"
+              @keydown.enter.prevent="selectSearchResult"
+              @keydown.escape="closeGlobalSearch"
+            />
+            <kbd class="hidden sm:inline-flex px-2 py-1 text-xs font-medium text-gray-400 bg-gray-100 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">ESC</kbd>
+          </div>
+
+          <!-- Search Results -->
+          <div class="max-h-[400px] overflow-y-auto">
+            <!-- Empty State / Suggestions -->
+            <div v-if="!globalSearchQuery" class="p-2">
+              <p class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Recherche rapide</p>
+              <div class="space-y-1">
+                <button
+                  v-for="(suggestion, idx) in searchSuggestions"
+                  :key="suggestion.type"
+                  @click="applySearchSuggestion(suggestion)"
+                  :class="[
+                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors',
+                    selectedSearchIndex === idx ? 'bg-[#4959b4] text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                  ]"
+                >
+                  <component :is="suggestion.icon" :class="['w-4 h-4', selectedSearchIndex === idx ? 'text-white' : 'text-gray-400']" />
+                  <div class="flex-1 min-w-0">
+                    <p :class="['text-sm font-medium', selectedSearchIndex === idx ? 'text-white' : 'text-gray-900 dark:text-white']">{{ suggestion.label }}</p>
+                    <p :class="['text-xs', selectedSearchIndex === idx ? 'text-white/70' : 'text-gray-500']">{{ suggestion.hint }}</p>
+                  </div>
+                </button>
+              </div>
+
+              <!-- Recent Searches -->
+              <div v-if="recentSearches.length > 0" class="mt-4">
+                <p class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Recherches récentes</p>
+                <div class="space-y-1">
+                  <button
+                    v-for="recent in recentSearches"
+                    :key="recent"
+                    @click="globalSearchQuery = recent"
+                    class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <History class="w-4 h-4 text-gray-400" />
+                    <span class="text-sm text-gray-700 dark:text-gray-300">{{ recent }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Search Results -->
+            <div v-else class="p-2">
+              <!-- Results -->
+              <div v-if="globalSearchResults.length > 0">
+                <p class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  {{ globalSearchResults.length }} résultat{{ globalSearchResults.length > 1 ? 's' : '' }}
+                </p>
+                <div class="space-y-1">
+                  <button
+                    v-for="(result, idx) in globalSearchResults"
+                    :key="result.id"
+                    @click="openSearchResult(result)"
+                    :class="[
+                      'w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-colors',
+                      selectedSearchIndex === idx ? 'bg-[#4959b4] text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                    ]"
+                  >
+                    <div :class="[
+                      'w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0',
+                      selectedSearchIndex === idx ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-800'
+                    ]">
+                      <Package :class="['w-5 h-5', selectedSearchIndex === idx ? 'text-white' : 'text-gray-500']" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2">
+                        <p :class="['text-sm font-semibold font-mono', selectedSearchIndex === idx ? 'text-white' : 'text-gray-900 dark:text-white']">
+                          {{ result.trackingNumber }}
+                        </p>
+                        <span :class="[
+                          'px-1.5 py-0.5 text-xs rounded-full font-medium',
+                          selectedSearchIndex === idx ? 'bg-white/20 text-white' :
+                          result.status === 'Delivered' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                          result.status === 'Out for delivery' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
+                          result.status === 'Pending' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
+                          'bg-gray-100 dark:bg-gray-800 text-gray-600'
+                        ]">
+                          {{ result.status === 'Delivered' ? 'Livré' : result.status === 'Out for delivery' ? 'En livraison' : result.status === 'Pending' ? 'En attente' : result.status }}
+                        </span>
+                      </div>
+                      <p :class="['text-xs mt-0.5 truncate', selectedSearchIndex === idx ? 'text-white/70' : 'text-gray-500']">
+                        {{ result.recipient }} • {{ result.recipientAddress }}
+                      </p>
+                    </div>
+                    <div :class="['text-right flex-shrink-0', selectedSearchIndex === idx ? 'text-white/70' : 'text-gray-400']">
+                      <p class="text-xs">{{ result.carrier }}</p>
+                      <p class="text-xs font-medium">{{ result.amount }} TND</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- No Results -->
+              <div v-else class="py-12 text-center">
+                <SearchX class="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p class="text-gray-500">Aucun résultat pour "{{ globalSearchQuery }}"</p>
+                <p class="text-sm text-gray-400 mt-1">Essayez un numéro de suivi, nom de client ou téléphone</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="flex items-center justify-between px-4 py-2.5 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 text-xs text-gray-500">
+            <div class="flex items-center gap-4">
+              <span class="flex items-center gap-1">
+                <kbd class="px-1.5 py-0.5 bg-white dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">↑</kbd>
+                <kbd class="px-1.5 py-0.5 bg-white dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">↓</kbd>
+                <span class="ml-1">Naviguer</span>
+              </span>
+              <span class="flex items-center gap-1">
+                <kbd class="px-1.5 py-0.5 bg-white dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">↵</kbd>
+                <span class="ml-1">Ouvrir</span>
+              </span>
+            </div>
+            <span class="flex items-center gap-1">
+              <kbd class="px-1.5 py-0.5 bg-white dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">ESC</kbd>
+              <span class="ml-1">Fermer</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
+  <!-- Bulk Import Modal -->
+  <Teleport to="body">
+    <div v-if="showBulkImportModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/50" @click="showBulkImportModal = false"></div>
+      <div class="relative w-full max-w-2xl bg-white dark:bg-gray-900 rounded-xl shadow-2xl">
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Importer des colis</h2>
+          <button @click="showBulkImportModal = false" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+            <X class="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div class="p-6">
+          <!-- Tabs -->
+          <div class="flex gap-2 mb-6">
+            <button
+              @click="bulkImportTab = 'excel'"
+              :class="[
+                'flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium text-sm transition-colors',
+                bulkImportTab === 'excel' ? 'bg-[#4959b4] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+              ]"
+            >
+              <FileSpreadsheet class="w-5 h-5" />
+              Importer Excel
+            </button>
+            <button
+              @click="bulkImportTab = 'manual'"
+              :class="[
+                'flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium text-sm transition-colors',
+                bulkImportTab === 'manual' ? 'bg-[#4959b4] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+              ]"
+            >
+              <Plus class="w-5 h-5" />
+              Création multiple
+            </button>
+          </div>
+
+          <!-- Excel Import Tab -->
+          <div v-if="bulkImportTab === 'excel'">
+            <!-- Drop Zone -->
+            <div
+              @dragover.prevent="isDragging = true"
+              @dragleave.prevent="isDragging = false"
+              @drop.prevent="handleFileDrop"
+              :class="[
+                'border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer',
+                isDragging ? 'border-[#4959b4] bg-[#4959b4]/5' : 'border-gray-300 dark:border-gray-700 hover:border-[#4959b4]'
+              ]"
+              @click="fileInput?.click()"
+            >
+              <input ref="fileInput" type="file" accept=".xlsx,.xls,.csv" class="hidden" @change="handleFileSelect" />
+              <Upload :class="['w-12 h-12 mx-auto mb-4', isDragging ? 'text-[#4959b4]' : 'text-gray-400']" />
+              <p class="text-gray-900 dark:text-white font-medium mb-1">
+                Glissez votre fichier ici ou <span class="text-[#4959b4]">parcourir</span>
+              </p>
+              <p class="text-sm text-gray-500">Formats acceptés: Excel (.xlsx, .xls) ou CSV</p>
+            </div>
+
+            <!-- Template Download -->
+            <div class="mt-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <FileSpreadsheet class="w-8 h-8 text-green-600" />
+                <div>
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">Télécharger le modèle</p>
+                  <p class="text-xs text-gray-500">Utilisez notre modèle pour un import facile</p>
+                </div>
+              </div>
+              <button @click="downloadImportTemplate" class="px-4 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 flex items-center gap-2">
+                <Download class="w-4 h-4" />
+                Télécharger
+              </button>
+            </div>
+
+            <!-- Imported File Preview -->
+            <div v-if="importedFile" class="mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <CheckCircle class="w-5 h-5 text-green-600" />
+                  <div>
+                    <p class="text-sm font-medium text-green-800 dark:text-green-200">{{ importedFile.name }}</p>
+                    <p class="text-xs text-green-600 dark:text-green-400">{{ importedFileRows }} colis détectés</p>
+                  </div>
+                </div>
+                <button @click="importedFile = null" class="text-green-600 hover:text-green-700">
+                  <X class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Manual Multi-Creation Tab -->
+          <div v-if="bulkImportTab === 'manual'" class="space-y-4">
+            <div class="flex items-center justify-between">
+              <p class="text-sm text-gray-600 dark:text-gray-400">Ajoutez plusieurs colis rapidement</p>
+              <button @click="addBulkShipmentRow" class="text-sm text-[#4959b4] hover:underline flex items-center gap-1">
+                <Plus class="w-4 h-4" />
+                Ajouter une ligne
+              </button>
+            </div>
+
+            <!-- Shipment Rows -->
+            <div class="space-y-3 max-h-64 overflow-y-auto">
+              <div v-for="(row, index) in bulkShipmentRows" :key="index" class="flex items-start gap-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                <span class="text-xs font-medium text-gray-400 mt-2 w-4">{{ index + 1 }}</span>
+                <div class="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <input v-model="row.recipient" type="text" placeholder="Destinataire" class="px-2 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-sm" />
+                  <input v-model="row.phone" type="text" placeholder="Téléphone" class="px-2 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-sm" />
+                  <input v-model="row.address" type="text" placeholder="Adresse" class="px-2 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-sm" />
+                  <input v-model="row.amount" type="number" placeholder="Montant" class="px-2 py-1.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded text-sm" />
+                </div>
+                <button @click="removeBulkShipmentRow(index)" class="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded text-red-500 mt-1">
+                  <X class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <p class="text-xs text-gray-500 text-center">{{ bulkShipmentRows.filter(r => r.recipient && r.phone).length }} colis prêts à créer</p>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-800">
+          <button @click="showBulkImportModal = false" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+            Annuler
+          </button>
+          <button
+            @click="processBulkImport"
+            :disabled="bulkImportTab === 'excel' ? !importedFile : bulkShipmentRows.filter(r => r.recipient && r.phone).length === 0"
+            class="px-4 py-2 bg-[#4959b4] hover:bg-[#3a4791] disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium flex items-center gap-2"
+          >
+            <Upload class="w-4 h-4" />
+            {{ bulkImportTab === 'excel' ? 'Importer' : 'Créer les colis' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Pickup Detail Modal -->
+  <Teleport to="body">
+    <div v-if="showPickupDetailModal && selectedPickupDetail" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/50" @click="closePickupDetail"></div>
+      <div class="relative w-full max-w-2xl bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-h-[90vh] flex flex-col">
+        <!-- Header -->
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Détails de l'enlèvement</h2>
+            <p class="text-sm text-gray-500">{{ selectedPickupDetail.id }}</p>
+          </div>
+          <button @click="closePickupDetail" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+            <X class="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <!-- Content -->
+        <div class="p-6 overflow-y-auto flex-1">
+          <!-- Pickup Info -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+              <p class="text-xs text-gray-500 mb-1">Date</p>
+              <p class="font-medium text-gray-900 dark:text-white">{{ selectedPickupDetail.date }}</p>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+              <p class="text-xs text-gray-500 mb-1">Créneau</p>
+              <p class="font-medium text-gray-900 dark:text-white">{{ selectedPickupDetail.timeSlot }}</p>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+              <p class="text-xs text-gray-500 mb-1">Transporteur</p>
+              <p class="font-medium text-gray-900 dark:text-white">{{ selectedPickupDetail.carrier }}</p>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+              <p class="text-xs text-gray-500 mb-1">Statut</p>
+              <span :class="[
+                'inline-flex px-2 py-0.5 text-xs rounded-full font-medium',
+                selectedPickupDetail.status === 'confirmed' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                selectedPickupDetail.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
+                selectedPickupDetail.status === 'completed' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+              ]">
+                {{ selectedPickupDetail.status === 'confirmed' ? 'Confirmée' : selectedPickupDetail.status === 'pending' ? 'En attente' : selectedPickupDetail.status === 'completed' ? 'Terminé' : 'Annulée' }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Delivery/Return Summary for completed pickups -->
+          <div v-if="selectedPickupDetail.status === 'completed' && (selectedPickupDetail.deliveredCount !== undefined || selectedPickupDetail.returnedCount !== undefined)" class="grid grid-cols-2 gap-4 mb-6">
+            <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+              <div class="flex items-center gap-3">
+                <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                  <CheckCircle class="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <p class="text-2xl font-bold text-green-700 dark:text-green-400">{{ selectedPickupDetail.deliveredCount || 0 }}</p>
+                  <p class="text-sm text-green-600 dark:text-green-500">Livrés</p>
+                </div>
+              </div>
+            </div>
+            <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <div class="flex items-center gap-3">
+                <div class="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                  <RotateCcw class="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <p class="text-2xl font-bold text-red-700 dark:text-red-400">{{ selectedPickupDetail.returnedCount || 0 }}</p>
+                  <p class="text-sm text-red-600 dark:text-red-500">Retournés</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Address -->
+          <div v-if="selectedPickupDetail.address" class="mb-6 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+            <div class="flex items-center gap-2 text-gray-500 mb-1">
+              <MapPin class="w-4 h-4" />
+              <span class="text-xs">Adresse d'enlèvement</span>
+            </div>
+            <p class="font-medium text-gray-900 dark:text-white">{{ selectedPickupDetail.address }}</p>
+          </div>
+
+          <!-- Shipments List -->
+          <div>
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+              <Package class="w-4 h-4" />
+              Colis inclus ({{ selectedPickupDetail.shipments?.length || 0 }})
+            </h3>
+
+            <div v-if="selectedPickupDetail.shipments?.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+              <table class="w-full">
+                <thead class="bg-gray-50 dark:bg-gray-800/50">
+                  <tr>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">N° Suivi</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Destinataire</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase hidden sm:table-cell">Statut</th>
+                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Montant</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                  <tr v-for="shipment in selectedPickupDetail.shipments" :key="shipment.trackingNumber" class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td class="px-4 py-3">
+                      <span class="font-mono text-sm text-gray-900 dark:text-white">{{ shipment.trackingNumber }}</span>
+                    </td>
+                    <td class="px-4 py-3">
+                      <p class="text-sm font-medium text-gray-900 dark:text-white">{{ shipment.recipient }}</p>
+                      <p class="text-xs text-gray-500 truncate max-w-[150px]">{{ shipment.address }}</p>
+                    </td>
+                    <td class="px-4 py-3 hidden sm:table-cell">
+                      <div v-if="shipment.status === 'Delivered'" class="flex flex-col">
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs rounded-full font-medium w-fit">
+                          <CheckCircle class="w-3 h-3" />
+                          Livré
+                        </span>
+                        <span v-if="shipment.deliveredAt" class="text-xs text-gray-400 mt-1">{{ shipment.deliveredAt }}</span>
+                      </div>
+                      <div v-else-if="shipment.status === 'Returned'" class="flex flex-col">
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs rounded-full font-medium w-fit">
+                          <RotateCcw class="w-3 h-3" />
+                          Retourné
+                        </span>
+                        <span v-if="shipment.returnReason" class="text-xs text-red-500 mt-1">{{ shipment.returnReason }}</span>
+                      </div>
+                      <span v-else class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs rounded-full font-medium">
+                        {{ shipment.status || 'En cours' }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                      <span :class="[
+                        'text-sm font-medium',
+                        shipment.status === 'Returned' ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-white'
+                      ]">{{ shipment.amount }} TND</span>
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot class="bg-gray-50 dark:bg-gray-800/50">
+                  <tr>
+                    <td colspan="2" class="px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Total encaissé
+                    </td>
+                    <td class="px-4 py-3 hidden sm:table-cell text-xs text-gray-500">
+                      ({{ selectedPickupDetail.shipments.filter((s: any) => s.status === 'Delivered').length }} livrés)
+                    </td>
+                    <td class="px-4 py-3 text-right text-sm font-semibold text-green-600 dark:text-green-400">
+                      {{ selectedPickupDetail.shipments.filter((s: any) => s.status === 'Delivered').reduce((sum: number, s: any) => sum + (s.amount || 0), 0) }} TND
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <div v-else class="p-8 text-center border border-gray-200 dark:border-gray-700 rounded-lg">
+              <Package class="w-8 h-8 text-gray-400 mx-auto mb-2" />
+              <p class="text-gray-500">Aucun colis dans cet enlèvement</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-800">
+          <button @click="closePickupDetail" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+            Fermer
+          </button>
+          <button v-if="selectedPickupDetail.status === 'pending'" class="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg text-sm font-medium">
+            Annuler l'enlèvement
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Charge Account Modal - Billing & Credit -->
+  <Teleport to="body">
+    <div v-if="showChargeAccountModal && selectedUserForCharge" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/50" @click="closeChargeModal"></div>
+      <div class="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <!-- Header -->
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Gestion du compte</h2>
+            <p class="text-sm text-gray-500">{{ selectedUserForCharge.name }} - {{ selectedUserForCharge.company }}</p>
+          </div>
+          <button @click="closeChargeModal" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+            <X class="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <!-- Mode Toggle -->
+        <div class="p-4 border-b border-gray-200 dark:border-gray-800">
+          <div class="flex gap-2">
+            <button
+              @click="chargeMode = 'credit'"
+              :class="[
+                'flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2',
+                chargeMode === 'credit'
+                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-2 border-green-500'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-2 border-transparent'
+              ]"
+            >
+              <Plus class="w-4 h-4" />
+              Créditer (Paiement)
+            </button>
+            <button
+              @click="chargeMode = 'debit'"
+              :class="[
+                'flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2',
+                chargeMode === 'debit'
+                  ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-2 border-red-500'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-2 border-transparent'
+              ]"
+            >
+              <Minus class="w-4 h-4" />
+              Facturer (Débit)
+            </button>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="p-6 overflow-y-auto flex-1">
+          <!-- Current Balance -->
+          <div class="mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-gray-500">Solde actuel</p>
+                <p :class="[
+                  'text-2xl font-bold',
+                  selectedUserForCharge.balance > 0 ? 'text-green-600' : selectedUserForCharge.balance < 0 ? 'text-red-600' : 'text-gray-500'
+                ]">
+                  {{ selectedUserForCharge.balance >= 0 ? '+' : '' }}{{ selectedUserForCharge.balance.toFixed(2) }} TND
+                </p>
+              </div>
+              <div class="p-3 bg-white dark:bg-gray-900 rounded-lg shadow-sm">
+                <Wallet class="w-6 h-6 text-[#4959b4]" />
+              </div>
+            </div>
+          </div>
+
+          <!-- CREDIT MODE: Purchase colis credits -->
+          <template v-if="chargeMode === 'credit'">
+            <div class="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <div class="flex items-start gap-3">
+                <div class="p-2 bg-green-100 dark:bg-green-900/50 rounded-lg">
+                  <Banknote class="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <h3 class="text-sm font-medium text-green-800 dark:text-green-300">Achat de crédits colis</h3>
+                  <p class="text-xs text-green-600 dark:text-green-400 mt-1">Entrez le nombre de colis livrés et retour achetés par le client</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Current Credits -->
+            <div class="mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+              <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Crédits actuels</h3>
+              <div class="grid grid-cols-2 gap-4">
+                <div class="text-center">
+                  <p class="text-2xl font-bold text-green-600">{{ selectedUserForCharge.deliveredCount || 0 }}</p>
+                  <p class="text-xs text-gray-500">Colis Livrés</p>
+                </div>
+                <div class="text-center">
+                  <p class="text-2xl font-bold text-orange-600">{{ selectedUserForCharge.returnedCount || 0 }}</p>
+                  <p class="text-xs text-gray-500">Colis Retour</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Purchase Quantities -->
+            <div class="mb-6">
+              <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Quantité à acheter</h3>
+              <div class="grid grid-cols-2 gap-4">
+                <!-- Delivered Credits -->
+                <div class="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                  <div class="flex items-center gap-2 mb-3">
+                    <Package class="w-5 h-5 text-green-600" />
+                    <span class="text-sm font-medium text-green-700 dark:text-green-400">Colis Livrés</span>
+                  </div>
+                  <input
+                    v-model.number="purchaseDelivered"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-green-300 dark:border-green-700 rounded-lg text-lg font-semibold text-center text-green-700 dark:text-green-400"
+                  />
+                  <p class="text-xs text-green-600 mt-2 text-center">{{ deliveryFees.delivered.toFixed(2) }} TND / colis</p>
+                </div>
+                <!-- Returned Credits -->
+                <div class="p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                  <div class="flex items-center gap-2 mb-3">
+                    <RotateCcw class="w-5 h-5 text-orange-600" />
+                    <span class="text-sm font-medium text-orange-700 dark:text-orange-400">Colis Retour</span>
+                  </div>
+                  <input
+                    v-model.number="purchaseReturned"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-orange-300 dark:border-orange-700 rounded-lg text-lg font-semibold text-center text-orange-700 dark:text-orange-400"
+                  />
+                  <p class="text-xs text-orange-600 mt-2 text-center">{{ deliveryFees.returned.toFixed(2) }} TND / colis</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Total to Pay -->
+            <div class="mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+              <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Récapitulatif</h3>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-gray-600 dark:text-gray-400">{{ purchaseDelivered || 0 }} colis livrés × {{ deliveryFees.delivered.toFixed(2) }} TND</span>
+                  <span class="font-medium text-gray-900 dark:text-white">{{ ((purchaseDelivered || 0) * deliveryFees.delivered).toFixed(2) }} TND</span>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-gray-600 dark:text-gray-400">{{ purchaseReturned || 0 }} colis retour × {{ deliveryFees.returned.toFixed(2) }} TND</span>
+                  <span class="font-medium text-gray-900 dark:text-white">{{ ((purchaseReturned || 0) * deliveryFees.returned).toFixed(2) }} TND</span>
+                </div>
+                <div class="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+                  <div class="flex items-center justify-between">
+                    <span class="font-medium text-gray-900 dark:text-white">Total à payer</span>
+                    <span class="text-lg font-bold text-green-600">{{ calculateCreditTotal.toFixed(2) }} TND</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payment Method -->
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mode de paiement</label>
+              <div class="grid grid-cols-3 gap-2">
+                <button
+                  @click="paymentMethod = 'cash'"
+                  :class="[
+                    'py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1.5',
+                    paymentMethod === 'cash'
+                      ? 'bg-[#4959b4] text-white'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  ]"
+                >
+                  <Banknote class="w-4 h-4" />
+                  Espèces
+                </button>
+                <button
+                  @click="paymentMethod = 'transfer'"
+                  :class="[
+                    'py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1.5',
+                    paymentMethod === 'transfer'
+                      ? 'bg-[#4959b4] text-white'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  ]"
+                >
+                  <Building2 class="w-4 h-4" />
+                  Virement
+                </button>
+                <button
+                  @click="paymentMethod = 'cheque'"
+                  :class="[
+                    'py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1.5',
+                    paymentMethod === 'cheque'
+                      ? 'bg-[#4959b4] text-white'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  ]"
+                >
+                  <FileText class="w-4 h-4" />
+                  Chèque
+                </button>
+              </div>
+            </div>
+
+            <!-- Note -->
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Note (optionnel)</label>
+              <textarea
+                v-model="chargeNote"
+                rows="2"
+                placeholder="Référence du paiement, numéro de chèque..."
+                class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm resize-none"
+              ></textarea>
+            </div>
+
+            <!-- New Credits Preview -->
+            <div v-if="calculateCreditTotal > 0" class="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <p class="text-sm text-green-700 dark:text-green-300 mb-2">Nouveaux crédits après achat:</p>
+              <div class="flex items-center justify-around">
+                <div class="text-center">
+                  <span class="text-lg font-bold text-green-600">{{ (selectedUserForCharge.deliveredCount || 0) + (purchaseDelivered || 0) }}</span>
+                  <span class="text-xs text-gray-500 ml-1">Livrés</span>
+                </div>
+                <div class="text-center">
+                  <span class="text-lg font-bold text-orange-600">{{ (selectedUserForCharge.returnedCount || 0) + (purchaseReturned || 0) }}</span>
+                  <span class="text-xs text-gray-500 ml-1">Retour</span>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- DEBIT MODE: Shipment-based billing -->
+          <template v-else>
+            <!-- Unbilled Shipments Info -->
+            <div class="mb-6">
+              <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Colis non facturés</h3>
+              <div class="grid grid-cols-2 gap-4">
+                <!-- Delivered -->
+                <div class="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                  <div class="flex items-center gap-2 mb-2">
+                    <Package class="w-5 h-5 text-green-600" />
+                    <span class="text-sm font-medium text-green-700 dark:text-green-400">Colis Livrés</span>
+                  </div>
+                  <p class="text-3xl font-bold text-green-700 dark:text-green-400">{{ selectedUserForCharge.unbilledDelivered }}</p>
+                  <p class="text-xs text-green-600 mt-1">{{ deliveryFees.delivered.toFixed(2) }} TND / colis</p>
+                </div>
+                <!-- Returned -->
+                <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <div class="flex items-center gap-2 mb-2">
+                    <RotateCcw class="w-5 h-5 text-red-600" />
+                    <span class="text-sm font-medium text-red-700 dark:text-red-400">Colis Retour</span>
+                  </div>
+                  <p class="text-3xl font-bold text-red-700 dark:text-red-400">{{ selectedUserForCharge.unbilledReturned }}</p>
+                  <p class="text-xs text-red-600 mt-1">{{ deliveryFees.returned.toFixed(2) }} TND / colis</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Fee Breakdown -->
+            <div class="mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+              <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Détail des frais</h3>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-gray-600 dark:text-gray-400">{{ selectedUserForCharge.unbilledDelivered }} colis livrés × {{ deliveryFees.delivered.toFixed(2) }} TND</span>
+                  <span class="font-medium text-gray-900 dark:text-white">{{ (selectedUserForCharge.unbilledDelivered * deliveryFees.delivered).toFixed(2) }} TND</span>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-gray-600 dark:text-gray-400">{{ selectedUserForCharge.unbilledReturned }} colis retour × {{ deliveryFees.returned.toFixed(2) }} TND</span>
+                  <span class="font-medium text-gray-900 dark:text-white">{{ (selectedUserForCharge.unbilledReturned * deliveryFees.returned).toFixed(2) }} TND</span>
+                </div>
+                <div class="border-t border-gray-200 dark:border-gray-700 pt-2 mt-2">
+                  <div class="flex items-center justify-between">
+                    <span class="font-medium text-gray-900 dark:text-white">Total à débiter</span>
+                    <span class="text-lg font-bold text-red-600">{{ calculateChargeTotal.toFixed(2) }} TND</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Note -->
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Note (optionnel)</label>
+              <textarea
+                v-model="chargeNote"
+                rows="2"
+                placeholder="Raison de l'opération..."
+                class="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm resize-none"
+              ></textarea>
+            </div>
+
+            <!-- New Balance Preview -->
+            <div v-if="calculateChargeTotal > 0" class="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <p class="text-sm text-blue-700 dark:text-blue-300">
+                Nouveau solde après facturation:
+                <span class="font-semibold">
+                  {{ (selectedUserForCharge.balance - calculateChargeTotal).toFixed(2) }} TND
+                </span>
+              </p>
+            </div>
+
+            <!-- No Shipments Warning -->
+            <div v-if="calculateChargeTotal === 0" class="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <p class="text-sm text-yellow-700 dark:text-yellow-300 flex items-center gap-2">
+                <AlertTriangle class="w-4 h-4" />
+                Aucun colis non facturé pour ce client
+              </p>
+            </div>
+          </template>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex items-center justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-800">
+          <button @click="closeChargeModal" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+            Annuler
+          </button>
+          <!-- Credit Button -->
+          <button
+            v-if="chargeMode === 'credit'"
+            @click="processAccountCredit"
+            :disabled="calculateCreditTotal <= 0"
+            :class="[
+              'px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white',
+              calculateCreditTotal <= 0 && 'opacity-50 cursor-not-allowed'
+            ]"
+          >
+            <Plus class="w-4 h-4" />
+            Créditer {{ calculateCreditTotal.toFixed(2) }} TND
+          </button>
+          <!-- Debit Button -->
+          <button
+            v-else
+            @click="processAccountCharge"
+            :disabled="calculateChargeTotal === 0"
+            :class="[
+              'px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white',
+              calculateChargeTotal === 0 && 'opacity-50 cursor-not-allowed'
+            ]"
+          >
+            <Minus class="w-4 h-4" />
+            Facturer {{ calculateChargeTotal.toFixed(2) }} TND
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, markRaw, watch } from 'vue'
+import { ref, computed, reactive, markRaw, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import {
   Home,
   Radar,
@@ -8090,10 +10769,12 @@ import {
   Upload,
   Camera,
   Plus,
+  Minus,
   Search,
   SlidersHorizontal,
   ArrowUpDown,
   ArrowUp,
+  ArrowRight,
   FileSpreadsheet,
   LayoutGrid,
   Bell,
@@ -8126,6 +10807,7 @@ import {
   CalendarClock,
   Calendar,
   ArrowLeftRight,
+  ArrowLeft,
   Building2,
   Wallet,
   TrendingUp,
@@ -8168,24 +10850,57 @@ import {
   Gem,
   ShoppingBag,
   UserX,
-  LogOut
+  LogOut,
+  Menu,
+  ListFilter,
+  Trash2,
+  Save,
+  Monitor
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useLanguageStore } from '@/stores/language'
+import {
+  shipmentsService,
+  clientsService,
+  boutiquesService,
+  carriersService,
+  pickupsService,
+  transactionsService
+} from '@/services'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const languageStore = useLanguageStore()
+
+// Loading state
+const isLoadingData = ref(false)
 
 function handleLogout() {
   authStore.signOut()
   router.push('/signin')
 }
 
+// Admin role check - uses auth store's isPlatformAdmin
+const isAdmin = computed(() => authStore.isPlatformAdmin)
+
 // Main section state with persistence
 const savedMainSection = localStorage.getItem('deliveryTracker_mainSection')
 const savedActiveSection = localStorage.getItem('deliveryTracker_activeSection')
 const mainSection = ref(savedMainSection || 'dashboard')
 const activeSection = ref(savedActiveSection || 'overview')
+
+// Filtered navigation - hides admin section for non-admin users
+const filteredMainNavigation = computed(() => {
+  if (isAdmin.value) {
+    return mainNavigation
+  }
+  return mainNavigation.filter(item => item.id !== 'administration')
+})
+
+// Mobile menu state
+const sidebarOpen = ref(false)
+const subMenuOpen = ref(false)
 
 // Watch and persist state changes
 watch(mainSection, (newVal) => {
@@ -8204,16 +10919,12 @@ interface Boutique {
   color: string
 }
 
-const boutiques = ref<Boutique[]>([
-  { id: '1', name: 'Ma Boutique', email: 'admin@maboutique.tn', initials: 'MB', color: '#f97316' },
-  { id: '2', name: 'Shop Express', email: 'contact@shopexpress.tn', initials: 'SE', color: '#3b82f6' },
-  { id: '3', name: 'Mode & Style', email: 'info@modestyle.tn', initials: 'MS', color: '#8b5cf6' },
-])
+const boutiques = ref<Boutique[]>([])
 
-// User balance for package credits
+// User balance for package credits - starts at 0 for new accounts
 const userBalance = ref({
-  delivered: 847,
-  returned: 156
+  delivered: 0,
+  returned: 0
 })
 
 // Recharge modal
@@ -8288,97 +10999,129 @@ interface DeliveryCarrier {
   configFields: CarrierConfigField[]
 }
 
+// Standard config fields for delivery carriers
+const standardConfigFields: CarrierConfigField[] = [
+  { key: 'apiKey', label: 'Clé API', type: 'password', placeholder: 'Votre clé API', required: true },
+  { key: 'accountId', label: 'ID Compte', type: 'text', placeholder: 'Identifiant de compte', required: true },
+  { key: 'secretKey', label: 'Clé secrète', type: 'password', placeholder: 'Clé secrète', required: false },
+]
+
 const deliveryCarriers: DeliveryCarrier[] = [
-  {
-    id: 'aramex',
-    name: 'Aramex',
-    description: 'Livraison express internationale',
-    type: 'express',
-    deliveryTime: '24-48h',
-    color: '#E31837',
-    bgColor: '#FEE2E2',
-    configFields: [
-      { key: 'accountNumber', label: 'Numéro de compte', type: 'text', placeholder: 'Votre numéro de compte Aramex', required: true },
-      { key: 'username', label: 'Nom d\'utilisateur API', type: 'text', placeholder: 'Username', required: true },
-      { key: 'password', label: 'Mot de passe API', type: 'password', placeholder: '••••••••', required: true },
-      { key: 'accountPin', label: 'Code PIN', type: 'password', placeholder: 'PIN à 4 chiffres', required: true },
-      { key: 'accountEntity', label: 'Entité', type: 'text', placeholder: 'TUN', required: true },
-      { key: 'accountCountryCode', label: 'Code pays', type: 'text', placeholder: 'TN', required: true },
-    ]
-  },
-  {
-    id: 'rapid-poste',
-    name: 'Rapid Poste',
-    description: 'Service postal national rapide',
-    type: 'express',
-    deliveryTime: '24-72h',
-    color: '#FFB800',
-    bgColor: '#FEF3C7',
-    configFields: [
-      { key: 'clientId', label: 'ID Client', type: 'text', placeholder: 'Votre identifiant client', required: true },
-      { key: 'apiKey', label: 'Clé API', type: 'password', placeholder: 'Votre clé API', required: true },
-      { key: 'contractNumber', label: 'Numéro de contrat', type: 'text', placeholder: 'Numéro de contrat', required: true },
-    ]
-  },
-  {
-    id: 'logidis',
-    name: 'Logidis',
-    description: 'Distribution logistique locale',
-    type: 'standard',
-    deliveryTime: '48-72h',
-    color: '#2563EB',
-    bgColor: '#DBEAFE',
-    configFields: [
-      { key: 'apiToken', label: 'Token API', type: 'password', placeholder: 'Votre token d\'authentification', required: true },
-      { key: 'merchantId', label: 'ID Marchand', type: 'text', placeholder: 'Votre ID marchand', required: true },
-      { key: 'warehouseCode', label: 'Code entrepôt', type: 'text', placeholder: 'Code de votre entrepôt', required: false, hint: 'Optionnel si vous utilisez l\'entrepôt par défaut' },
-    ]
-  },
-  {
-    id: 'sotudis',
-    name: 'Sotudis',
-    description: 'Distribution nationale Tunisie',
-    type: 'standard',
-    deliveryTime: '48-96h',
-    color: '#059669',
-    bgColor: '#D1FAE5',
-    configFields: [
-      { key: 'companyCode', label: 'Code société', type: 'text', placeholder: 'Code de votre société', required: true },
-      { key: 'username', label: 'Utilisateur', type: 'text', placeholder: 'Nom d\'utilisateur', required: true },
-      { key: 'password', label: 'Mot de passe', type: 'password', placeholder: '••••••••', required: true },
-      { key: 'pickupAddress', label: 'Adresse d\'enlèvement', type: 'text', placeholder: 'Adresse par défaut pour enlèvements', required: false },
-    ]
-  },
-  {
-    id: 'express-post',
-    name: 'Express Post',
-    description: 'Livraison express premium',
-    type: 'express',
-    deliveryTime: '24h',
-    color: '#7C3AED',
-    bgColor: '#EDE9FE',
-    configFields: [
-      { key: 'apiKey', label: 'Clé API', type: 'password', placeholder: 'Clé d\'accès API', required: true },
-      { key: 'secretKey', label: 'Clé secrète', type: 'password', placeholder: 'Clé secrète', required: true },
-      { key: 'environment', label: 'Environnement', type: 'select', required: true, options: [
-        { value: 'sandbox', label: 'Sandbox (Test)' },
-        { value: 'production', label: 'Production' }
-      ]},
-    ]
-  },
-  {
-    id: 'colis-tunisie',
-    name: 'Colis Tunisie',
-    description: 'Service économique national',
-    type: 'standard',
-    deliveryTime: '72-96h',
-    color: '#DC2626',
-    bgColor: '#FEE2E2',
-    configFields: [
-      { key: 'accountId', label: 'ID Compte', type: 'text', placeholder: 'Identifiant de compte', required: true },
-      { key: 'token', label: 'Token d\'accès', type: 'password', placeholder: 'Token d\'authentification', required: true },
-    ]
-  },
+  // A
+  { id: 'abm', name: 'ABM', description: 'Service de livraison ABM', type: 'standard', deliveryTime: '24-48h', color: '#1E40AF', bgColor: '#DBEAFE', configFields: standardConfigFields },
+  { id: 'afex', name: 'Afex', description: 'Livraison express Afex', type: 'express', deliveryTime: '24h', color: '#DC2626', bgColor: '#FEE2E2', configFields: standardConfigFields },
+  { id: 'aramex', name: 'Aramex', description: 'Livraison express internationale', type: 'express', deliveryTime: '24-48h', color: '#E31837', bgColor: '#FEE2E2', configFields: [
+    { key: 'accountNumber', label: 'Numéro de compte', type: 'text', placeholder: 'Votre numéro de compte Aramex', required: true },
+    { key: 'username', label: 'Nom d\'utilisateur API', type: 'text', placeholder: 'Username', required: true },
+    { key: 'password', label: 'Mot de passe API', type: 'password', placeholder: '••••••••', required: true },
+    { key: 'accountPin', label: 'Code PIN', type: 'password', placeholder: 'PIN à 4 chiffres', required: true },
+  ]},
+  { id: 'aurex', name: 'Aurex', description: 'Livraison Aurex Tunisie', type: 'express', deliveryTime: '24-48h', color: '#F59E0B', bgColor: '#FEF3C7', configFields: standardConfigFields },
+  { id: 'axess-logistique', name: 'Axess Logistique', description: 'Solutions logistiques Axess', type: 'standard', deliveryTime: '48-72h', color: '#0891B2', bgColor: '#CFFAFE', configFields: standardConfigFields },
+
+  // B
+  { id: 'b2c-delivery', name: 'B2C Delivery', description: 'Livraison B2C spécialisée', type: 'standard', deliveryTime: '24-48h', color: '#7C3AED', bgColor: '#EDE9FE', configFields: standardConfigFields },
+  { id: 'best-delivery', name: 'Best Delivery', description: 'Service de livraison Best', type: 'express', deliveryTime: '24h', color: '#059669', bgColor: '#D1FAE5', configFields: standardConfigFields },
+  { id: 'bestway', name: 'Bestway', description: 'Livraison Bestway', type: 'standard', deliveryTime: '24-48h', color: '#2563EB', bgColor: '#DBEAFE', configFields: standardConfigFields },
+  { id: 'bigboss', name: 'Bigboss', description: 'Livraison rapide Bigboss', type: 'express', deliveryTime: '24h', color: '#DC2626', bgColor: '#FEE2E2', configFields: standardConfigFields },
+  { id: 'bonjour-express', name: 'Bonjour Express', description: 'Service express Bonjour', type: 'express', deliveryTime: '24h', color: '#F97316', bgColor: '#FFEDD5', configFields: standardConfigFields },
+  { id: 'bouguerra-delivery', name: 'Bouguerra Delivery', description: 'Livraison Bouguerra', type: 'standard', deliveryTime: '24-48h', color: '#84CC16', bgColor: '#ECFCCB', configFields: standardConfigFields },
+
+  // C
+  { id: 'calirex-tunisie', name: 'Calirex Tunisie', description: 'Service Calirex Tunisie', type: 'standard', deliveryTime: '48-72h', color: '#0D9488', bgColor: '#CCFBF1', configFields: standardConfigFields },
+  { id: 'ciblex-express', name: 'Ciblex Express', description: 'Livraison express Ciblex', type: 'express', deliveryTime: '24h', color: '#6366F1', bgColor: '#E0E7FF', configFields: standardConfigFields },
+  { id: 'colis-express', name: 'Colis Express', description: 'Service Colis Express', type: 'express', deliveryTime: '24h', color: '#EC4899', bgColor: '#FCE7F3', configFields: standardConfigFields },
+  { id: 'colissimo', name: 'Colissimo', description: 'Service postal Colissimo', type: 'standard', deliveryTime: '48-72h', color: '#FFB800', bgColor: '#FEF3C7', configFields: standardConfigFields },
+  { id: 'cosmos', name: 'Cosmos', description: 'Livraison Cosmos', type: 'standard', deliveryTime: '24-48h', color: '#8B5CF6', bgColor: '#EDE9FE', configFields: standardConfigFields },
+
+  // D
+  { id: 'delivery-x', name: 'Delivery X', description: 'Service Delivery X', type: 'express', deliveryTime: '24h', color: '#1F2937', bgColor: '#F3F4F6', configFields: standardConfigFields },
+  { id: 'dropo', name: 'Dropo', description: 'Livraison Dropo', type: 'standard', deliveryTime: '24-48h', color: '#10B981', bgColor: '#D1FAE5', configFields: standardConfigFields },
+  { id: 'droppex', name: 'Droppex', description: 'Service Droppex', type: 'standard', deliveryTime: '24-48h', color: '#3B82F6', bgColor: '#DBEAFE', configFields: standardConfigFields },
+  { id: 'dsgo', name: 'DSGO', description: 'Livraison DSGO', type: 'standard', deliveryTime: '48-72h', color: '#14B8A6', bgColor: '#CCFBF1', configFields: standardConfigFields },
+
+  // E
+  { id: 'ecomness', name: 'Ecomness', description: 'Solutions e-commerce Ecomness', type: 'standard', deliveryTime: '24-48h', color: '#A855F7', bgColor: '#F3E8FF', configFields: standardConfigFields },
+  { id: 'essedik-smart', name: 'Essedik Smart Delivery', description: 'Livraison intelligente Essedik', type: 'express', deliveryTime: '24h', color: '#0EA5E9', bgColor: '#E0F2FE', configFields: standardConfigFields },
+
+  // F
+  { id: 'fakroun-express', name: 'FakrounExpress', description: 'Express Fakroun', type: 'express', deliveryTime: '24h', color: '#EF4444', bgColor: '#FEE2E2', configFields: standardConfigFields },
+  { id: 'fasthault', name: 'FastHaul', description: 'Service rapide FastHaul', type: 'express', deliveryTime: '24h', color: '#F59E0B', bgColor: '#FEF3C7', configFields: standardConfigFields },
+  { id: 'fasty', name: 'Fasty', description: 'Livraison ultra-rapide Fasty', type: 'express', deliveryTime: '24h', color: '#22C55E', bgColor: '#DCFCE7', configFields: standardConfigFields },
+  { id: 'fiabilo', name: 'Fiabilo', description: 'Service fiable Fiabilo', type: 'standard', deliveryTime: '24-48h', color: '#6366F1', bgColor: '#E0E7FF', configFields: standardConfigFields },
+  { id: 'first', name: 'First', description: 'Livraison First', type: 'express', deliveryTime: '24h', color: '#1D4ED8', bgColor: '#DBEAFE', configFields: standardConfigFields },
+
+  // G
+  { id: 'goodex', name: 'Goodex', description: 'Service Goodex', type: 'standard', deliveryTime: '24-48h', color: '#16A34A', bgColor: '#DCFCE7', configFields: standardConfigFields },
+
+  // H
+  { id: 'high-delivery', name: 'High Delivery', description: 'Livraison premium High', type: 'express', deliveryTime: '24h', color: '#7C3AED', bgColor: '#EDE9FE', configFields: standardConfigFields },
+
+  // I
+  { id: 'instaia-delivery', name: 'Instaia Delivery', description: 'Livraison instantanée Instaia', type: 'express', deliveryTime: '24h', color: '#E11D48', bgColor: '#FFE4E6', configFields: standardConfigFields },
+  { id: 'intigo', name: 'Intigo', description: 'Service Intigo', type: 'standard', deliveryTime: '24-48h', color: '#0891B2', bgColor: '#CFFAFE', configFields: standardConfigFields },
+
+  // J
+  { id: 'jax', name: 'JAx', description: 'Livraison JAx', type: 'express', deliveryTime: '24h', color: '#DC2626', bgColor: '#FEE2E2', configFields: standardConfigFields },
+  { id: 'jetpack', name: 'JetPack', description: 'Livraison rapide JetPack', type: 'express', deliveryTime: '24h', color: '#2563EB', bgColor: '#DBEAFE', configFields: standardConfigFields },
+
+  // K
+  { id: 'kadex-delivery', name: 'Kadex Delivery', description: 'Service Kadex', type: 'standard', deliveryTime: '24-48h', color: '#059669', bgColor: '#D1FAE5', configFields: standardConfigFields },
+  { id: 'kamatchou', name: 'Kamatchou Services', description: 'Services Kamatchou', type: 'standard', deliveryTime: '48-72h', color: '#F97316', bgColor: '#FFEDD5', configFields: standardConfigFields },
+
+  // L
+  { id: 'la-zajella', name: 'La Zajella', description: 'Livraison La Zajella', type: 'standard', deliveryTime: '24-48h', color: '#8B5CF6', bgColor: '#EDE9FE', configFields: standardConfigFields },
+  { id: 'larim-delivery', name: 'Larim Delivery', description: 'Service Larim', type: 'standard', deliveryTime: '24-48h', color: '#10B981', bgColor: '#D1FAE5', configFields: standardConfigFields },
+  { id: 'light-speed', name: 'Light Speed Delivery', description: 'Livraison ultra-rapide', type: 'express', deliveryTime: '24h', color: '#FBBF24', bgColor: '#FEF3C7', configFields: standardConfigFields },
+  { id: 'livra-lynx', name: 'Livra Lynx', description: 'Livraison rapide Lynx', type: 'express', deliveryTime: '24h', color: '#F59E0B', bgColor: '#FEF3C7', configFields: standardConfigFields },
+  { id: 'login', name: 'Login', description: 'Service Login', type: 'standard', deliveryTime: '24-48h', color: '#3B82F6', bgColor: '#DBEAFE', configFields: standardConfigFields },
+
+  // M
+  { id: 'macropost', name: 'Macropost', description: 'Service postal Macropost', type: 'standard', deliveryTime: '48-72h', color: '#0D9488', bgColor: '#CCFBF1', configFields: standardConfigFields },
+  { id: 'massar', name: 'Massar', description: 'Livraison Massar', type: 'standard', deliveryTime: '24-48h', color: '#6366F1', bgColor: '#E0E7FF', configFields: standardConfigFields },
+  { id: 'may-m', name: 'May M', description: 'Service May M', type: 'standard', deliveryTime: '24-48h', color: '#EC4899', bgColor: '#FCE7F3', configFields: standardConfigFields },
+  { id: 'mescolis-express', name: 'MesColis Express', description: 'Service express MesColis', type: 'express', deliveryTime: '24h', color: '#1E40AF', bgColor: '#DBEAFE', configFields: standardConfigFields },
+  { id: 'my-colis', name: 'My Colis', description: 'Service My Colis', type: 'standard', deliveryTime: '24-48h', color: '#7C3AED', bgColor: '#EDE9FE', configFields: standardConfigFields },
+  { id: 'mylerz', name: 'Mylerz', description: 'Livraison Mylerz', type: 'express', deliveryTime: '24h', color: '#2DD4BF', bgColor: '#CCFBF1', configFields: standardConfigFields },
+  { id: 'mz-logistic', name: 'MZ Logistic', description: 'Solutions logistiques MZ', type: 'standard', deliveryTime: '48-72h', color: '#0EA5E9', bgColor: '#E0F2FE', configFields: standardConfigFields },
+
+  // N
+  { id: 'navex', name: 'Navex', description: 'Livraison Navex', type: 'express', deliveryTime: '24h', color: '#14B8A6', bgColor: '#CCFBF1', configFields: standardConfigFields },
+
+  // O
+  { id: 'oclock-delivery', name: 'Oclock Delivery', description: 'Livraison ponctuelle Oclock', type: 'express', deliveryTime: '24h', color: '#1D4ED8', bgColor: '#DBEAFE', configFields: standardConfigFields },
+  { id: 'onesta', name: 'Onesta', description: 'Service Onesta', type: 'standard', deliveryTime: '24-48h', color: '#059669', bgColor: '#D1FAE5', configFields: standardConfigFields },
+  { id: 'oppa', name: 'Oppa', description: 'Livraison Oppa', type: 'standard', deliveryTime: '24-48h', color: '#A855F7', bgColor: '#F3E8FF', configFields: standardConfigFields },
+
+  // Q
+  { id: 'qwikpak', name: 'Qwikpak', description: 'Livraison rapide Qwikpak', type: 'express', deliveryTime: '24h', color: '#22C55E', bgColor: '#DCFCE7', configFields: standardConfigFields },
+
+  // R
+  { id: 'rapi-colis', name: 'Rapi Colis', description: 'Service rapide Rapi Colis', type: 'express', deliveryTime: '24h', color: '#EF4444', bgColor: '#FEE2E2', configFields: standardConfigFields },
+
+  // S
+  { id: 'safexpress', name: 'SafExpress', description: 'Livraison sécurisée SafExpress', type: 'express', deliveryTime: '24h', color: '#0891B2', bgColor: '#CFFAFE', configFields: standardConfigFields },
+  { id: 'sari', name: 'Sari', description: 'Service Sari', type: 'standard', deliveryTime: '24-48h', color: '#8B5CF6', bgColor: '#EDE9FE', configFields: standardConfigFields },
+  { id: 'sellmax', name: 'Sellmax', description: 'Livraison Sellmax', type: 'standard', deliveryTime: '24-48h', color: '#F97316', bgColor: '#FFEDD5', configFields: standardConfigFields },
+  { id: 'sendex-delivery', name: 'Sendex Delivery', description: 'Service Sendex', type: 'standard', deliveryTime: '24-48h', color: '#10B981', bgColor: '#D1FAE5', configFields: standardConfigFields },
+
+  // T
+  { id: 'tictac-delivery', name: 'Tictac Delivery', description: 'Livraison Tictac', type: 'express', deliveryTime: '24h', color: '#EC4899', bgColor: '#FCE7F3', configFields: standardConfigFields },
+  { id: 'tiktak-delivery', name: 'Tiktak Delivery', description: 'Service Tiktak', type: 'express', deliveryTime: '24h', color: '#6366F1', bgColor: '#E0E7FF', configFields: standardConfigFields },
+  { id: 'trd-express', name: 'TRD Express', description: 'Express TRD', type: 'express', deliveryTime: '24h', color: '#DC2626', bgColor: '#FEE2E2', configFields: standardConfigFields },
+  { id: 'trust', name: 'Trust', description: 'Livraison Trust', type: 'standard', deliveryTime: '24-48h', color: '#2563EB', bgColor: '#DBEAFE', configFields: standardConfigFields },
+
+  // W
+  { id: 'wr-delivery', name: 'WR Delivery', description: 'Service WR Delivery', type: 'standard', deliveryTime: '24-48h', color: '#7C3AED', bgColor: '#EDE9FE', configFields: standardConfigFields },
+
+  // X
+  { id: 'x-delivery', name: 'X Delivery', description: 'Livraison X Delivery', type: 'express', deliveryTime: '24h', color: '#1F2937', bgColor: '#F3F4F6', configFields: standardConfigFields },
+
+  // Y
+  { id: 'youssel', name: 'Youssel', description: 'Service Youssel', type: 'standard', deliveryTime: '24-48h', color: '#16A34A', bgColor: '#DCFCE7', configFields: standardConfigFields },
+
+  // Z
+  { id: 'zed-delivery', name: 'Zed Delivery', description: 'Livraison Zed', type: 'standard', deliveryTime: '24-48h', color: '#0D9488', bgColor: '#CCFBF1', configFields: standardConfigFields },
 ]
 
 // Boutique form state
@@ -8442,33 +11185,21 @@ const organizationTabs = [
   { id: 'carriers', label: 'Transporteurs', icon: markRaw(Truck) },
 ]
 
-const organization = reactive({
-  name: 'Mon Organisation',
-  email: 'contact@organisation.tn',
-  phone: '+216 70 000 000',
-  address: 'Tunis, Tunisia',
-  taxId: '',
-  rcNumber: ''
-})
+// Organization - computed from auth store, with defaults for new users
+const organization = computed(() => ({
+  name: authStore.organization?.name || authStore.user?.name || 'Mon Organisation',
+  email: authStore.organization?.email || authStore.user?.email || '',
+  phone: authStore.organization?.phone || '',
+  address: authStore.organization?.address || '',
+  taxId: authStore.organization?.tax_id || '',
+  rcNumber: authStore.organization?.rc_number || ''
+}))
 
-const teamMembers = ref<TeamMember[]>([
-  { id: '1', name: 'Ahmed Ben Ali', email: 'ahmed@org.tn', initials: 'AB', color: '#3b82f6', role: 'admin', boutiques: ['1', '2'] },
-  { id: '2', name: 'Sarra Mansour', email: 'sarra@org.tn', initials: 'SM', color: '#8b5cf6', role: 'manager', boutiques: ['1'] },
-  { id: '3', name: 'Mohamed Trabelsi', email: 'mohamed@org.tn', initials: 'MT', color: '#10b981', role: 'operator', boutiques: ['2', '3'] },
-])
+// Team members - empty by default, loaded from Supabase
+const teamMembers = ref<any[]>([])
 
-const configuredCarriers = ref<ConfiguredCarrier[]>([
-  {
-    ...deliveryCarriers[0], // Aramex
-    config: { accountNumber: '12345', username: 'user', password: '****', accountPin: '1234', accountEntity: 'TUN', accountCountryCode: 'TN' },
-    zones: ['Tunis', 'Ariana', 'Ben Arous', 'Manouba', 'Sousse', 'Sfax']
-  },
-  {
-    ...deliveryCarriers[2], // Logidis
-    config: { apiToken: '****', merchantId: 'M001' },
-    zones: governorates
-  }
-])
+// Configured carriers - empty by default
+const configuredCarriers = ref<ConfiguredCarrier[]>([])
 
 const newMemberForm = reactive({
   name: '',
@@ -8480,6 +11211,18 @@ const newMemberForm = reactive({
 const availableCarriers = computed(() => {
   const configuredIds = configuredCarriers.value.map(c => c.id)
   return deliveryCarriers.filter(c => !configuredIds.includes(c.id))
+})
+
+// Organization carrier search
+const orgCarrierSearchQuery = ref('')
+
+const filteredAvailableCarriers = computed(() => {
+  if (!orgCarrierSearchQuery.value) return availableCarriers.value
+  const search = orgCarrierSearchQuery.value.toLowerCase()
+  return availableCarriers.value.filter(carrier =>
+    carrier.name.toLowerCase().includes(search) ||
+    carrier.description.toLowerCase().includes(search)
+  )
 })
 
 const canCreateBoutiqueSimple = computed(() => {
@@ -8822,9 +11565,9 @@ const mainNavigation = [
   { id: 'pickups', label: 'Enlèvements', icon: markRaw(Truck) },
   { id: 'returns', label: 'Retours', icon: markRaw(RotateCcw) },
   { id: 'carriers', label: 'Transporteurs', icon: markRaw(Building2) },
-  { id: 'tracking-page', label: 'Page de suivi', icon: markRaw(Globe) },
   { id: 'finance', label: 'Finance', icon: markRaw(Wallet) },
   { id: 'analytics', label: 'Analytiques', icon: markRaw(BarChart3) },
+  { id: 'administration', label: 'Administration', icon: markRaw(Shield) },
   { id: 'settings', label: 'Paramètres', icon: markRaw(Settings) },
 ]
 
@@ -8848,16 +11591,11 @@ const subNavigation: Record<string, Array<{ id: string; label: string; icon: any
     { id: 'all-shipments', label: 'Tous les colis', icon: markRaw(Package) },
     { id: 'create-shipment', label: 'Créer un colis', icon: markRaw(Plus) },
     { id: 'labels', label: 'Bordereaux', icon: markRaw(FileCheck) },
-    { id: 'shipment-status', label: 'Statuts colis', icon: markRaw(CircleDot) },
-    { id: 'search-filters', label: 'Recherche & Filtres', icon: markRaw(Filter) },
-    { id: 'shipment-history', label: 'Historique', icon: markRaw(History) },
   ],
   pickups: [
     { id: 'schedule-pickup', label: 'Planifier enlèvement', icon: markRaw(CalendarClock) },
     { id: 'pickup-requests', label: 'Demandes d\'enlèvement', icon: markRaw(PackageOpen) },
     { id: 'pickup-history', label: 'Historique', icon: markRaw(History) },
-    { id: 'failed-pickups', label: 'Échecs', icon: markRaw(XCircle), badge: '0', badgeClass: 'bg-gray-100 text-gray-500' },
-    { id: 'pickup-performance', label: 'Performance', icon: markRaw(TrendingUp) },
   ],
   returns: [
     { id: 'active-returns', label: 'Retours actifs', icon: markRaw(RotateCcw) },
@@ -8869,10 +11607,6 @@ const subNavigation: Record<string, Array<{ id: string; label: string; icon: any
   carriers: [
     { id: 'connected-carriers', label: 'Transporteurs connectés', icon: markRaw(Building2) },
     { id: 'add-carrier', label: 'Ajouter transporteur', icon: markRaw(Plus) },
-    { id: 'api-status', label: 'Statut API', icon: markRaw(Webhook) },
-    { id: 'carrier-performance', label: 'Performance', icon: markRaw(TrendingUp) },
-    { id: 'sla-metrics', label: 'Métriques SLA', icon: markRaw(Target) },
-    { id: 'carrier-issues', label: 'Problèmes', icon: markRaw(AlertCircle) },
   ],
   'tracking-page': [
     { id: 'page-templates', label: 'Modèles de page', icon: markRaw(Layout) },
@@ -8902,11 +11636,14 @@ const subNavigation: Record<string, Array<{ id: string; label: string; icon: any
   settings: [
     { id: 'company-profile', label: 'Profil entreprise', icon: markRaw(Building) },
     { id: 'users-roles', label: 'Utilisateurs & Rôles', icon: markRaw(Users) },
-    { id: 'integrations', label: 'Intégrations', icon: markRaw(Plug) },
     { id: 'notifications', label: 'Notifications', icon: markRaw(Bell) },
-    { id: 'billing', label: 'Facturation', icon: markRaw(CreditCard) },
-    { id: 'api-keys', label: 'Clés API', icon: markRaw(Key) },
     { id: 'security', label: 'Sécurité', icon: markRaw(Lock) },
+    { id: 'payment-history', label: 'Historique de paiement', icon: markRaw(CreditCard) },
+  ],
+  administration: [
+    { id: 'admin-users', label: 'Liste des utilisateurs', icon: markRaw(Users) },
+    { id: 'admin-billing', label: 'Facturation comptes', icon: markRaw(Wallet) },
+    { id: 'admin-transactions', label: 'Transactions', icon: markRaw(Receipt) },
   ],
 }
 
@@ -8942,22 +11679,17 @@ const clientSearchQuery = ref('')
 const clientFilterStatus = ref('all')
 const selectedClientDetails = ref<any>(null)
 
+// Client stats - starts at 0 for new accounts
 const clientStats = ref({
-  totalClients: 1247,
-  activeClients: 892,
-  newThisMonth: 67,
-  deliveryRate: 87,
-  totalRevenue: 456780
+  totalClients: 0,
+  activeClients: 0,
+  newThisMonth: 0,
+  deliveryRate: 0,
+  totalRevenue: 0
 })
 
-const clientsList = ref([
-  { id: 1, name: 'Sana Bouaziz', phone: '98 123 456', email: 'sana.b@email.com', address: '15 Rue de la Liberté', region: 'Tunis', totalOrders: 23, deliveredOrders: 21, deliveryRate: 91, totalSpent: 4560, status: 'vip', memberSince: 'Jan 2024' },
-  { id: 2, name: 'Ahmed Mansour', phone: '55 789 012', email: '', address: '42 Avenue Bourguiba', region: 'Sfax', totalOrders: 8, deliveredOrders: 6, deliveryRate: 75, totalSpent: 1890, status: 'active', memberSince: 'Mar 2024' },
-  { id: 3, name: 'Leila Trabelsi', phone: '22 456 789', email: 'leila.t@gmail.com', address: '8 Rue des Oliviers', region: 'Sousse', totalOrders: 45, deliveredOrders: 42, deliveryRate: 93, totalSpent: 8920, status: 'vip', memberSince: 'Sep 2023' },
-  { id: 4, name: 'Karim Jebali', phone: '91 234 567', email: '', address: '23 Boulevard 7 Novembre', region: 'Nabeul', totalOrders: 3, deliveredOrders: 1, deliveryRate: 33, totalSpent: 450, status: 'blocked', memberSince: 'Déc 2025' },
-  { id: 5, name: 'Nadia Khemiri', phone: '54 321 098', email: 'nadia.k@outlook.com', address: '5 Rue Ibn Khaldoun', region: 'Ariana', totalOrders: 12, deliveredOrders: 11, deliveryRate: 92, totalSpent: 2340, status: 'active', memberSince: 'Juin 2024' },
-  { id: 6, name: 'Omar Chahed', phone: '29 876 543', email: '', address: '17 Avenue de la République', region: 'Bizerte', totalOrders: 5, deliveredOrders: 4, deliveryRate: 80, totalSpent: 890, status: 'inactive', memberSince: 'Oct 2024' }
-])
+// Clients list - empty by default
+const clientsList = ref<any[]>([])
 
 const filteredClients = computed(() => {
   return clientsList.value.filter(client => {
@@ -9185,28 +11917,8 @@ function unblockClient(client: any) {
   }
 }
 
-// Client Colis Data
-const clientColisData = ref([
-  { id: 1, clientId: 1, tracking: 'YAL-2026-001234', date: '25 Jan 2026', amount: 189, status: 'Delivered' },
-  { id: 2, clientId: 1, tracking: 'YAL-2026-001456', date: '22 Jan 2026', amount: 245, status: 'Delivered' },
-  { id: 3, clientId: 1, tracking: 'ZR-2026-002789', date: '18 Jan 2026', amount: 156, status: 'In Transit' },
-  { id: 4, clientId: 1, tracking: 'YAL-2026-003012', date: '15 Jan 2026', amount: 89, status: 'Delivered' },
-  { id: 5, clientId: 2, tracking: 'MAY-2026-004567', date: '24 Jan 2026', amount: 320, status: 'In Transit' },
-  { id: 6, clientId: 2, tracking: 'YAL-2026-005890', date: '20 Jan 2026', amount: 178, status: 'Delivered' },
-  { id: 7, clientId: 2, tracking: 'ECO-2026-006123', date: '12 Jan 2026', amount: 95, status: 'Returned' },
-  { id: 8, clientId: 3, tracking: 'YAL-2026-007456', date: '26 Jan 2026', amount: 412, status: 'Pending' },
-  { id: 9, clientId: 3, tracking: 'ZR-2026-008789', date: '23 Jan 2026', amount: 267, status: 'Delivered' },
-  { id: 10, clientId: 3, tracking: 'YAL-2026-009012', date: '19 Jan 2026', amount: 198, status: 'Delivered' },
-  { id: 11, clientId: 3, tracking: 'MAY-2026-010345', date: '14 Jan 2026', amount: 145, status: 'Delivered' },
-  { id: 12, clientId: 3, tracking: 'YAL-2026-011678', date: '10 Jan 2026', amount: 89, status: 'Delivered' },
-  { id: 13, clientId: 4, tracking: 'ECO-2026-012901', date: '21 Jan 2026', amount: 230, status: 'Returned' },
-  { id: 14, clientId: 4, tracking: 'YAL-2026-013234', date: '16 Jan 2026', amount: 156, status: 'Returned' },
-  { id: 15, clientId: 5, tracking: 'ZR-2026-014567', date: '25 Jan 2026', amount: 189, status: 'In Transit' },
-  { id: 16, clientId: 5, tracking: 'YAL-2026-015890', date: '22 Jan 2026', amount: 278, status: 'Delivered' },
-  { id: 17, clientId: 5, tracking: 'MAY-2026-016123', date: '17 Jan 2026', amount: 134, status: 'Delivered' },
-  { id: 18, clientId: 6, tracking: 'YAL-2026-017456', date: '20 Jan 2026', amount: 167, status: 'Delivered' },
-  { id: 19, clientId: 6, tracking: 'ECO-2026-018789', date: '13 Jan 2026', amount: 98, status: 'Returned' }
-])
+// Client Colis Data - empty by default
+const clientColisData = ref<any[]>([])
 
 function getClientColis(clientId: number) {
   return clientColisData.value.filter(c => c.clientId === clientId)
@@ -9232,85 +11944,44 @@ const labelFilterPrinted = ref('all')
 
 // Dashboard Stats
 const dashboardStats = reactive({
-  performanceScore: 87,
-  todayDeliveries: 24,
-  todayDelivered: 18,
-  successRate: 92,
-  lastWeekSuccessRate: 89,
-  expectedCOD: 4580,
-  pendingConfirmations: 6,
-  todayOrders: 28,
-  yesterdayOrders: 25,
-  ordersChange: 12,
-  deliveredChange: 8,
-  todayReturns: 2,
-  returnsChange: -15,
-  yesterdayDelivered: 16
+  performanceScore: 0,
+  todayDeliveries: 0,
+  todayDelivered: 0,
+  successRate: 0,
+  lastWeekSuccessRate: 0,
+  expectedCOD: 0,
+  pendingConfirmations: 0,
+  todayOrders: 0,
+  yesterdayOrders: 0,
+  ordersChange: 0,
+  deliveredChange: 0,
+  todayReturns: 0,
+  returnsChange: 0,
+  yesterdayDelivered: 0
 })
 
 // Urgent Actions
-const urgentActions = ref([
-  { id: 1, type: 'confirm', icon: markRaw(FileCheck), title: '6 commandes à confirmer', description: 'En attente depuis plus de 2h', time: 'Il y a 2h', actionLabel: 'Confirmer' },
-  { id: 2, type: 'delayed', icon: markRaw(AlertTriangle), title: '3 colis en retard critique', description: 'Retard de plus de 72h', time: 'Urgent', actionLabel: 'Voir' },
-  { id: 3, type: 'return', icon: markRaw(RotateCcw), title: '2 clients injoignables', description: '3 tentatives sans réponse', time: 'Il y a 30min', actionLabel: 'Contacter' },
-  { id: 4, type: 'payment', icon: markRaw(Banknote), title: 'Paiement Yalidine en retard', description: '1,250 TND depuis 5 jours', time: 'Il y a 5j', actionLabel: 'Relancer' }
-])
+const urgentActions = ref<any[]>([])
 
 // Weather Regions
-const weatherRegions = ref([
-  { name: 'Tunis', icon: '☀️', temp: 22, impact: 'low' },
-  { name: 'Sfax', icon: '⛅', temp: 24, impact: 'low' },
-  { name: 'Sousse', icon: '🌧️', temp: 18, impact: 'medium' },
-  { name: 'Bizerte', icon: '⛈️', temp: 15, impact: 'high' },
-  { name: 'Gabès', icon: '☀️', temp: 26, impact: 'low' },
-  { name: 'Kairouan', icon: '🌤️', temp: 23, impact: 'low' }
-])
+const weatherRegions = ref<any[]>([])
 
 // Today Stats
 const todayStats = reactive({
-  toConfirm: 6,
-  inDelivery: 12,
-  delivered: 18,
-  toPrint: 4
+  toConfirm: 0,
+  inDelivery: 0,
+  delivered: 0,
+  toPrint: 0
 })
 
 // Orders to Confirm
-const ordersToConfirm = ref([
-  { id: 1, client: 'Ahmed Ben Ali', tracking: 'YAL-2026-001234', destination: 'Tunis', amount: 89 },
-  { id: 2, client: 'Fatma Trabelsi', tracking: 'ZR-2026-005678', destination: 'Sfax', amount: 145 },
-  { id: 3, client: 'Mohamed Sassi', tracking: 'MAY-2026-009012', destination: 'Sousse', amount: 67 },
-  { id: 4, client: 'Sana Bouaziz', tracking: 'YAL-2026-003456', destination: 'Nabeul', amount: 210 },
-  { id: 5, client: 'Karim Hamdi', tracking: 'ECO-2026-007890', destination: 'Monastir', amount: 95 },
-  { id: 6, client: 'Leila Mrad', tracking: 'ZR-2026-002345', destination: 'Bizerte', amount: 178 }
-])
+const ordersToConfirm = ref<any[]>([])
 
 // Delivery Timeline Data
-const deliveryTimelineData = ref([
-  { hour: 8, count: 2 },
-  { hour: 9, count: 3 },
-  { hour: 10, count: 4 },
-  { hour: 11, count: 6 },
-  { hour: 12, count: 5 },
-  { hour: 13, count: 4 },
-  { hour: 14, count: 5 },
-  { hour: 15, count: 4 },
-  { hour: 16, count: 3 },
-  { hour: 17, count: 2 },
-  { hour: 18, count: 1 },
-  { hour: 19, count: 1 }
-])
+const deliveryTimelineData = ref<any[]>([])
 
 // Today's Shipments List
-const todayShipmentsList = ref([
-  { id: 1, tracking: 'YAL-2026-001234', client: 'Ahmed Ben Ali', destination: 'Tunis', status: 'Livré', amount: 89, carrier: 'Yalidine' },
-  { id: 2, tracking: 'ZR-2026-005678', client: 'Fatma Trabelsi', destination: 'Sfax', status: 'En livraison', amount: 145, carrier: 'ZR Express' },
-  { id: 3, tracking: 'MAY-2026-009012', client: 'Mohamed Sassi', destination: 'Sousse', status: 'En transit', amount: 67, carrier: 'Maystro' },
-  { id: 4, tracking: 'YAL-2026-003456', client: 'Sana Bouaziz', destination: 'Nabeul', status: 'Livré', amount: 210, carrier: 'Yalidine' },
-  { id: 5, tracking: 'ECO-2026-007890', client: 'Karim Hamdi', destination: 'Monastir', status: 'En livraison', amount: 95, carrier: 'Ecotrack' },
-  { id: 6, tracking: 'ZR-2026-002345', client: 'Leila Mrad', destination: 'Bizerte', status: 'En attente', amount: 178, carrier: 'ZR Express' },
-  { id: 7, tracking: 'YAL-2026-004567', client: 'Omar Chahed', destination: 'Tunis', status: 'Livré', amount: 320, carrier: 'Yalidine' },
-  { id: 8, tracking: 'MAY-2026-008901', client: 'Nadia Khemiri', destination: 'Ariana', status: 'En livraison', amount: 55, carrier: 'Maystro' }
-])
+const todayShipmentsList = ref<any[]>([])
 
 // ==================== DAILY TASKS ====================
 const dailyTasksFilter = ref<'all' | 'pending' | 'completed'>('all')
@@ -9322,12 +11993,7 @@ const dailyTasksCategories = ref([
     icon: markRaw(FileCheck),
     bgColor: 'bg-purple-100 dark:bg-purple-900/30',
     iconColor: 'text-purple-600',
-    tasks: [
-      { id: 6, title: 'Confirmer commande #2026-1234', description: 'Sana Bouaziz · 210 TND · En attente depuis 2h', completed: false, priority: 'high', action: 'confirm', actionLabel: 'Confirmer', actionIcon: markRaw(Check), completedAt: '' },
-      { id: 7, title: 'Confirmer commande #2026-1235', description: 'Omar Chahed · 320 TND', completed: true, priority: 'normal', action: 'confirm', actionLabel: 'Confirmer', actionIcon: markRaw(Check), completedAt: '08:15' },
-      { id: 8, title: 'Confirmer commande #2026-1236', description: 'Nadia Khemiri · 55 TND', completed: true, priority: 'normal', action: 'confirm', actionLabel: 'Confirmer', actionIcon: markRaw(Check), completedAt: '08:20' },
-      { id: 9, title: 'Vérifier commande #2026-1237', description: 'Adresse incomplète - contacter client', completed: false, priority: 'high', action: 'verify', actionLabel: 'Vérifier', actionIcon: markRaw(AlertCircle), completedAt: '' }
-    ]
+    tasks: [] as any[]
   },
   {
     id: 'labels',
@@ -9335,11 +12001,7 @@ const dailyTasksCategories = ref([
     icon: markRaw(Printer),
     bgColor: 'bg-orange-100 dark:bg-orange-900/30',
     iconColor: 'text-orange-600',
-    tasks: [
-      { id: 10, title: 'Imprimer bordereaux Yalidine', description: '4 colis prêts à expédier', completed: false, priority: 'normal', count: 4, action: 'print', actionLabel: 'Imprimer', actionIcon: markRaw(Printer), completedAt: '' },
-      { id: 11, title: 'Imprimer bordereaux ZR Express', description: '2 colis prêts à expédier', completed: true, priority: 'normal', count: 2, action: 'print', actionLabel: 'Imprimer', actionIcon: markRaw(Printer), completedAt: '09:00' },
-      { id: 12, title: 'Imprimer bordereaux Maystro', description: '3 colis prêts à expédier', completed: false, priority: 'normal', count: 3, action: 'print', actionLabel: 'Imprimer', actionIcon: markRaw(Printer), completedAt: '' }
-    ]
+    tasks: [] as any[]
   },
   {
     id: 'packages',
@@ -9347,12 +12009,7 @@ const dailyTasksCategories = ref([
     icon: markRaw(Package),
     bgColor: 'bg-green-100 dark:bg-green-900/30',
     iconColor: 'text-green-600',
-    tasks: [
-      { id: 13, title: 'Emballer commande #2026-1234', description: 'Montre connectée + accessoires', completed: true, priority: 'normal', action: null, actionLabel: '', actionIcon: null, completedAt: '08:45' },
-      { id: 14, title: 'Emballer commande #2026-1235', description: 'Parfum importé - emballage fragile', completed: true, priority: 'normal', action: null, actionLabel: '', actionIcon: null, completedAt: '09:10' },
-      { id: 15, title: 'Emballer commande #2026-1236', description: 'Coque iPhone', completed: false, priority: 'normal', action: null, actionLabel: '', actionIcon: null, completedAt: '' },
-      { id: 16, title: 'Emballer commande #2026-1237', description: 'Bijoux fantaisie x3', completed: false, priority: 'normal', action: null, actionLabel: '', actionIcon: null, completedAt: '' }
-    ]
+    tasks: [] as any[]
   },
   {
     id: 'returns',
@@ -9360,10 +12017,7 @@ const dailyTasksCategories = ref([
     icon: markRaw(RotateCcw),
     bgColor: 'bg-red-100 dark:bg-red-900/30',
     iconColor: 'text-red-600',
-    tasks: [
-      { id: 17, title: 'Contacter Hichem Mansour', description: '3 tentatives échouées - risque retour', completed: false, priority: 'high', action: 'whatsapp', actionLabel: 'WhatsApp', actionIcon: markRaw(MessageCircle), completedAt: '' },
-      { id: 18, title: 'Vérifier retour YAL-2026-000456', description: 'Colis retourné hier - vérifier état', completed: false, priority: 'normal', action: 'verify', actionLabel: 'Vérifier', actionIcon: markRaw(Eye), completedAt: '' }
-    ]
+    tasks: [] as any[]
   },
   {
     id: 'finance',
@@ -9371,10 +12025,7 @@ const dailyTasksCategories = ref([
     icon: markRaw(Banknote),
     bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
     iconColor: 'text-yellow-600',
-    tasks: [
-      { id: 19, title: 'Relancer paiement Yalidine', description: '1,250 TND en retard de 5 jours', completed: false, priority: 'high', action: 'contact', actionLabel: 'Relancer', actionIcon: markRaw(MessageCircle), completedAt: '' },
-      { id: 20, title: 'Vérifier virement ZR Express', description: '890 TND attendu depuis hier', completed: true, priority: 'normal', action: 'verify', actionLabel: 'Vérifier', actionIcon: markRaw(Eye), completedAt: '11:00' }
-    ]
+    tasks: [] as any[]
   }
 ])
 
@@ -9448,25 +12099,10 @@ const delayedDateFilter = ref<'all' | 'today' | '48h' | 'week' | 'month' | 'cust
 const delayedDateRangeStart = ref('')
 const delayedDateRangeEnd = ref('')
 
-const delayedShipments = ref([
-  { id: 1, tracking: 'YAL-2026-000123', client: 'Hatem Mejri', destination: 'Gabès', delayDays: 5, carrier: 'Yalidine', phone: '+216 98 123 456', createdAt: '2026-01-24' },
-  { id: 2, tracking: 'ZR-2026-000456', client: 'Rim Ayari', destination: 'Tataouine', delayDays: 4, carrier: 'ZR Express', phone: '+216 55 789 012', createdAt: '2026-01-25' },
-  { id: 3, tracking: 'MAY-2026-000789', client: 'Youssef Gharbi', destination: 'Tozeur', delayDays: 3, carrier: 'Maystro', phone: '+216 22 345 678', createdAt: '2026-01-26' },
-  { id: 4, tracking: 'YAL-2026-001012', client: 'Ines Lahmar', destination: 'Kasserine', delayDays: 2, carrier: 'Yalidine', phone: '+216 97 901 234', createdAt: '2026-01-27' },
-  { id: 5, tracking: 'ECO-2026-001345', client: 'Walid Ben Salah', destination: 'Gafsa', delayDays: 2, carrier: 'Ecotrack', phone: '+216 50 567 890', createdAt: '2026-01-28' },
-  { id: 6, tracking: 'ZR-2026-001678', client: 'Amira Bouzid', destination: 'Médenine', delayDays: 1, carrier: 'ZR Express', phone: '+216 24 123 456', createdAt: '2026-01-29' },
-  { id: 7, tracking: 'MAY-2026-001901', client: 'Sofiane Triki', destination: 'Kébili', delayDays: 1, carrier: 'Maystro', phone: '+216 92 789 012', createdAt: '2026-01-29' },
-  { id: 8, tracking: 'YAL-2026-002100', client: 'Nadia Fersi', destination: 'Siliana', delayDays: 6, carrier: 'Yalidine', phone: '+216 91 234 567', createdAt: '2026-01-10' },
-  { id: 9, tracking: 'ECO-2026-002200', client: 'Tarek Hamdi', destination: 'Jendouba', delayDays: 4, carrier: 'Ecotrack', phone: '+216 53 456 789', createdAt: '2026-01-15' },
-  { id: 10, tracking: 'ZR-2026-002300', client: 'Sarra Khalfi', destination: 'Béja', delayDays: 3, carrier: 'ZR Express', phone: '+216 29 678 901', createdAt: '2026-01-20' }
-])
+const delayedShipments = ref<any[]>([])
 
 // Delayed Patterns
-const delayedPatterns = ref([
-  { id: 1, message: '4 colis en retard vers le Sud (Gabès, Tataouine, Tozeur) - Zone éloignée' },
-  { id: 2, message: '3 retards avec Yalidine cette semaine - Vérifier la performance' },
-  { id: 3, message: 'Région Kasserine: 80% des livraisons en retard ce mois' }
-])
+const delayedPatterns = ref<any[]>([])
 
 // Computed filtered delayed shipments by date
 const filteredDelayedShipmentsByDate = computed(() => {
@@ -9522,43 +12158,20 @@ const filteredDelayedShipmentsFinal = computed(() => {
 })
 
 // Return Alerts
-const returnAlerts = ref([
-  { id: 1, type: 'failed-attempt', client: 'Hichem Mansour', tracking: 'YAL-2026-002234', destination: 'Tunis', attempts: 3, lastAttempt: 'Il y a 2h', amount: 156, isRecidivist: true },
-  { id: 2, type: 'failed-attempt', client: 'Wafa Jlassi', tracking: 'ZR-2026-002567', destination: 'Sfax', attempts: 2, lastAttempt: 'Hier', amount: 89, isRecidivist: false },
-  { id: 3, type: 'unreachable', client: 'Nabil Karray', phone: '+216 98 111 222', tracking: 'MAY-2026-002890', destination: 'Sousse', lastContact: 'Il y a 3 jours', isRecidivist: false },
-  { id: 4, type: 'unreachable', client: 'Salma Zouari', phone: '+216 55 333 444', tracking: 'YAL-2026-003123', destination: 'Monastir', lastContact: 'Il y a 2 jours', isRecidivist: true },
-  { id: 5, type: 'risk', client: 'Anis Ferchichi', tracking: 'ECO-2026-003456', riskScore: 85, riskReason: 'Client avec 3 retours sur les 5 dernières commandes', isRecidivist: true },
-  { id: 6, type: 'risk', client: 'Mounir Ghanmi', tracking: 'ZR-2026-003789', riskScore: 72, riskReason: 'Zone problématique (Tataouine) + 2 tentatives', isRecidivist: false }
-])
+const returnAlerts = ref<any[]>([])
 
 // Financial Stats
 const financialStats = reactive({
-  pendingCOD: 4580,
-  pendingCODCount: 24,
-  pendingPayments: 2850,
-  pendingCarriersCount: 3,
-  deliveryFees: 1240,
-  netMargin: 3340,
-  marginPercent: 73,
-  codByCarrier: [
-    { name: 'Yalidine', amount: 1890, count: 12, overdue: 450, colorClass: 'bg-blue-100 dark:bg-blue-900/30', iconColor: 'text-blue-600' },
-    { name: 'ZR Express', amount: 1340, count: 8, overdue: 0, colorClass: 'bg-green-100 dark:bg-green-900/30', iconColor: 'text-green-600' },
-    { name: 'Maystro', amount: 850, count: 5, overdue: 200, colorClass: 'bg-purple-100 dark:bg-purple-900/30', iconColor: 'text-purple-600' },
-    { name: 'Ecotrack', amount: 500, count: 3, overdue: 0, colorClass: 'bg-orange-100 dark:bg-orange-900/30', iconColor: 'text-orange-600' }
-  ],
-  overduePayments: [
-    { id: 1, carrier: 'Yalidine', amount: 1250, daysOverdue: 5 },
-    { id: 2, carrier: 'Maystro', amount: 680, daysOverdue: 3 }
-  ],
-  cashFlowProjection: [
-    { label: 'Lun', incoming: 1200, outgoing: 350 },
-    { label: 'Mar', incoming: 980, outgoing: 280 },
-    { label: 'Mer', incoming: 1450, outgoing: 420 },
-    { label: 'Jeu', incoming: 1100, outgoing: 310 },
-    { label: 'Ven', incoming: 1680, outgoing: 480 },
-    { label: 'Sam', incoming: 890, outgoing: 250 },
-    { label: 'Dim', incoming: 450, outgoing: 150 }
-  ]
+  pendingCOD: 0,
+  pendingCODCount: 0,
+  pendingPayments: 0,
+  pendingCarriersCount: 0,
+  deliveryFees: 0,
+  netMargin: 0,
+  marginPercent: 0,
+  codByCarrier: [] as any[],
+  overduePayments: [] as any[],
+  cashFlowProjection: [] as any[]
 })
 
 // Activity Log
@@ -9568,17 +12181,7 @@ const activityFilters = reactive({
   search: ''
 })
 
-const activityLogs = ref([
-  { id: 1, type: 'status', icon: markRaw(Package), message: 'Colis livré avec succès', tracking: 'YAL-2026-001234', time: '14:32', date: "Aujourd'hui", user: 'Système' },
-  { id: 2, type: 'payment', icon: markRaw(Banknote), message: 'Paiement COD reçu de ZR Express', tracking: null, time: '14:15', date: "Aujourd'hui", user: 'Système' },
-  { id: 3, type: 'status', icon: markRaw(Truck), message: 'Colis pris en charge par le livreur', tracking: 'ZR-2026-005678', time: '13:45', date: "Aujourd'hui", user: 'Système' },
-  { id: 4, type: 'return', icon: markRaw(RotateCcw), message: 'Retour déclaré - Client absent', tracking: 'MAY-2026-000456', time: '12:30', date: "Aujourd'hui", user: 'Système' },
-  { id: 5, type: 'status', icon: markRaw(FileCheck), message: 'Nouvelle commande confirmée', tracking: 'YAL-2026-004567', time: '11:20', date: "Aujourd'hui", user: 'Admin' },
-  { id: 6, type: 'error', icon: markRaw(AlertCircle), message: 'Échec de synchronisation API Yalidine', tracking: null, time: '10:05', date: "Aujourd'hui", user: 'Système' },
-  { id: 7, type: 'status', icon: markRaw(Package), message: 'Colis livré avec succès', tracking: 'ECO-2026-003456', time: '18:45', date: 'Hier', user: 'Système' },
-  { id: 8, type: 'payment', icon: markRaw(Banknote), message: 'Facture #INV-2026-089 générée', tracking: null, time: '17:30', date: 'Hier', user: 'Admin' },
-  { id: 9, type: 'status', icon: markRaw(CheckCircle), message: '15 bordereaux imprimés', tracking: null, time: '09:15', date: 'Hier', user: 'Admin' }
-])
+const activityLogs = ref<any[]>([])
 
 // Grouped Activity Logs
 const groupedActivityLogs = computed(() => {
@@ -9619,18 +12222,543 @@ function toggleFlow(index: number) {
   }
 }
 
-// Members & Roles (UI state only - data is in teamMembers above)
+// Members & Roles Management
 const membersTab = ref('members')
 const memberSearchQuery = ref('')
 const showRoleFilter = ref(false)
 const selectedRoleFilters = ref<string[]>([])
+const showMemberModal = ref(false)
+const showRoleModal = ref(false)
+const showDeleteConfirm = ref(false)
+const deleteConfirmMessage = ref('')
+const deleteTarget = ref<{ type: 'member' | 'role', id: number | string } | null>(null)
+const editingMember = ref<any>(null)
+const editingRole = ref<any>(null)
+
+const memberForm = ref({
+  name: '',
+  email: '',
+  role: '',
+  status: 'active'
+})
+
+const roleForm = ref({
+  name: '',
+  description: '',
+  permissions: [] as string[]
+})
 
 const availableRoles = ref([
-  { id: 'owner', name: 'Owner', description: 'Only 1 per organization. All permissions.', memberCount: 1, isDefault: true, isOwner: true },
-  { id: 'admin', name: 'Admin', description: 'Can manage basic organization and billing settings, but c...', memberCount: 0, isDefault: true, isOwner: false },
-  { id: 'manager', name: 'Manager', description: '', memberCount: 0, isDefault: true, isOwner: false },
-  { id: 'support', name: 'Support Agent', description: '', memberCount: 0, isDefault: true, isOwner: false },
+  { id: 'owner', name: 'Owner', description: 'Propriétaire de l\'organisation. Toutes les permissions.', memberCount: 1, isDefault: true, isOwner: true, permissions: ['all'] },
+  { id: 'admin', name: 'Admin', description: 'Peut gérer l\'organisation, les paramètres et la facturation.', memberCount: 2, isDefault: true, isOwner: false, permissions: ['users.manage', 'settings.manage', 'billing.view', 'shipments.all', 'reports.view'] },
+  { id: 'manager', name: 'Manager', description: 'Peut gérer les colis et les clients.', memberCount: 3, isDefault: true, isOwner: false, permissions: ['shipments.all', 'clients.manage', 'reports.view'] },
+  { id: 'support', name: 'Support Agent', description: 'Peut voir et mettre à jour les colis.', memberCount: 1, isDefault: true, isOwner: false, permissions: ['shipments.view', 'shipments.update', 'clients.view'] },
 ])
+
+const permissionCategories = [
+  {
+    name: 'Colis',
+    permissions: [
+      { id: 'shipments.view', label: 'Voir les colis' },
+      { id: 'shipments.create', label: 'Créer des colis' },
+      { id: 'shipments.update', label: 'Modifier les colis' },
+      { id: 'shipments.delete', label: 'Supprimer les colis' },
+      { id: 'shipments.all', label: 'Toutes permissions colis' }
+    ]
+  },
+  {
+    name: 'Clients',
+    permissions: [
+      { id: 'clients.view', label: 'Voir les clients' },
+      { id: 'clients.manage', label: 'Gérer les clients' }
+    ]
+  },
+  {
+    name: 'Utilisateurs',
+    permissions: [
+      { id: 'users.view', label: 'Voir les utilisateurs' },
+      { id: 'users.manage', label: 'Gérer les utilisateurs' }
+    ]
+  },
+  {
+    name: 'Paramètres',
+    permissions: [
+      { id: 'settings.view', label: 'Voir les paramètres' },
+      { id: 'settings.manage', label: 'Modifier les paramètres' },
+      { id: 'billing.view', label: 'Voir la facturation' }
+    ]
+  },
+  {
+    name: 'Rapports',
+    permissions: [
+      { id: 'reports.view', label: 'Voir les rapports' },
+      { id: 'reports.export', label: 'Exporter les rapports' }
+    ]
+  }
+]
+
+const filteredMembers = computed(() => {
+  let members = teamMembers.value
+
+  if (memberSearchQuery.value) {
+    const query = memberSearchQuery.value.toLowerCase()
+    members = members.filter(m =>
+      m.name.toLowerCase().includes(query) ||
+      m.email.toLowerCase().includes(query)
+    )
+  }
+
+  if (selectedRoleFilters.value.length > 0) {
+    members = members.filter(m =>
+      selectedRoleFilters.value.some(roleId => {
+        const role = availableRoles.value.find(r => r.id === roleId)
+        return role && m.role === role.name
+      })
+    )
+  }
+
+  return members
+})
+
+function openAddMemberModal() {
+  editingMember.value = null
+  memberForm.value = { name: '', email: '', role: '', status: 'active' }
+  showMemberModal.value = true
+}
+
+function editMember(member: any) {
+  editingMember.value = member
+  memberForm.value = {
+    name: member.name,
+    email: member.email,
+    role: member.role,
+    status: member.status || 'active'
+  }
+  showMemberModal.value = true
+}
+
+function closeMemberModal() {
+  showMemberModal.value = false
+  editingMember.value = null
+}
+
+function saveMember() {
+  if (!memberForm.value.name || !memberForm.value.email || !memberForm.value.role) {
+    alert('Veuillez remplir tous les champs obligatoires')
+    return
+  }
+
+  if (editingMember.value) {
+    const index = teamMembers.value.findIndex(m => m.id === editingMember.value.id)
+    if (index !== -1) {
+      teamMembers.value[index] = {
+        ...teamMembers.value[index],
+        name: memberForm.value.name,
+        email: memberForm.value.email,
+        role: memberForm.value.role,
+        status: memberForm.value.status,
+        initials: memberForm.value.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+      }
+    }
+  } else {
+    const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500']
+    teamMembers.value.push({
+      id: Date.now(),
+      name: memberForm.value.name,
+      email: memberForm.value.email,
+      role: memberForm.value.role,
+      status: 'invited',
+      lastLogin: 'Jamais',
+      initials: memberForm.value.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
+      avatarColor: colors[Math.floor(Math.random() * colors.length)]
+    })
+    updateRoleCounts()
+  }
+
+  closeMemberModal()
+}
+
+function confirmDeleteMember(member: any) {
+  deleteTarget.value = { type: 'member', id: member.id }
+  deleteConfirmMessage.value = `Êtes-vous sûr de vouloir supprimer ${member.name} ? Cette action est irréversible.`
+  showDeleteConfirm.value = true
+}
+
+function openAddRoleModal() {
+  editingRole.value = null
+  roleForm.value = { name: '', description: '', permissions: [] }
+  showRoleModal.value = true
+}
+
+function editRole(role: any) {
+  editingRole.value = role
+  roleForm.value = {
+    name: role.name,
+    description: role.description || '',
+    permissions: [...(role.permissions || [])]
+  }
+  showRoleModal.value = true
+}
+
+function closeRoleModal() {
+  showRoleModal.value = false
+  editingRole.value = null
+}
+
+function saveRole() {
+  if (!roleForm.value.name) {
+    alert('Veuillez entrer un nom de rôle')
+    return
+  }
+
+  if (editingRole.value) {
+    const index = availableRoles.value.findIndex(r => r.id === editingRole.value.id)
+    if (index !== -1) {
+      availableRoles.value[index] = {
+        ...availableRoles.value[index],
+        name: roleForm.value.name,
+        description: roleForm.value.description,
+        permissions: roleForm.value.permissions
+      }
+    }
+  } else {
+    availableRoles.value.push({
+      id: 'custom-' + Date.now(),
+      name: roleForm.value.name,
+      description: roleForm.value.description,
+      memberCount: 0,
+      isDefault: false,
+      isOwner: false,
+      permissions: roleForm.value.permissions
+    })
+  }
+
+  closeRoleModal()
+}
+
+function confirmDeleteRole(role: any) {
+  deleteTarget.value = { type: 'role', id: role.id }
+  deleteConfirmMessage.value = `Êtes-vous sûr de vouloir supprimer le rôle "${role.name}" ? Les membres avec ce rôle seront déplacés vers le rôle par défaut.`
+  showDeleteConfirm.value = true
+}
+
+function executeDelete() {
+  if (!deleteTarget.value) return
+
+  if (deleteTarget.value.type === 'member') {
+    const index = teamMembers.value.findIndex(m => m.id === deleteTarget.value!.id)
+    if (index !== -1) {
+      teamMembers.value.splice(index, 1)
+      updateRoleCounts()
+    }
+  } else if (deleteTarget.value.type === 'role') {
+    const index = availableRoles.value.findIndex(r => r.id === deleteTarget.value!.id)
+    if (index !== -1) {
+      availableRoles.value.splice(index, 1)
+    }
+  }
+
+  showDeleteConfirm.value = false
+  deleteTarget.value = null
+}
+
+function updateRoleCounts() {
+  availableRoles.value.forEach(role => {
+    role.memberCount = teamMembers.value.filter(m => m.role === role.name).length
+  })
+}
+
+function exportMembers() {
+  const data = teamMembers.value.map(m => ({
+    Nom: m.name,
+    Email: m.email,
+    Rôle: m.role,
+    Statut: m.status || 'active',
+    'Dernière connexion': m.lastLogin
+  }))
+  console.log('Export members:', data)
+  alert('Export des membres en cours...')
+}
+
+// Company Profile
+const companyProfile = ref({
+  name: 'Ma Société SARL',
+  taxId: '1234567ABC',
+  email: 'contact@masociete.tn',
+  phone: '+216 71 234 567',
+  address: '123 Rue de la Liberté',
+  city: 'Tunis',
+  postalCode: '1000',
+  currency: 'TND',
+  timezone: 'Africa/Tunis'
+})
+
+function saveCompanyProfile() {
+  // Save company profile logic
+  alert('Profil entreprise enregistré avec succès!')
+}
+
+// Security Settings
+const securitySettings = ref({
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: '',
+  twoFactorEnabled: false
+})
+
+const activeSessions = ref<any[]>([])
+
+function changePassword() {
+  if (securitySettings.value.newPassword !== securitySettings.value.confirmPassword) {
+    alert('Les mots de passe ne correspondent pas')
+    return
+  }
+  if (securitySettings.value.newPassword.length < 8) {
+    alert('Le mot de passe doit contenir au moins 8 caractères')
+    return
+  }
+  alert('Mot de passe modifié avec succès!')
+  securitySettings.value.currentPassword = ''
+  securitySettings.value.newPassword = ''
+  securitySettings.value.confirmPassword = ''
+}
+
+// Payment History
+const paymentFilter = ref('all')
+const paymentStats = ref({
+  totalPaid: 0,
+  pending: 0,
+  invoiceCount: 0
+})
+
+const payments = ref<any[]>([])
+
+const filteredPayments = computed(() => {
+  if (paymentFilter.value === 'all') return payments.value
+  return payments.value.filter(p => p.status === paymentFilter.value)
+})
+
+// ==========================================
+// Global Search (Notion-style Command Palette)
+// ==========================================
+const showGlobalSearch = ref(false)
+const globalSearchQuery = ref('')
+const globalSearchInput = ref<HTMLInputElement | null>(null)
+const selectedSearchIndex = ref(0)
+const recentSearches = ref<string[]>([])
+
+const searchSuggestions = [
+  { type: 'tracking', label: 'Rechercher par numéro de suivi', hint: 'Ex: TN-2026-0001', icon: markRaw(Package) },
+  { type: 'phone', label: 'Rechercher par téléphone', hint: 'Ex: +216 22 333 444', icon: markRaw(PhoneIcon) },
+  { type: 'name', label: 'Rechercher par nom', hint: 'Nom du destinataire ou client', icon: markRaw(User) },
+  { type: 'barcode', label: 'Scanner un code-barres', hint: 'Utiliser le scanner', icon: markRaw(Search) },
+]
+
+const globalSearchResults = computed(() => {
+  if (!globalSearchQuery.value || globalSearchQuery.value.length < 2) return []
+
+  const query = globalSearchQuery.value.toLowerCase().trim()
+
+  return shipments.value.filter(shipment => {
+    return (
+      shipment.trackingNumber.toLowerCase().includes(query) ||
+      shipment.recipient.toLowerCase().includes(query) ||
+      shipment.recipientPhone.toLowerCase().includes(query) ||
+      shipment.recipientAddress.toLowerCase().includes(query) ||
+      (shipment.orderId && shipment.orderId.toLowerCase().includes(query))
+    )
+  }).slice(0, 10)
+})
+
+function openGlobalSearch() {
+  showGlobalSearch.value = true
+  globalSearchQuery.value = ''
+  selectedSearchIndex.value = 0
+  nextTick(() => {
+    globalSearchInput.value?.focus()
+  })
+}
+
+function closeGlobalSearch() {
+  showGlobalSearch.value = false
+  globalSearchQuery.value = ''
+  selectedSearchIndex.value = 0
+}
+
+function navigateSearchResults(direction: number) {
+  const items = globalSearchQuery.value ? globalSearchResults.value : searchSuggestions
+  const maxIndex = items.length - 1
+
+  selectedSearchIndex.value += direction
+  if (selectedSearchIndex.value < 0) selectedSearchIndex.value = maxIndex
+  if (selectedSearchIndex.value > maxIndex) selectedSearchIndex.value = 0
+}
+
+function selectSearchResult() {
+  if (!globalSearchQuery.value) {
+    // Select a suggestion
+    const suggestion = searchSuggestions[selectedSearchIndex.value]
+    if (suggestion) {
+      applySearchSuggestion(suggestion)
+    }
+  } else if (globalSearchResults.value.length > 0) {
+    // Select a result
+    const result = globalSearchResults.value[selectedSearchIndex.value]
+    if (result) {
+      openSearchResult(result)
+    }
+  }
+}
+
+function applySearchSuggestion(suggestion: any) {
+  // Focus input and maybe add a prefix based on suggestion type
+  globalSearchInput.value?.focus()
+}
+
+function openSearchResult(result: any) {
+  // Add to recent searches
+  if (!recentSearches.value.includes(result.trackingNumber)) {
+    recentSearches.value.unshift(result.trackingNumber)
+    if (recentSearches.value.length > 5) recentSearches.value.pop()
+  }
+
+  // Close search and navigate to shipment details
+  closeGlobalSearch()
+
+  // Open shipment detail (reuse existing viewShipmentDetail function if available)
+  selectedShipment.value = result
+  showShipmentDetail.value = true
+}
+
+// Keyboard shortcut for global search (Cmd+K / Ctrl+K)
+function handleGlobalKeydown(e: KeyboardEvent) {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault()
+    if (showGlobalSearch.value) {
+      closeGlobalSearch()
+    } else {
+      openGlobalSearch()
+    }
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleGlobalKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleGlobalKeydown)
+})
+
+// ==========================================
+// Bulk Import
+// ==========================================
+const showBulkImportModal = ref(false)
+const bulkImportTab = ref<'excel' | 'manual'>('excel')
+const isDragging = ref(false)
+const importedFile = ref<File | null>(null)
+const importedFileRows = ref(0)
+const fileInput = ref<HTMLInputElement | null>(null)
+
+const bulkShipmentRows = ref([
+  { recipient: '', phone: '', address: '', amount: null },
+  { recipient: '', phone: '', address: '', amount: null },
+  { recipient: '', phone: '', address: '', amount: null },
+])
+
+function handleFileDrop(e: DragEvent) {
+  isDragging.value = false
+  const files = e.dataTransfer?.files
+  if (files && files.length > 0) {
+    processFile(files[0])
+  }
+}
+
+function handleFileSelect(e: Event) {
+  const target = e.target as HTMLInputElement
+  const files = target.files
+  if (files && files.length > 0) {
+    processFile(files[0])
+  }
+}
+
+function processFile(file: File) {
+  const validTypes = [
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-excel',
+    'text/csv'
+  ]
+
+  if (!validTypes.includes(file.type) && !file.name.endsWith('.csv') && !file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+    alert('Format de fichier non supporté. Veuillez utiliser un fichier Excel (.xlsx, .xls) ou CSV.')
+    return
+  }
+
+  importedFile.value = file
+  // Simulate detecting rows (in real app, you'd parse the file)
+  importedFileRows.value = Math.floor(Math.random() * 50) + 10
+}
+
+function downloadImportTemplate() {
+  // Create a simple CSV template
+  const headers = ['Destinataire', 'Téléphone', 'Adresse', 'Ville', 'Montant', 'Notes']
+  const exampleRow = ['Ahmed Ben Ali', '+216 22 333 444', '15 Rue de la Liberté', 'Tunis', '45.00', 'Livraison express']
+
+  const csvContent = [
+    headers.join(','),
+    exampleRow.join(','),
+  ].join('\n')
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = 'modele_import_colis.csv'
+  link.click()
+}
+
+function addBulkShipmentRow() {
+  bulkShipmentRows.value.push({ recipient: '', phone: '', address: '', amount: null })
+}
+
+function removeBulkShipmentRow(index: number) {
+  if (bulkShipmentRows.value.length > 1) {
+    bulkShipmentRows.value.splice(index, 1)
+  }
+}
+
+function processBulkImport() {
+  if (bulkImportTab.value === 'excel') {
+    if (!importedFile.value) return
+
+    // In a real app, you would parse the Excel file here
+    alert(`Import de ${importedFileRows.value} colis depuis ${importedFile.value.name} réussi!`)
+    importedFile.value = null
+    importedFileRows.value = 0
+    showBulkImportModal.value = false
+  } else {
+    // Manual multi-creation
+    const validRows = bulkShipmentRows.value.filter(r => r.recipient && r.phone)
+    if (validRows.length === 0) return
+
+    // In a real app, you would create the shipments here
+    alert(`${validRows.length} colis créés avec succès!`)
+
+    // Reset the form
+    bulkShipmentRows.value = [
+      { recipient: '', phone: '', address: '', amount: null },
+      { recipient: '', phone: '', address: '', amount: null },
+      { recipient: '', phone: '', address: '', amount: null },
+    ]
+    showBulkImportModal.value = false
+  }
+}
+
+function openBulkImport() {
+  showBulkImportModal.value = true
+  bulkImportTab.value = 'excel'
+  importedFile.value = null
+  importedFileRows.value = 0
+}
 
 // Tracking Page Templates
 const trackingPageTemplates = ref([
@@ -9685,13 +12813,7 @@ const trackingPageTemplates = ref([
 ])
 
 // Failed Searches (customers who couldn't find their order)
-const failedSearches = ref([
-  { id: 1, query: 'CMD-2024-99999', phone: '+216 55 123 456', date: '27 jan 2026 à 14:32', contacted: false },
-  { id: 2, query: 'ABC123XYZ', phone: '+216 98 765 432', date: '27 jan 2026 à 12:15', contacted: true },
-  { id: 3, query: 'MA-COMMANDE-001', phone: null, date: '26 jan 2026 à 18:45', contacted: false },
-  { id: 4, query: 'TRACK-5678', phone: '+216 22 333 444', date: '26 jan 2026 à 10:20', contacted: false },
-  { id: 5, query: 'ORDER-JANVIER', phone: '+216 50 111 222', date: '25 jan 2026 à 16:08', contacted: true },
-])
+const failedSearches = ref<any[]>([])
 
 const newShipment = reactive({
   // Section 1: Expédition
@@ -9737,6 +12859,26 @@ const filteredShipmentClients = computed(() => {
     client.address.toLowerCase().includes(search)
   ).slice(0, 5)
 })
+
+// Carrier Search
+const carrierSearchQuery = ref('')
+
+const filteredCarriers = computed(() => {
+  if (!carrierSearchQuery.value) return deliveryCarriers
+  const search = carrierSearchQuery.value.toLowerCase()
+  return deliveryCarriers.filter(carrier =>
+    carrier.name.toLowerCase().includes(search) ||
+    carrier.description.toLowerCase().includes(search)
+  )
+})
+
+function getCarrierInitials(name: string): string {
+  const words = name.split(' ')
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase()
+  }
+  return name.substring(0, 2).toUpperCase()
+}
 
 const canAddShipment = computed(() => {
   return (selectedShipmentClient.value || newShipment.customerName) &&
@@ -10050,293 +13192,22 @@ function generateReference() {
   return `${prefix}-${timestamp}-${random}`
 }
 
-const statusTabs = [
-  { id: 'all', label: 'Tous', count: 5 },
-  { id: 'exception', label: 'Exception', count: 0 },
-  { id: 'failed', label: 'Tentative échouée', count: 0 },
-  { id: 'expired', label: 'Expiré', count: 0 },
-  { id: 'out-for-delivery', label: 'En livraison', count: 1 },
-  { id: 'delivered', label: 'Livré', count: 3 },
-  { id: 'pending', label: 'En attente', count: 1 },
-]
-
-const shipments = ref([
-  {
-    id: 1,
-    trackingNumber: 'YAL-2024-001234',
-    carrier: 'Yalidine',
-    service: 'Express',
-    status: 'Delivered',
-    latestEvent: '26 jan : Le colis a été livré',
-    originFlag: '🇩🇿',
-    origin: 'Alger',
-    destination: 'Oran',
-    deliveryDate: '26 jan 2024',
-    transitDays: 2,
-    orderNumber: 'CMD-2024-001234',
-    customerName: 'Ahmed Benali',
-    // Label/Bordereau info
-    labelNumber: 'BRD-2024-001234',
-    labelPrinted: true,
-    labelPrintedAt: '24 jan 2024 à 08:45',
-    weight: 2.5,
-    dimensions: '30x20x15',
-    cod: 3500,
-    senderName: 'Ma Boutique',
-    senderAddress: '123 Rue Didouche Mourad, Alger',
-    senderPhone: '0555123456',
-    recipientPhone: '0661234567',
-    recipientPhoneSecondary: '',
-    recipientAddress: '45 Boulevard de l\'ALN, Oran',
-    productDescription: 'Vêtements',
-    fragile: false,
-    reference: 'REF-20240124-A1B2',
-    productPrice: 3000,
-    deliveryFee: 500,
-    totalPrice: 3500,
-    events: [
-      { status: 'Livrée', description: 'Le colis a été livré avec succès', location: 'Oran, Algérie', date: '26 jan 2024 à 10:26', completed: true },
-      { status: 'En transit', description: 'Le colis est en cours de livraison', location: 'Oran, Algérie', date: '26 jan 2024 à 08:15', completed: true },
-      { status: 'En transit', description: 'Arrivée au centre de tri', location: 'Alger, Algérie', date: '25 jan 2024 à 14:30', completed: true },
-      { status: 'Informations reçues', description: 'Colis pris en charge par le transporteur', location: 'Alger, Algérie', date: '24 jan 2024 à 09:00', completed: true },
-    ]
-  },
-  {
-    id: 2,
-    trackingNumber: 'ZR-2024-005678',
-    carrier: 'ZR Express',
-    service: 'Standard',
-    status: 'Out for delivery',
-    latestEvent: '26 jan : En cours de livraison',
-    originFlag: '🇩🇿',
-    origin: 'Oran',
-    destination: 'Constantine',
-    deliveryDate: null,
-    transitDays: 1,
-    orderNumber: 'CMD-2024-005678',
-    customerName: 'Fatima Zohra',
-    labelNumber: 'BRD-2024-005678',
-    labelPrinted: true,
-    labelPrintedAt: '25 jan 2024 à 07:30',
-    weight: 1.2,
-    dimensions: '25x15x10',
-    cod: 2800,
-    senderName: 'Ma Boutique',
-    senderAddress: '78 Avenue Ahmed Zabana, Oran',
-    senderPhone: '0555123456',
-    recipientPhone: '0771234567',
-    recipientPhoneSecondary: '',
-    recipientAddress: '12 Rue Larbi Ben M\'hidi, Constantine',
-    productDescription: 'Accessoires',
-    fragile: true,
-    reference: 'REF-20240125-C2D3',
-    productPrice: 2500,
-    deliveryFee: 300,
-    totalPrice: 2800,
-    events: [
-      { status: 'En livraison', description: 'Le colis est en cours de livraison', location: 'Constantine, Algérie', date: '26 jan 2024 à 09:00', completed: false },
-      { status: 'En transit', description: 'Arrivée au centre de distribution', location: 'Constantine, Algérie', date: '25 jan 2024 à 18:00', completed: true },
-      { status: 'Informations reçues', description: 'Colis pris en charge', location: 'Oran, Algérie', date: '25 jan 2024 à 08:00', completed: true },
-    ]
-  },
-  {
-    id: 3,
-    trackingNumber: 'MAY-2024-009012',
-    carrier: 'Maystro',
-    service: 'Express',
-    status: 'Delivered',
-    latestEvent: '25 jan : Colis livré',
-    originFlag: '🇩🇿',
-    origin: 'Constantine',
-    destination: 'Sétif',
-    deliveryDate: '25 jan 2024',
-    transitDays: 1,
-    orderNumber: 'CMD-2024-009012',
-    customerName: 'Karim Messaoudi',
-    labelNumber: 'BRD-2024-009012',
-    labelPrinted: true,
-    labelPrintedAt: '24 jan 2024 à 15:45',
-    weight: 0.8,
-    dimensions: '20x15x8',
-    cod: 1500,
-    senderName: 'Ma Boutique',
-    senderAddress: '56 Rue de France, Constantine',
-    senderPhone: '0555123456',
-    recipientPhone: '0551234567',
-    recipientPhoneSecondary: '',
-    recipientAddress: '23 Cité des Frères Saadane, Sétif',
-    productDescription: 'Cosmétiques',
-    fragile: true,
-    reference: 'REF-20240124-E4F5',
-    productPrice: 1200,
-    deliveryFee: 300,
-    totalPrice: 1500,
-    events: [
-      { status: 'Livrée', description: 'Le colis a été livré avec succès', location: 'Sétif, Algérie', date: '25 jan 2024 à 14:30', completed: true },
-      { status: 'En transit', description: 'En cours de livraison', location: 'Sétif, Algérie', date: '25 jan 2024 à 09:00', completed: true },
-      { status: 'Informations reçues', description: 'Colis pris en charge', location: 'Constantine, Algérie', date: '24 jan 2024 à 16:00', completed: true },
-    ]
-  },
-  {
-    id: 4,
-    trackingNumber: 'ECO-2024-003456',
-    carrier: 'Ecotrack',
-    service: '-',
-    status: 'Pending',
-    latestEvent: '24 jan : Colis créé',
-    originFlag: '🇩🇿',
-    origin: 'Blida',
-    destination: 'Alger',
-    deliveryDate: null,
-    transitDays: 0,
-    orderNumber: 'CMD-2024-003456',
-    customerName: 'Salim Boudiaf',
-    labelNumber: 'BRD-2024-003456',
-    labelPrinted: false,
-    labelPrintedAt: null,
-    weight: 3.0,
-    dimensions: '40x30x20',
-    cod: 5200,
-    senderName: 'Ma Boutique',
-    senderAddress: '89 Rue des Martyrs, Blida',
-    senderPhone: '0555123456',
-    recipientPhone: '0661987654',
-    recipientPhoneSecondary: '',
-    recipientAddress: '34 Rue Hassiba Ben Bouali, Alger',
-    productDescription: 'Électronique',
-    fragile: true,
-    reference: 'REF-20240124-G6H7',
-    productPrice: 4800,
-    deliveryFee: 400,
-    totalPrice: 5200,
-    events: [
-      { status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Blida, Algérie', date: '24 jan 2024 à 11:00', completed: true },
-    ]
-  },
-  {
-    id: 5,
-    trackingNumber: 'YAL-2024-007890',
-    carrier: 'Yalidine',
-    service: 'Standard',
-    status: 'Delivered',
-    latestEvent: '23 jan : Colis livré',
-    originFlag: '🇩🇿',
-    origin: 'Sétif',
-    destination: 'Annaba',
-    deliveryDate: '23 jan 2024',
-    transitDays: 3,
-    orderNumber: 'CMD-2024-007890',
-    customerName: 'Nadia Berkane',
-    labelNumber: 'BRD-2024-007890',
-    labelPrinted: true,
-    labelPrintedAt: '20 jan 2024 à 09:30',
-    weight: 1.8,
-    dimensions: '35x25x12',
-    cod: 4100,
-    senderName: 'Ma Boutique',
-    senderAddress: '67 Boulevard de la République, Sétif',
-    senderPhone: '0555123456',
-    recipientPhone: '0791234567',
-    recipientAddress: '56 Rue Badji Mokhtar, Annaba',
-    productDescription: 'Chaussures',
-    fragile: false,
-    events: [
-      { status: 'Livrée', description: 'Le colis a été livré avec succès', location: 'Annaba, Algérie', date: '23 jan 2024 à 11:45', completed: true },
-      { status: 'En transit', description: 'En cours de livraison', location: 'Annaba, Algérie', date: '23 jan 2024 à 08:30', completed: true },
-      { status: 'En transit', description: 'Arrivée au centre de tri', location: 'Constantine, Algérie', date: '22 jan 2024 à 15:00', completed: true },
-      { status: 'Informations reçues', description: 'Colis pris en charge', location: 'Sétif, Algérie', date: '20 jan 2024 à 10:00', completed: true },
-    ]
-  },
+// Status tabs - counts computed from actual shipments
+const statusTabs = computed(() => [
+  { id: 'all', label: 'Tous', count: shipments.value.length },
+  { id: 'exception', label: 'Exception', count: shipments.value.filter(s => s.status === 'exception').length },
+  { id: 'failed', label: 'Tentative échouée', count: shipments.value.filter(s => s.status === 'failed').length },
+  { id: 'expired', label: 'Expiré', count: shipments.value.filter(s => s.status === 'expired').length },
+  { id: 'out-for-delivery', label: 'En livraison', count: shipments.value.filter(s => s.status === 'out_for_delivery').length },
+  { id: 'delivered', label: 'Livré', count: shipments.value.filter(s => s.status === 'delivered').length },
+  { id: 'pending', label: 'En attente', count: shipments.value.filter(s => s.status === 'pending').length },
 ])
 
-const carriers = ref([
-  {
-    id: 1,
-    name: 'Yalidine',
-    apiId: 'YAL-API-001',
-    apiKey: 'yal_live_xxxxx',
-    apiStatus: 'connected',
-    shipments: 156,
-    delivered: 148,
-    deliveryRate: 94.9,
-    avgTime: 2.8,
-    // Fees structure
-    fraisColisLivres: 7.00,
-    fraisColisRetour: 5.00,
-    fraisColisEchange: 8.00,
-    fraisColisBig: 12.00,
-    fraisColisPickup: 3.00,
-    totalFraisLivraison: 7.00,
-    fraisPaiement: 1.5, // percentage
-    retenuPassage: 0.00,
-    // Region coverage
-    allRegions: true,
-    regions: [] as string[]
-  },
-  {
-    id: 2,
-    name: 'ZR Express',
-    apiId: 'ZR-API-002',
-    apiKey: 'zr_live_xxxxx',
-    apiStatus: 'connected',
-    shipments: 89,
-    delivered: 82,
-    deliveryRate: 92.1,
-    avgTime: 3.2,
-    fraisColisLivres: 6.50,
-    fraisColisRetour: 4.50,
-    fraisColisEchange: 7.50,
-    fraisColisBig: 11.00,
-    fraisColisPickup: 2.50,
-    totalFraisLivraison: 6.50,
-    fraisPaiement: 1.0,
-    retenuPassage: 0.00,
-    allRegions: false,
-    regions: ['Tunis', 'Ariana', 'Ben Arous', 'Manouba', 'Sousse', 'Monastir', 'Sfax']
-  },
-  {
-    id: 3,
-    name: 'Maystro',
-    apiId: 'MAY-API-003',
-    apiKey: 'may_live_xxxxx',
-    apiStatus: 'connected',
-    shipments: 234,
-    delivered: 225,
-    deliveryRate: 96.2,
-    avgTime: 2.5,
-    fraisColisLivres: 7.50,
-    fraisColisRetour: 5.50,
-    fraisColisEchange: 9.00,
-    fraisColisBig: 13.00,
-    fraisColisPickup: 3.50,
-    totalFraisLivraison: 7.50,
-    fraisPaiement: 2.0,
-    retenuPassage: 0.00,
-    allRegions: true,
-    regions: [] as string[]
-  },
-  {
-    id: 4,
-    name: 'Ecotrack',
-    apiId: 'ECO-API-004',
-    apiKey: 'eco_live_xxxxx',
-    apiStatus: 'disconnected',
-    shipments: 67,
-    delivered: 61,
-    deliveryRate: 91.0,
-    avgTime: 3.8,
-    fraisColisLivres: 6.00,
-    fraisColisRetour: 4.00,
-    fraisColisEchange: 7.00,
-    fraisColisBig: 10.00,
-    fraisColisPickup: 2.00,
-    totalFraisLivraison: 6.00,
-    fraisPaiement: 1.5,
-    retenuPassage: 0.00,
-    allRegions: false,
-    regions: ['Tunis', 'Ariana', 'Ben Arous', 'Nabeul', 'Bizerte']
-  },
-])
+// Shipments - empty by default, loaded from Supabase
+const shipments = ref<any[]>([])
+
+// Carriers - empty by default, loaded from Supabase
+const carriers = ref<any[]>([])
 
 // New carrier form
 const newCarrier = reactive({
@@ -10359,18 +13230,44 @@ const showAddCarrierModal = ref(false)
 const editingCarrier = ref<number | null>(null)
 const selectedCarrier = ref<typeof carriers.value[0] | null>(null)
 
+// Carrier wizard state
+const carrierWizardStep = ref(1)
+const showApiKey = ref(false)
+
+// Modal carrier selection
+const modalCarrierSearchQuery = ref('')
+const selectedModalCarrier = ref<typeof deliveryCarriers[0] | null>(null)
+
+const filteredModalCarriers = computed(() => {
+  if (!modalCarrierSearchQuery.value) return deliveryCarriers
+  const search = modalCarrierSearchQuery.value.toLowerCase()
+  return deliveryCarriers.filter(carrier =>
+    carrier.name.toLowerCase().includes(search) ||
+    carrier.description.toLowerCase().includes(search)
+  )
+})
+
+function selectCarrierFromList(carrier: typeof deliveryCarriers[0]) {
+  selectedModalCarrier.value = carrier
+  newCarrier.name = carrier.name
+  // Set default delivery fee based on carrier
+  const fee = carrierDeliveryFees[carrier.name] || 7
+  newCarrier.fraisColisLivres = fee
+}
+
 // Returns tracking data (synced from carriers)
 const isSyncingReturns = ref(false)
 const activeReturnsFilter = ref<'all' | 'on-time' | 'delayed'>('all')
+// Returns data - starts at 0 for new accounts
 const returnsData = reactive({
-  active: 12,
-  recovered: 45,
-  lost: 3,
-  total: 60,
-  totalValue: 2450,
-  recoveredValue: 1850,
-  pendingValue: 480,
-  lostValue: 120
+  active: 0,
+  recovered: 0,
+  lost: 0,
+  total: 0,
+  totalValue: 0,
+  recoveredValue: 0,
+  pendingValue: 0,
+  lostValue: 0
 })
 
 // Active returns statistics (on-time vs delayed)
@@ -10387,284 +13284,30 @@ const activeReturnsStats = computed(() => {
   }
 })
 
-// Statistics per carrier for return value page
-const carriersReturnStats = ref([
-  {
-    name: 'Yalidine',
-    totalReturns: 28,
-    returnRate: 4.2,
-    totalValue: 1250,
-    recovered: 22,
-    recoveredValue: 980,
-    inTransit: 5,
-    inTransitValue: 220,
-    lost: 1,
-    lostValue: 50,
-    returnFees: 140,
-    avgReturnDays: 3.5,
-    recoveryRate: 92,
-    reasons: {
-      'Client absent': 12,
-      'Refus client': 8,
-      'Adresse incorrecte': 5,
-      'Autre': 3
-    }
-  },
-  {
-    name: 'ZR Express',
-    totalReturns: 18,
-    returnRate: 6.8,
-    totalValue: 720,
-    recovered: 14,
-    recoveredValue: 560,
-    inTransit: 3,
-    inTransitValue: 120,
-    lost: 1,
-    lostValue: 40,
-    returnFees: 90,
-    avgReturnDays: 4.2,
-    recoveryRate: 88,
-    reasons: {
-      'Refus client': 9,
-      'Client absent': 5,
-      'Colis endommagé': 2,
-      'Adresse incorrecte': 2
-    }
-  },
-  {
-    name: 'Maystro',
-    totalReturns: 14,
-    returnRate: 3.5,
-    totalValue: 480,
-    recovered: 12,
-    recoveredValue: 420,
-    inTransit: 2,
-    inTransitValue: 60,
-    lost: 0,
-    lostValue: 0,
-    returnFees: 56,
-    avgReturnDays: 2.8,
-    recoveryRate: 100,
-    reasons: {
-      'Client absent': 6,
-      'Refus client': 5,
-      'Autre': 3
-    }
-  }
-])
+// Statistics per carrier for return value page - empty by default
+const carriersReturnStats = ref<any[]>([])
 
-// Report analytics data
+// Report analytics data - empty by default
 const reportPeriod = ref('month')
 const reportAnalytics = reactive({
-  totalReturns: 60,
-  avgAttempts: 1.8,
-  multipleAttemptsCost: 245,
-  reasonsBreakdown: [
-    { name: 'Client absent', count: 27, percentage: 45, suggestion: 'Contactez les clients via WhatsApp avant livraison pour confirmer leur disponibilité' },
-    { name: 'Refus client', count: 18, percentage: 30, suggestion: 'Améliorez les descriptions produits et confirmez les commandes' },
-    { name: 'Adresse incorrecte', count: 8, percentage: 13, suggestion: 'Vérifiez les adresses avec les clients lors de la commande' },
-    { name: 'Colis endommagé', count: 4, percentage: 7, suggestion: 'Renforcez l\'emballage des produits fragiles' },
-    { name: 'Hors zone', count: 3, percentage: 5, suggestion: 'Vérifiez la couverture du transporteur avant expédition' }
-  ],
-  attemptsBreakdown: [
-    { attempts: 1, label: '1 tentative', count: 35, percentage: 58 },
-    { attempts: 2, label: '2 tentatives', count: 15, percentage: 25 },
-    { attempts: 3, label: '3 tentatives', count: 7, percentage: 12 },
-    { attempts: 4, label: '4+ tentatives', count: 3, percentage: 5 }
-  ],
-  carrierComparison: [
-    { name: 'Maystro', totalShipments: 400, returnRate: 3.5, avgAttempts: 1.4, recoveryRate: 100, avgReturnDays: 2.8, score: 9.2, recommendation: 'Excellent' },
-    { name: 'Yalidine', totalShipments: 665, returnRate: 4.2, avgAttempts: 1.6, recoveryRate: 92, avgReturnDays: 3.5, score: 8.1, recommendation: 'Bon' },
-    { name: 'ZR Express', totalShipments: 265, returnRate: 6.8, avgAttempts: 2.1, recoveryRate: 88, avgReturnDays: 4.2, score: 6.5, recommendation: 'À surveiller' }
-  ],
-  productIssues: [
-    { product: 'Robe été fleurie', returns: 8, returnRate: 18, reason: 'Taille' },
-    { product: 'Chaussures sport', returns: 6, returnRate: 15, reason: 'Qualité' },
-    { product: 'Sac à main cuir', returns: 4, returnRate: 12, reason: 'Couleur' }
-  ],
-  problematicZones: [
-    { region: 'Kasserine', returns: 12, total: 65, returnRate: 18.5 },
-    { region: 'Sidi Bouzid', returns: 8, total: 52, returnRate: 15.4 },
-    { region: 'Gafsa', returns: 6, total: 48, returnRate: 12.5 }
-  ],
-  carrierAdvice: 'Réduisez les expéditions via ZR Express dans les zones à fort taux de retour et privilégiez Maystro',
-  carrierImpact: 15,
-  productAdvice: 'Ajoutez un guide des tailles détaillé pour la catégorie vêtements et améliorez les photos',
-  productImpact: 20,
-  processAdvice: 'Implémentez une confirmation WhatsApp avant livraison pour les commandes > 100 DT',
-  processImpact: 25
+  totalReturns: 0,
+  avgAttempts: 0,
+  multipleAttemptsCost: 0,
+  reasonsBreakdown: [] as any[],
+  attemptsBreakdown: [] as any[],
+  carrierComparison: [] as any[],
+  productIssues: [] as any[],
+  problematicZones: [] as any[],
+  carrierAdvice: '',
+  carrierImpact: 0,
+  productAdvice: '',
+  productImpact: 0,
+  processAdvice: '',
+  processImpact: 0
 })
 
-const returnsList = ref([
-  // En transit (active returns) - À l'heure
-  {
-    id: 1,
-    trackingNumber: 'RET-2026-001234',
-    originalOrder: 'CMD-2026-001234',
-    customerName: 'Ahmed Benali',
-    destination: 'Tunis, Tunis',
-    carrier: 'Yalidine',
-    reason: 'Client absent',
-    status: 'En transit',
-    value: 450,
-    returnDate: '26 jan 2026',
-    isDelayed: false,
-    daysDelayed: 0,
-    expectedArrival: '29 jan 2026'
-  },
-  {
-    id: 2,
-    trackingNumber: 'RET-2026-001235',
-    originalOrder: 'CMD-2026-001235',
-    customerName: 'Fatima Zohra',
-    destination: 'Sousse, Sousse',
-    carrier: 'ZR Express',
-    reason: 'Adresse incorrecte',
-    status: 'En transit',
-    value: 320,
-    returnDate: '25 jan 2026',
-    isDelayed: true,
-    daysDelayed: 2,
-    expectedArrival: '25 jan 2026'
-  },
-  {
-    id: 5,
-    trackingNumber: 'RET-2026-001240',
-    originalOrder: 'CMD-2026-001240',
-    customerName: 'Karim Mejri',
-    destination: 'Bizerte, Bizerte',
-    carrier: 'Yalidine',
-    reason: 'Client absent',
-    status: 'En transit',
-    value: 180,
-    returnDate: '26 jan 2026',
-    isDelayed: false,
-    daysDelayed: 0,
-    expectedArrival: '30 jan 2026'
-  },
-  {
-    id: 8,
-    trackingNumber: 'RET-2026-001241',
-    originalOrder: 'CMD-2026-001241',
-    customerName: 'Sami Bouaziz',
-    destination: 'Nabeul, Nabeul',
-    carrier: 'Maystro',
-    reason: 'Refus client',
-    status: 'En transit',
-    value: 290,
-    returnDate: '24 jan 2026',
-    isDelayed: true,
-    daysDelayed: 4,
-    expectedArrival: '23 jan 2026'
-  },
-  {
-    id: 9,
-    trackingNumber: 'RET-2026-001242',
-    originalOrder: 'CMD-2026-001242',
-    customerName: 'Leila Khelifi',
-    destination: 'Gabès, Gabès',
-    carrier: 'ZR Express',
-    reason: 'Client absent',
-    status: 'En transit',
-    value: 520,
-    returnDate: '22 jan 2026',
-    isDelayed: true,
-    daysDelayed: 5,
-    expectedArrival: '22 jan 2026'
-  },
-  {
-    id: 10,
-    trackingNumber: 'RET-2026-001243',
-    originalOrder: 'CMD-2026-001243',
-    customerName: 'Youssef Mansour',
-    destination: 'Médenine, Médenine',
-    carrier: 'Yalidine',
-    reason: 'Adresse incorrecte',
-    status: 'En transit',
-    value: 380,
-    returnDate: '26 jan 2026',
-    isDelayed: false,
-    daysDelayed: 0,
-    expectedArrival: '31 jan 2026'
-  },
-  // Récupérés (recovered)
-  {
-    id: 3,
-    trackingNumber: 'RET-2026-001230',
-    originalOrder: 'CMD-2026-001230',
-    customerName: 'Mohamed Trabelsi',
-    destination: 'Sfax, Sfax',
-    carrier: 'Maystro',
-    reason: 'Refus client',
-    status: 'Récupéré',
-    value: 580,
-    returnDate: '24 jan 2026',
-    isDelayed: false,
-    daysDelayed: 0,
-    expectedArrival: null
-  },
-  {
-    id: 6,
-    trackingNumber: 'RET-2026-001220',
-    originalOrder: 'CMD-2026-001220',
-    customerName: 'Nadia Hamdi',
-    destination: 'Ariana, Ariana',
-    carrier: 'ZR Express',
-    reason: 'Client absent',
-    status: 'Récupéré',
-    value: 420,
-    returnDate: '22 jan 2026',
-    isDelayed: false,
-    daysDelayed: 0,
-    expectedArrival: null
-  },
-  {
-    id: 7,
-    trackingNumber: 'RET-2026-001215',
-    originalOrder: 'CMD-2026-001215',
-    customerName: 'Ali Saidi',
-    destination: 'Monastir, Monastir',
-    carrier: 'Maystro',
-    reason: 'Injoignable',
-    status: 'Récupéré',
-    value: 350,
-    returnDate: '21 jan 2026',
-    isDelayed: false,
-    daysDelayed: 0,
-    expectedArrival: null
-  },
-  // Perdus (lost)
-  {
-    id: 4,
-    trackingNumber: 'RET-2026-001228',
-    originalOrder: 'CMD-2026-001228',
-    customerName: 'Sarra Ben Ali',
-    destination: 'Nabeul, Nabeul',
-    carrier: 'Ecotrack',
-    reason: 'Injoignable',
-    status: 'Perdu',
-    value: 200,
-    returnDate: '23 jan 2026',
-    isDelayed: false,
-    daysDelayed: 0,
-    expectedArrival: null
-  },
-  {
-    id: 11,
-    trackingNumber: 'RET-2026-001200',
-    originalOrder: 'CMD-2026-001200',
-    customerName: 'Rim Gharbi',
-    destination: 'Gabès, Gabès',
-    carrier: 'Ecotrack',
-    reason: 'Colis endommagé',
-    status: 'Perdu',
-    value: 650,
-    returnDate: '18 jan 2026',
-    isDelayed: false,
-    daysDelayed: 0,
-    expectedArrival: null
-  }
-])
+// Returns list - empty by default
+const returnsList = ref<any[]>([])
 
 // Computed: Filtered returns based on active section
 const filteredReturns = computed(() => {
@@ -10706,7 +13349,7 @@ const returnsSectionTitle = computed(() => {
   return titles[activeSection.value] || 'Suivi des Retours'
 })
 
-const chartData = ref([20, 35, 45, 30, 55, 40, 65, 50, 70, 60, 80, 75])
+const chartData = ref<number[]>([])
 const chartLabels = ref(['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'])
 
 // ==================== ANALYTICS DATA ====================
@@ -10716,80 +13359,44 @@ const riskZoneFilter = ref('all')
 
 // Global KPIs
 const analyticsKpis = reactive({
-  totalShipments: 2847,
-  deliveryRate: 94.5,
-  avgTransitTime: 3.2,
-  totalRevenue: 456780,
-  returnRate: 8.2,
-  exceptionRate: 2.1,
-  customerSatisfaction: 92
+  totalShipments: 0,
+  deliveryRate: 0,
+  avgTransitTime: 0,
+  totalRevenue: 0,
+  returnRate: 0,
+  exceptionRate: 0,
+  customerSatisfaction: 0
 })
 
-const analyticsKpiComparison = ref([
-  { name: 'Volume de colis', current: '2,847', previous: '2,542', change: 12 },
-  { name: 'Taux de livraison', current: '94.5%', previous: '92.2%', change: 2.3 },
-  { name: 'Temps transit moyen', current: '3.2 jours', previous: '2.7 jours', change: -18.5 },
-  { name: 'Taux de retour', current: '8.2%', previous: '9.1%', change: 9.9 },
-  { name: 'Chiffre d\'affaires', current: '456,780 DT', previous: '422,945 DT', change: 8 }
-])
+const analyticsKpiComparison = ref<any[]>([])
 
 // Delivery Performance
 const deliveryPerformance = reactive({
-  successfulDeliveries: 2689,
-  totalAttempts: 3142,
-  firstAttemptRate: 78,
-  avgDeliveryTime: 52,
-  onTimeRate: 89,
-  regionalPerformance: [
-    { name: 'Tunis', rate: 96, shipments: 847, avgTime: '2.1' },
-    { name: 'Sfax', rate: 92, shipments: 423, avgTime: '3.5' },
-    { name: 'Sousse', rate: 94, shipments: 312, avgTime: '2.8' },
-    { name: 'Nabeul', rate: 88, shipments: 256, avgTime: '3.2' },
-    { name: 'Bizerte', rate: 85, shipments: 198, avgTime: '4.1' },
-    { name: 'Gabès', rate: 79, shipments: 145, avgTime: '5.2' }
-  ]
+  successfulDeliveries: 0,
+  totalAttempts: 0,
+  firstAttemptRate: 0,
+  avgDeliveryTime: 0,
+  onTimeRate: 0,
+  regionalPerformance: [] as any[]
 })
 
 // Return Intelligence
 const returnIntelligence = reactive({
-  totalReturns: 234,
-  lostRevenue: 45670,
-  recoveredReturns: 89,
-  recoveryRate: 38,
-  returnReasons: [
-    { name: 'Client absent', percentage: 35, color: '#f97316' },
-    { name: 'Adresse incorrecte', percentage: 22, color: '#3b82f6' },
-    { name: 'Refus de paiement', percentage: 18, color: '#ef4444' },
-    { name: 'Produit endommagé', percentage: 12, color: '#8b5cf6' },
-    { name: 'Changement d\'avis', percentage: 8, color: '#10b981' },
-    { name: 'Autre', percentage: 5, color: '#6b7280' }
-  ],
-  returnTrend: [45, 52, 38, 41, 56, 48, 35, 42, 38, 44, 40, 36],
-  recommendations: [
-    { title: 'Confirmation WhatsApp', description: 'Contactez les clients via WhatsApp avant livraison dans les zones à risque pour réduire les absences de 25%', priority: 'high', impact: '-25% retours' },
-    { title: 'Validation d\'adresse', description: 'Implémentez une vérification d\'adresse automatique lors de la création des colis', priority: 'medium', impact: '-15% retours' },
-    { title: 'Options de paiement', description: 'Proposez le paiement partiel ou différé pour les clients hésitants', priority: 'low', impact: '-10% retours' }
-  ]
+  totalReturns: 0,
+  lostRevenue: 0,
+  recoveredReturns: 0,
+  recoveryRate: 0,
+  returnReasons: [] as any[],
+  returnTrend: [] as number[],
+  recommendations: [] as any[]
 })
 
 // Risk Zones
 const riskZones = reactive({
-  highRiskCount: 4,
-  mediumRiskCount: 8,
-  lowRiskCount: 12,
-  zones: [
-    { name: 'Kasserine', risk: 'high', failureRate: 28, returnRate: 22, affectedShipments: 67, mainReason: 'Client absent' },
-    { name: 'Sidi Bouzid', risk: 'high', failureRate: 25, returnRate: 19, affectedShipments: 45, mainReason: 'Adresse incorrecte' },
-    { name: 'Tataouine', risk: 'high', failureRate: 32, returnRate: 24, affectedShipments: 23, mainReason: 'Zone difficile' },
-    { name: 'Gafsa', risk: 'high', failureRate: 26, returnRate: 20, affectedShipments: 56, mainReason: 'Client absent' },
-    { name: 'Gabès', risk: 'medium', failureRate: 18, returnRate: 14, affectedShipments: 89, mainReason: 'Retard livraison' },
-    { name: 'Médenine', risk: 'medium', failureRate: 15, returnRate: 12, affectedShipments: 72, mainReason: 'Client absent' },
-    { name: 'Kairouan', risk: 'medium', failureRate: 14, returnRate: 11, affectedShipments: 98, mainReason: 'Adresse incorrecte' },
-    { name: 'Jendouba', risk: 'medium', failureRate: 16, returnRate: 13, affectedShipments: 54, mainReason: 'Zone difficile' },
-    { name: 'Tunis', risk: 'low', failureRate: 6, returnRate: 4, affectedShipments: 847, mainReason: 'Client absent' },
-    { name: 'Sfax', risk: 'low', failureRate: 8, returnRate: 6, affectedShipments: 423, mainReason: 'Changement avis' },
-    { name: 'Sousse', risk: 'low', failureRate: 7, returnRate: 5, affectedShipments: 312, mainReason: 'Client absent' }
-  ]
+  highRiskCount: 0,
+  mediumRiskCount: 0,
+  lowRiskCount: 0,
+  zones: [] as any[]
 })
 
 const filteredRiskZones = computed(() => {
@@ -10799,34 +13406,21 @@ const filteredRiskZones = computed(() => {
 
 // Anomaly Detection
 const anomalyDetection = reactive({
-  criticalAnomalies: 2,
-  warningAnomalies: 5,
-  infoAnomalies: 8,
-  resolvedAnomalies: 23,
-  activeAnomalies: [
-    { id: 1, severity: 'critical', title: 'Pic de retours à Kasserine', description: 'Augmentation de 45% des retours dans cette zone les 7 derniers jours', detectedAt: 'Il y a 2 heures', affectedItems: 23 },
-    { id: 2, severity: 'critical', title: 'Délai anormal transporteur Rapid Poste', description: 'Temps de transit moyen passé de 2.5 à 5.2 jours', detectedAt: 'Il y a 5 heures', affectedItems: 67 },
-    { id: 3, severity: 'warning', title: 'Taux d\'échec élevé zone Bizerte', description: 'Taux d\'échec à 18% (normalement 8%)', detectedAt: 'Il y a 1 jour', affectedItems: 34 },
-    { id: 4, severity: 'warning', title: 'Augmentation des réclamations', description: '12 réclamations en 24h (moyenne: 4)', detectedAt: 'Il y a 1 jour', affectedItems: 12 },
-    { id: 5, severity: 'info', title: 'Volume inhabituel', description: 'Volume de colis 25% supérieur à la normale', detectedAt: 'Il y a 2 jours', affectedItems: 156 }
-  ]
+  criticalAnomalies: 0,
+  warningAnomalies: 0,
+  infoAnomalies: 0,
+  resolvedAnomalies: 0,
+  activeAnomalies: [] as any[]
 })
 
 // Trends
 const trends = reactive({
-  labels: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'],
-  volumeTrend: [180, 220, 195, 240, 280, 260, 310, 295],
-  deliveryRateTrend: [91, 92, 90, 93, 94, 92, 95, 94],
-  volumeForecast: 12,
-  deliveryForecast: 95,
-  insights: [
-    { title: 'Volume en hausse', description: 'Le volume de colis augmente de 8% en moyenne chaque semaine', trend: 'up', period: '8 dernières semaines' },
-    { title: 'Amélioration livraison', description: 'Le taux de livraison s\'améliore progressivement', trend: 'up', period: 'Depuis 4 semaines' },
-    { title: 'Retours en baisse', description: 'Les retours diminuent grâce aux mesures prises', trend: 'down', period: '2 dernières semaines' },
-    { title: 'Pic weekend', description: 'Les commandes augmentent de 35% le weekend', trend: 'up', period: 'Pattern récurrent' },
-    { title: 'Zone Sfax', description: 'Performance en amélioration constante', trend: 'up', period: '6 dernières semaines' },
-    { title: 'Coûts transport', description: 'Légère augmentation des coûts moyens', trend: 'down', period: 'Ce mois' }
-  ]
+  labels: [] as string[],
+  volumeTrend: [] as number[],
+  deliveryRateTrend: [] as number[],
+  volumeForecast: 0,
+  deliveryForecast: 0,
+  insights: [] as any[]
 })
 
 // Reports
@@ -10837,12 +13431,7 @@ const reports = reactive({
     { id: 3, name: 'Performance Transporteurs', description: 'Comparatif des transporteurs', icon: markRaw(Truck), bgColor: 'bg-green-100 dark:bg-green-900/30', iconColor: 'text-green-600' },
     { id: 4, name: 'Analyse Régionale', description: 'Performance par zone', icon: markRaw(MapPinned), bgColor: 'bg-purple-100 dark:bg-purple-900/30', iconColor: 'text-purple-600' }
   ],
-  recentReports: [
-    { id: 1, name: 'Rapport mensuel Janvier 2026', type: 'Performance Globale', period: '01/01 - 31/01', generatedAt: '28 Jan 2026', size: '2.4 MB' },
-    { id: 2, name: 'Analyse retours S4', type: 'Analyse Retours', period: 'Semaine 4', generatedAt: '27 Jan 2026', size: '1.1 MB' },
-    { id: 3, name: 'Bilan transporteurs', type: 'Performance Transporteurs', period: '01/01 - 27/01', generatedAt: '27 Jan 2026', size: '890 KB' },
-    { id: 4, name: 'Zones à risque - Janvier', type: 'Analyse Régionale', period: 'Janvier 2026', generatedAt: '25 Jan 2026', size: '1.8 MB' }
-  ]
+  recentReports: [] as any[]
 })
 
 const filteredShipments = computed(() => {
@@ -10880,6 +13469,200 @@ const scheduledPickups = ref<any[]>([])
 const completedPickupsCount = computed(() => {
   return shipments.value.filter(s => s.status !== 'Pending').length
 })
+
+// Pickup Requests
+const pickupRequestFilter = ref('all')
+const showPickupDetailModal = ref(false)
+const selectedPickupDetail = ref<any>(null)
+
+const pickupRequests = ref<any[]>([])
+
+const filteredPickupRequests = computed(() => {
+  if (pickupRequestFilter.value === 'all') return pickupRequests.value
+  return pickupRequests.value.filter(r => r.status === pickupRequestFilter.value)
+})
+
+function viewPickupDetail(pickup: any) {
+  selectedPickupDetail.value = pickup
+  showPickupDetailModal.value = true
+}
+
+function closePickupDetail() {
+  showPickupDetailModal.value = false
+  selectedPickupDetail.value = null
+}
+
+// Pickup History
+const pickupHistory = ref<any[]>([])
+
+// Failed Pickups
+const failedPickupsData = ref<any[]>([])
+
+// Carrier Performance
+const carrierPerformance = ref<any[]>([])
+
+// Administration - Users Management
+// Fee configuration per shipment type (in TND)
+const deliveryFees = ref({
+  delivered: 3.00,  // Fee per delivered shipment
+  returned: 2.00    // Fee per returned shipment
+})
+
+// Admin users - empty by default, loaded from Supabase (only visible to platform admins)
+const adminUsers = ref<any[]>([])
+
+const adminUserSearch = ref('')
+const adminUserFilter = ref('all')
+const showChargeAccountModal = ref(false)
+const selectedUserForCharge = ref<any>(null)
+const chargeNote = ref('')
+const chargeMode = ref<'credit' | 'debit'>('credit')
+const creditAmount = ref<number | null>(null)
+const paymentMethod = ref<'cash' | 'transfer' | 'cheque'>('cash')
+const purchaseDelivered = ref<number | null>(null)
+const purchaseReturned = ref<number | null>(null)
+
+// Computed property for calculating total charge based on unbilled shipments
+const calculateChargeTotal = computed(() => {
+  if (!selectedUserForCharge.value) return 0
+  const deliveredTotal = selectedUserForCharge.value.unbilledDelivered * deliveryFees.value.delivered
+  const returnedTotal = selectedUserForCharge.value.unbilledReturned * deliveryFees.value.returned
+  return deliveredTotal + returnedTotal
+})
+
+// Computed property for calculating total credit based on purchased colis
+const calculateCreditTotal = computed(() => {
+  const deliveredTotal = (purchaseDelivered.value || 0) * deliveryFees.value.delivered
+  const returnedTotal = (purchaseReturned.value || 0) * deliveryFees.value.returned
+  return deliveredTotal + returnedTotal
+})
+
+// Admin transactions - empty by default, loaded from Supabase
+const adminTransactions = ref<any[]>([])
+
+const filteredAdminUsers = computed(() => {
+  let result = adminUsers.value
+
+  if (adminUserSearch.value) {
+    const query = adminUserSearch.value.toLowerCase()
+    result = result.filter(u =>
+      u.name.toLowerCase().includes(query) ||
+      u.email.toLowerCase().includes(query) ||
+      u.company.toLowerCase().includes(query) ||
+      u.id.toLowerCase().includes(query)
+    )
+  }
+
+  if (adminUserFilter.value !== 'all') {
+    result = result.filter(u => u.status === adminUserFilter.value)
+  }
+
+  return result
+})
+
+const adminStats = computed(() => ({
+  totalUsers: adminUsers.value.length,
+  activeUsers: adminUsers.value.filter(u => u.status === 'active').length,
+  totalBalance: adminUsers.value.reduce((sum, u) => sum + u.balance, 0),
+  negativeBalances: adminUsers.value.filter(u => u.balance < 0).length,
+}))
+
+function openChargeModal(user: any) {
+  selectedUserForCharge.value = user
+  chargeNote.value = ''
+  chargeMode.value = 'credit'
+  creditAmount.value = null
+  paymentMethod.value = 'cash'
+  purchaseDelivered.value = null
+  purchaseReturned.value = null
+  showChargeAccountModal.value = true
+}
+
+function closeChargeModal() {
+  showChargeAccountModal.value = false
+  selectedUserForCharge.value = null
+  chargeNote.value = ''
+  chargeMode.value = 'credit'
+  creditAmount.value = null
+  paymentMethod.value = 'cash'
+  purchaseDelivered.value = null
+  purchaseReturned.value = null
+}
+
+function processAccountCharge() {
+  if (!selectedUserForCharge.value || calculateChargeTotal.value === 0) return
+
+  const user = adminUsers.value.find(u => u.id === selectedUserForCharge.value.id)
+  if (user) {
+    const totalAmount = calculateChargeTotal.value
+    const deliveredCount = user.unbilledDelivered
+    const returnedCount = user.unbilledReturned
+
+    // Debit the account
+    user.balance -= totalAmount
+
+    // Reset unbilled counts
+    user.unbilledDelivered = 0
+    user.unbilledReturned = 0
+
+    // Add transaction
+    adminTransactions.value.unshift({
+      id: `TRX-${String(adminTransactions.value.length + 1).padStart(3, '0')}`,
+      userId: user.id,
+      userName: user.name,
+      company: user.company,
+      type: 'debit',
+      amount: totalAmount,
+      note: chargeNote.value || `Facturation: ${deliveredCount} livrés (${deliveryFees.value.delivered} TND) + ${returnedCount} retours (${deliveryFees.value.returned} TND)`,
+      date: new Date().toLocaleString('fr-TN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      createdBy: 'Admin',
+      deliveredCount,
+      returnedCount
+    })
+  }
+
+  closeChargeModal()
+}
+
+function processAccountCredit() {
+  if (!selectedUserForCharge.value || calculateCreditTotal.value <= 0) return
+
+  const user = adminUsers.value.find(u => u.id === selectedUserForCharge.value.id)
+  if (user) {
+    const amount = calculateCreditTotal.value
+    const deliveredPurchased = purchaseDelivered.value || 0
+    const returnedPurchased = purchaseReturned.value || 0
+
+    // Add credits to user account
+    user.deliveredCount = (user.deliveredCount || 0) + deliveredPurchased
+    user.returnedCount = (user.returnedCount || 0) + returnedPurchased
+
+    // Get payment method label
+    const paymentLabels = {
+      cash: 'Espèces',
+      transfer: 'Virement',
+      cheque: 'Chèque'
+    }
+
+    // Add transaction
+    adminTransactions.value.unshift({
+      id: `TRX-${String(adminTransactions.value.length + 1).padStart(3, '0')}`,
+      userId: user.id,
+      userName: user.name,
+      company: user.company,
+      type: 'credit',
+      amount: amount,
+      note: chargeNote.value || `Achat: ${deliveredPurchased} livrés + ${returnedPurchased} retour (${paymentLabels[paymentMethod.value]})`,
+      date: new Date().toLocaleString('fr-TN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      createdBy: 'Admin',
+      paymentMethod: paymentMethod.value,
+      purchasedDelivered: deliveredPurchased,
+      purchasedReturned: returnedPurchased
+    })
+  }
+
+  closeChargeModal()
+}
 
 const minPickupDate = computed(() => {
   const tomorrow = new Date()
@@ -10970,15 +13753,75 @@ function getSectionTitle(section: string) {
 }
 
 // Carrier delivery fees (base prices per carrier)
+// Express services: 8-12 DT, Standard services: 6-8 DT
 const carrierDeliveryFees: Record<string, number> = {
+  // Express carriers (8-12 DT)
   'Aramex': 12,
-  'Rapid Poste': 8,
-  'Logidis': 7,
-  'PosteXpress': 9,
-  'Tunisie Colis': 6,
-  'DHL Express': 15,
-  'FedEx': 18,
-  'Sotumag': 7
+  'Afex': 9,
+  'Aurex': 9,
+  'Best Delivery': 8,
+  'Bigboss': 9,
+  'Bonjour Express': 8,
+  'Ciblex Express': 9,
+  'Colis Express': 8,
+  'Essedik Smart Delivery': 9,
+  'FakrounExpress': 8,
+  'FastHaul': 9,
+  'Fasty': 9,
+  'First': 8,
+  'High Delivery': 10,
+  'Instaia Delivery': 9,
+  'JAx': 8,
+  'JetPack': 9,
+  'Light Speed Delivery': 10,
+  'Livra Lynx': 9,
+  'MesColis Express': 8,
+  'Mylerz': 9,
+  'Navex': 8,
+  'Oclock Delivery': 9,
+  'Qwikpak': 8,
+  'Rapi Colis': 8,
+  'SafExpress': 9,
+  'Tictac Delivery': 8,
+  'Tiktak Delivery': 8,
+  'TRD Express': 9,
+  'X Delivery': 9,
+  // Standard carriers (6-8 DT)
+  'ABM': 7,
+  'Axess Logistique': 7,
+  'B2C Delivery': 7,
+  'Bestway': 7,
+  'Bouguerra Delivery': 6,
+  'Calirex Tunisie': 7,
+  'Colissimo': 8,
+  'Cosmos': 7,
+  'Delivery X': 7,
+  'Dropo': 6,
+  'Droppex': 7,
+  'DSGO': 7,
+  'Ecomness': 7,
+  'Fiabilo': 7,
+  'Goodex': 7,
+  'Intigo': 7,
+  'Kadex Delivery': 7,
+  'Kamatchou Services': 6,
+  'La Zajella': 7,
+  'Larim Delivery': 6,
+  'Login': 7,
+  'Macropost': 7,
+  'Massar': 7,
+  'May M': 7,
+  'My Colis': 7,
+  'MZ Logistic': 7,
+  'Onesta': 7,
+  'Oppa': 6,
+  'Sari': 6,
+  'Sellmax': 7,
+  'Sendex Delivery': 7,
+  'Trust': 7,
+  'WR Delivery': 7,
+  'Youssel': 6,
+  'Zed Delivery': 7,
 }
 
 function selectShipmentCarrier(carrier: any) {
@@ -11070,6 +13913,8 @@ function addShipment() {
 function openAddCarrierModal() {
   editingCarrier.value = null
   resetCarrierForm()
+  modalCarrierSearchQuery.value = ''
+  selectedModalCarrier.value = null
   showAddCarrierModal.value = true
 }
 
@@ -11088,13 +13933,15 @@ function editCarrier(carrier: typeof carriers.value[0]) {
   newCarrier.retenuPassage = carrier.retenuPassage
   newCarrier.allRegions = carrier.allRegions
   newCarrier.regions = [...carrier.regions]
-  showAddCarrierModal.value = true
+  activeSection.value = 'add-carrier'
 }
 
 function closeCarrierModal() {
   showAddCarrierModal.value = false
   editingCarrier.value = null
   resetCarrierForm()
+  modalCarrierSearchQuery.value = ''
+  selectedModalCarrier.value = null
 }
 
 function resetCarrierForm() {
@@ -11111,6 +13958,8 @@ function resetCarrierForm() {
   newCarrier.retenuPassage = 0.00
   newCarrier.allRegions = true
   newCarrier.regions = []
+  carrierWizardStep.value = 1
+  showApiKey.value = false
 }
 
 // Region selection helpers
@@ -11190,6 +14039,75 @@ function saveCarrier() {
   }
 
   closeCarrierModal()
+}
+
+function saveCarrierFromPage() {
+  if (!newCarrier.name || !newCarrier.apiId || !newCarrier.apiKey) {
+    return
+  }
+
+  // Validate regions if not all regions
+  if (!newCarrier.allRegions && newCarrier.regions.length === 0) {
+    return // At least one region must be selected
+  }
+
+  if (editingCarrier.value) {
+    // Update existing carrier
+    const index = carriers.value.findIndex(c => c.id === editingCarrier.value)
+    if (index !== -1) {
+      carriers.value[index] = {
+        ...carriers.value[index],
+        name: newCarrier.name,
+        apiId: newCarrier.apiId,
+        apiKey: newCarrier.apiKey,
+        fraisColisLivres: newCarrier.fraisColisLivres,
+        fraisColisRetour: newCarrier.fraisColisRetour,
+        fraisColisEchange: newCarrier.fraisColisEchange,
+        fraisColisBig: newCarrier.fraisColisBig,
+        fraisColisPickup: newCarrier.fraisColisPickup,
+        totalFraisLivraison: newCarrier.totalFraisLivraison,
+        fraisPaiement: newCarrier.fraisPaiement,
+        retenuPassage: newCarrier.retenuPassage,
+        allRegions: newCarrier.allRegions,
+        regions: [...newCarrier.regions]
+      }
+      // Update selected carrier if it's the one being edited
+      if (selectedCarrier.value?.id === editingCarrier.value) {
+        selectedCarrier.value = carriers.value[index]
+      }
+    }
+  } else {
+    // Add new carrier
+    const newId = carriers.value.length > 0 ? Math.max(...carriers.value.map(c => c.id)) + 1 : 1
+    carriers.value.push({
+      id: newId,
+      name: newCarrier.name,
+      apiId: newCarrier.apiId,
+      apiKey: newCarrier.apiKey,
+      apiStatus: 'disconnected',
+      shipments: 0,
+      delivered: 0,
+      deliveryRate: 0,
+      avgTime: 0,
+      fraisColisLivres: newCarrier.fraisColisLivres,
+      fraisColisRetour: newCarrier.fraisColisRetour,
+      fraisColisEchange: newCarrier.fraisColisEchange,
+      fraisColisBig: newCarrier.fraisColisBig,
+      fraisColisPickup: newCarrier.fraisColisPickup,
+      totalFraisLivraison: newCarrier.totalFraisLivraison,
+      fraisPaiement: newCarrier.fraisPaiement,
+      retenuPassage: newCarrier.retenuPassage,
+      allRegions: newCarrier.allRegions,
+      regions: [...newCarrier.regions]
+    })
+  }
+
+  // Reset form and navigate back
+  editingCarrier.value = null
+  resetCarrierForm()
+  modalCarrierSearchQuery.value = ''
+  selectedModalCarrier.value = null
+  activeSection.value = 'connected-carriers'
 }
 
 function deleteCarrier(carrierId: number) {
@@ -11369,67 +14287,16 @@ const expectedPaymentsStatusFilter = ref('all')
 
 // Manifest stats
 const manifestStats = reactive({
-  totalCOD: 15680,
-  totalDeliveryFees: 1890,
-  totalOtherFees: 340,
-  netToReceive: 13450,
-  overdueAmount: 4250,
-  overdueCount: 18
+  totalCOD: 0,
+  totalDeliveryFees: 0,
+  totalOtherFees: 0,
+  netToReceive: 0,
+  overdueAmount: 0,
+  overdueCount: 0
 })
 
 // Manifest by carrier with detailed shipments
-const manifestByCarrier = ref([
-  {
-    id: 'yalidine',
-    name: 'Yalidine',
-    dueDate: '03 Fév 2026',
-    isOverdue: true,
-    totalCOD: 5840,
-    totalDeliveryFees: 720,
-    totalOtherFees: 120,
-    totalFees: 840,
-    netAmount: 5000,
-    shipments: [
-      { id: 1, tracking: 'YAL-2026-001234', client: 'Ahmed Ben Ali', destination: 'Tunis', deliveryDate: '20 Jan', cod: 189, deliveryFee: 12, otherFees: 0, net: 177, paymentStatus: 'pending' },
-      { id: 2, tracking: 'YAL-2026-001235', client: 'Sana Bouaziz', destination: 'Ariana', deliveryDate: '20 Jan', cod: 245, deliveryFee: 12, otherFees: 5, net: 228, paymentStatus: 'pending' },
-      { id: 3, tracking: 'YAL-2026-001236', client: 'Omar Chahed', destination: 'Ben Arous', deliveryDate: '21 Jan', cod: 320, deliveryFee: 12, otherFees: 0, net: 308, paymentStatus: 'overdue' },
-      { id: 4, tracking: 'YAL-2026-001237', client: 'Nadia Khemiri', destination: 'Manouba', deliveryDate: '21 Jan', cod: 156, deliveryFee: 12, otherFees: 0, net: 144, paymentStatus: 'pending' },
-      { id: 5, tracking: 'YAL-2026-001238', client: 'Karim Hamdi', destination: 'Sfax', deliveryDate: '22 Jan', cod: 478, deliveryFee: 15, otherFees: 8, net: 455, paymentStatus: 'overdue' }
-    ]
-  },
-  {
-    id: 'zr-express',
-    name: 'ZR Express',
-    dueDate: '05 Fév 2026',
-    isOverdue: false,
-    totalCOD: 4320,
-    totalDeliveryFees: 540,
-    totalOtherFees: 90,
-    totalFees: 630,
-    netAmount: 3690,
-    shipments: [
-      { id: 6, tracking: 'ZR-2026-005678', client: 'Fatma Trabelsi', destination: 'Sousse', deliveryDate: '22 Jan', cod: 145, deliveryFee: 12, otherFees: 0, net: 133, paymentStatus: 'pending' },
-      { id: 7, tracking: 'ZR-2026-005679', client: 'Leila Mrad', destination: 'Monastir', deliveryDate: '23 Jan', cod: 267, deliveryFee: 12, otherFees: 5, net: 250, paymentStatus: 'pending' },
-      { id: 8, tracking: 'ZR-2026-005680', client: 'Walid Ben Salah', destination: 'Mahdia', deliveryDate: '23 Jan', cod: 198, deliveryFee: 12, otherFees: 0, net: 186, paymentStatus: 'pending' }
-    ]
-  },
-  {
-    id: 'maystro',
-    name: 'Maystro',
-    dueDate: '01 Fév 2026',
-    isOverdue: true,
-    totalCOD: 3420,
-    totalDeliveryFees: 390,
-    totalOtherFees: 85,
-    totalFees: 475,
-    netAmount: 2945,
-    shipments: [
-      { id: 9, tracking: 'MAY-2026-009012', client: 'Mohamed Sassi', destination: 'Nabeul', deliveryDate: '19 Jan', cod: 210, deliveryFee: 10, otherFees: 0, net: 200, paymentStatus: 'overdue' },
-      { id: 10, tracking: 'MAY-2026-009013', client: 'Amira Bouzid', destination: 'Hammamet', deliveryDate: '19 Jan', cod: 178, deliveryFee: 10, otherFees: 5, net: 163, paymentStatus: 'overdue' },
-      { id: 11, tracking: 'MAY-2026-009014', client: 'Sofiane Triki', destination: 'Bizerte', deliveryDate: '20 Jan', cod: 95, deliveryFee: 12, otherFees: 0, net: 83, paymentStatus: 'pending' }
-    ]
-  }
-])
+const manifestByCarrier = ref<any[]>([])
 
 // Filtered manifest by carrier
 const filteredManifestByCarrier = computed(() => {
@@ -11453,82 +14320,15 @@ const receivedPaymentsMonth = ref('2026-01')
 const receivedPaymentsCarrierFilter = ref('all')
 
 const receivedPaymentsStats = reactive({
-  totalReceived: 8500,
-  totalCOD: 9850,
-  totalFees: 1350,
-  paymentsCount: 4,
-  shipmentsCount: 54
+  totalReceived: 0,
+  totalCOD: 0,
+  totalFees: 0,
+  paymentsCount: 0,
+  shipmentsCount: 0
 })
 
 // Received payments with detailed shipments
-const receivedPaymentsData = ref([
-  {
-    id: 1,
-    carrier: 'Yalidine',
-    reference: 'PAY-YAL-2026-0012',
-    paymentDate: '25 Jan 2026',
-    totalCOD: 3450,
-    totalDeliveryFees: 288,
-    totalOtherFees: 62,
-    codFees: 69,
-    returnFees: 24,
-    tva: 84,
-    returnCount: 2,
-    codFeePercent: 2,
-    totalFees: 527,
-    netReceived: 2923,
-    expanded: false,
-    shipments: [
-      { id: 1, tracking: 'YAL-2026-000890', client: 'Hichem Mansour', destination: 'Tunis', deliveryDate: '18 Jan', cod: 189, deliveryFee: 12, otherFees: 0, net: 177 },
-      { id: 2, tracking: 'YAL-2026-000891', client: 'Rim Ayari', destination: 'Ariana', deliveryDate: '18 Jan', cod: 256, deliveryFee: 12, otherFees: 5, net: 239 },
-      { id: 3, tracking: 'YAL-2026-000892', client: 'Youssef Gharbi', destination: 'Ben Arous', deliveryDate: '19 Jan', cod: 178, deliveryFee: 12, otherFees: 0, net: 166 },
-      { id: 4, tracking: 'YAL-2026-000893', client: 'Ines Lahmar', destination: 'Manouba', deliveryDate: '19 Jan', cod: 312, deliveryFee: 12, otherFees: 6, net: 294 }
-    ]
-  },
-  {
-    id: 2,
-    carrier: 'ZR Express',
-    reference: 'PAY-ZR-2026-0045',
-    paymentDate: '23 Jan 2026',
-    totalCOD: 2680,
-    totalDeliveryFees: 216,
-    totalOtherFees: 45,
-    codFees: 54,
-    returnFees: 12,
-    tva: 62,
-    returnCount: 1,
-    codFeePercent: 2,
-    totalFees: 389,
-    netReceived: 2291,
-    expanded: false,
-    shipments: [
-      { id: 5, tracking: 'ZR-2026-004521', client: 'Anis Ferchichi', destination: 'Sousse', deliveryDate: '17 Jan', cod: 145, deliveryFee: 12, otherFees: 0, net: 133 },
-      { id: 6, tracking: 'ZR-2026-004522', client: 'Mounir Ghanmi', destination: 'Monastir', deliveryDate: '17 Jan', cod: 234, deliveryFee: 12, otherFees: 5, net: 217 },
-      { id: 7, tracking: 'ZR-2026-004523', client: 'Wafa Jlassi', destination: 'Mahdia', deliveryDate: '18 Jan', cod: 189, deliveryFee: 12, otherFees: 0, net: 177 }
-    ]
-  },
-  {
-    id: 3,
-    carrier: 'Maystro',
-    reference: 'PAY-MAY-2026-0078',
-    paymentDate: '20 Jan 2026',
-    totalCOD: 1920,
-    totalDeliveryFees: 150,
-    totalOtherFees: 30,
-    codFees: 38,
-    returnFees: 0,
-    tva: 41,
-    returnCount: 0,
-    codFeePercent: 2,
-    totalFees: 259,
-    netReceived: 1661,
-    expanded: false,
-    shipments: [
-      { id: 8, tracking: 'MAY-2026-007845', client: 'Nabil Karray', destination: 'Nabeul', deliveryDate: '15 Jan', cod: 210, deliveryFee: 10, otherFees: 0, net: 200 },
-      { id: 9, tracking: 'MAY-2026-007846', client: 'Salma Zouari', destination: 'Hammamet', deliveryDate: '15 Jan', cod: 156, deliveryFee: 10, otherFees: 5, net: 141 }
-    ]
-  }
-])
+const receivedPaymentsData = ref<any[]>([])
 
 // Filtered received payments
 const filteredReceivedPayments = computed(() => {
@@ -11541,162 +14341,53 @@ const discrepancyFilter = ref('all')
 const discrepancyCarrierFilter = ref('all')
 
 const discrepancyStats = reactive({
-  ourTotal: 9850,
-  theirTotal: 8500,
-  totalDifference: 350,
-  differencePercent: 3.6,
-  totalPending: 285,
-  pendingCount: 8,
-  unexpectedFees: 120,
-  unexpectedFeesCount: 5,
-  recovered: 65
+  ourTotal: 0,
+  theirTotal: 0,
+  totalDifference: 0,
+  differencePercent: 0,
+  totalPending: 0,
+  pendingCount: 0,
+  unexpectedFees: 0,
+  unexpectedFeesCount: 0,
+  recovered: 0
 })
 
 // Reconciliation by carrier with per-shipment comparison
-const reconciliationByCarrier = ref([
-  {
-    id: 'yalidine',
-    name: 'Yalidine',
-    totalShipments: 24,
-    shipmentsWithDiscrepancy: 5,
-    ourCalculation: 3650,
-    theirPayment: 3450,
-    totalDifference: 200,
-    fees: {
-      deliveryExpected: 288,
-      deliveryActual: 312,
-      codExpected: 73,
-      codActual: 69,
-      returnExpected: 0,
-      returnActual: 24,
-      otherExpected: 50,
-      otherActual: 72
-    },
-    discrepancies: [
-      { id: 1, tracking: 'YAL-2026-000890', client: 'Hichem Mansour', codCollected: 189, ourNet: 177, theirNet: 165, difference: 12, carrierReason: 'Frais retour appliqué', status: 'pending' },
-      { id: 2, tracking: 'YAL-2026-000891', client: 'Rim Ayari', codCollected: 256, ourNet: 239, ourNetActual: 239, theirNet: 239, difference: 0, carrierReason: '', status: '' },
-      { id: 3, tracking: 'YAL-2026-000892', client: 'Youssef Gharbi', codCollected: 178, ourNet: 166, theirNet: 154, difference: 12, carrierReason: 'Frais retour appliqué', status: 'disputed' },
-      { id: 4, tracking: 'YAL-2026-000893', client: 'Ines Lahmar', codCollected: 312, ourNet: 294, theirNet: 280, difference: 14, carrierReason: 'Supplément zone éloignée', status: 'pending' }
-    ]
-  },
-  {
-    id: 'zr-express',
-    name: 'ZR Express',
-    totalShipments: 18,
-    shipmentsWithDiscrepancy: 2,
-    ourCalculation: 2380,
-    theirPayment: 2291,
-    totalDifference: 89,
-    fees: {
-      deliveryExpected: 216,
-      deliveryActual: 228,
-      codExpected: 48,
-      codActual: 54,
-      returnExpected: 0,
-      returnActual: 12,
-      otherExpected: 30,
-      otherActual: 45
-    },
-    discrepancies: [
-      { id: 5, tracking: 'ZR-2026-004521', client: 'Anis Ferchichi', codCollected: 145, ourNet: 133, theirNet: 125, difference: 8, carrierReason: 'Frais COD ajusté', status: 'pending' },
-      { id: 6, tracking: 'ZR-2026-004522', client: 'Mounir Ghanmi', codCollected: 234, ourNet: 217, theirNet: 217, difference: 0, carrierReason: '', status: '' },
-      { id: 7, tracking: 'ZR-2026-004523', client: 'Wafa Jlassi', codCollected: 189, ourNet: 177, theirNet: 168, difference: 9, carrierReason: 'Taxe supplémentaire', status: 'disputed' }
-    ]
-  },
-  {
-    id: 'maystro',
-    name: 'Maystro',
-    totalShipments: 12,
-    shipmentsWithDiscrepancy: 1,
-    ourCalculation: 1720,
-    theirPayment: 1661,
-    totalDifference: 59,
-    fees: {
-      deliveryExpected: 150,
-      deliveryActual: 150,
-      codExpected: 34,
-      codActual: 38,
-      returnExpected: 0,
-      returnActual: 0,
-      otherExpected: 25,
-      otherActual: 46
-    },
-    discrepancies: [
-      { id: 8, tracking: 'MAY-2026-007845', client: 'Nabil Karray', codCollected: 210, ourNet: 200, theirNet: 200, difference: 0, carrierReason: '', status: '' },
-      { id: 9, tracking: 'MAY-2026-007846', client: 'Salma Zouari', codCollected: 156, ourNet: 141, theirNet: 132, difference: 9, carrierReason: 'Frais emballage', status: 'resolved' }
-    ]
-  }
-])
+const reconciliationByCarrier = ref<any[]>([])
 
 // Revenue
 const revenuePeriod = ref('month')
 
 const revenueStats = reactive({
-  grossRevenue: 24850,
-  netRevenue: 18620,
-  marginPercent: 75,
-  shippingCosts: 4230,
-  avgOrderValue: 125,
-  grossGrowth: 12
+  grossRevenue: 0,
+  netRevenue: 0,
+  marginPercent: 0,
+  shippingCosts: 0,
+  avgOrderValue: 0,
+  grossGrowth: 0
 })
 
-const revenueByCategory = ref([
-  { name: 'Électronique', amount: 9450, percent: 38, color: 'bg-blue-500' },
-  { name: 'Mode & Accessoires', amount: 6240, percent: 25, color: 'bg-purple-500' },
-  { name: 'Beauté & Santé', amount: 4970, percent: 20, color: 'bg-pink-500' },
-  { name: 'Maison & Jardin', amount: 2490, percent: 10, color: 'bg-green-500' },
-  { name: 'Autres', amount: 1700, percent: 7, color: 'bg-gray-500' }
-])
+const revenueByCategory = ref<any[]>([])
 
-const revenueByRegion = ref([
-  { name: 'Grand Tunis', orders: 145, amount: 12400, percent: 50 },
-  { name: 'Sfax', orders: 52, amount: 4850, percent: 20 },
-  { name: 'Sousse', orders: 38, amount: 3720, percent: 15 },
-  { name: 'Nabeul', orders: 25, amount: 2380, percent: 10 },
-  { name: 'Autres régions', orders: 18, amount: 1500, percent: 5 }
-])
+const revenueByRegion = ref<any[]>([])
 
-const revenueChartData = ref([
-  { label: 'Lun', gross: 3200, net: 2400 },
-  { label: 'Mar', gross: 2800, net: 2100 },
-  { label: 'Mer', gross: 4100, net: 3075 },
-  { label: 'Jeu', gross: 3500, net: 2625 },
-  { label: 'Ven', gross: 4800, net: 3600 },
-  { label: 'Sam', gross: 3950, net: 2960 },
-  { label: 'Dim', gross: 2500, net: 1860 }
-])
+const revenueChartData = ref<any[]>([])
 
 // Return Losses
 const returnLossesMonth = ref('2026-01')
 
 const returnLossesStats = reactive({
-  totalLoss: 2340,
-  returnedCount: 18,
-  lostCount: 3,
-  shippingLoss: 456
+  totalLoss: 0,
+  returnedCount: 0,
+  lostCount: 0,
+  shippingLoss: 0
 })
 
-const returnLossesByReason = ref([
-  { name: 'Client absent', count: 8, amount: 920, percent: 39, icon: markRaw(User), iconColor: 'text-yellow-600' },
-  { name: 'Refusé par client', count: 5, amount: 680, percent: 29, icon: markRaw(XCircle), iconColor: 'text-red-600' },
-  { name: 'Adresse incorrecte', count: 3, amount: 420, percent: 18, icon: markRaw(MapPin), iconColor: 'text-orange-600' },
-  { name: 'Colis perdu', count: 2, amount: 320, percent: 14, icon: markRaw(PackageX), iconColor: 'text-gray-600' }
-])
+const returnLossesByReason = ref<any[]>([])
 
-const returnLossesByCarrier = ref([
-  { name: 'Aramex', count: 7, amount: 890, returnRate: 8.5 },
-  { name: 'Rapid Post', count: 6, amount: 720, returnRate: 12.3 },
-  { name: 'Express Delivery', count: 3, amount: 450, returnRate: 4.2 },
-  { name: 'Tunisia Express', count: 2, amount: 280, returnRate: 5.8 }
-])
+const returnLossesByCarrier = ref<any[]>([])
 
-const returnLossesDetails = ref([
-  { id: 1, reference: 'YAL-2026-001111', customer: 'Ahmed Hamdi', carrier: 'Aramex', reason: 'Refusé', value: 145, shippingFee: 12, totalLoss: 157 },
-  { id: 2, reference: 'ZR-2026-002222', customer: 'Salma Trabelsi', carrier: 'Rapid Post', reason: 'Client absent', value: 89, shippingFee: 10, totalLoss: 99 },
-  { id: 3, reference: 'MAY-2026-003333', customer: 'Karim Bouaziz', carrier: 'Express Delivery', reason: 'Perdu', value: 210, shippingFee: 15, totalLoss: 225 },
-  { id: 4, reference: 'ECO-2026-004444', customer: 'Leila Mrad', carrier: 'Tunisia Express', reason: 'Refusé', value: 178, shippingFee: 12, totalLoss: 190 },
-  { id: 5, reference: 'YAL-2026-005555', customer: 'Omar Chahed', carrier: 'Aramex', reason: 'Adresse incorrecte', value: 95, shippingFee: 10, totalLoss: 105 }
-])
+const returnLossesDetails = ref<any[]>([])
 
 // Invoices
 const invoicesTab = ref<'received' | 'sent'>('received')
@@ -11704,20 +14395,13 @@ const invoiceSearch = ref('')
 const invoiceStatusFilter = ref('all')
 
 const invoicesStats = reactive({
-  totalInvoices: 24,
-  pendingAmount: 3450,
-  paidAmount: 8500,
-  overdueCount: 2
+  totalInvoices: 0,
+  pendingAmount: 0,
+  paidAmount: 0,
+  overdueCount: 0
 })
 
-const invoices = ref([
-  { id: 1, number: 'INV-2026-0089', party: 'Aramex Tunisia', date: '25 Jan 2026', dueDate: '08 Fév 2026', amount: 1850, status: 'pending', type: 'received' },
-  { id: 2, number: 'INV-2026-0088', party: 'Rapid Post', date: '23 Jan 2026', dueDate: '06 Fév 2026', amount: 1350, status: 'pending', type: 'received' },
-  { id: 3, number: 'INV-2026-0087', party: 'Express Delivery', date: '20 Jan 2026', dueDate: '03 Fév 2026', amount: 2100, status: 'paid', type: 'received' },
-  { id: 4, number: 'INV-2026-0086', party: 'Tunisia Express', date: '18 Jan 2026', dueDate: '01 Fév 2026', amount: 980, status: 'overdue', type: 'received' },
-  { id: 5, number: 'FAC-2026-0045', party: 'Client Wholesale A', date: '24 Jan 2026', dueDate: '07 Fév 2026', amount: 4500, status: 'pending', type: 'sent' },
-  { id: 6, number: 'FAC-2026-0044', party: 'Client Wholesale B', date: '22 Jan 2026', dueDate: '05 Fév 2026', amount: 3200, status: 'paid', type: 'sent' }
-])
+const invoices = ref<any[]>([])
 
 // Filtered Invoices
 const filteredInvoices = computed(() => {
@@ -11745,12 +14429,7 @@ const exportConfig = reactive({
   carrier: 'all'
 })
 
-const recentExports = ref([
-  { id: 1, name: 'Finance_Janvier_2026.xlsx', format: 'excel', date: '25 Jan 2026', size: '2.4 MB', status: 'ready' },
-  { id: 2, name: 'Paiements_Semaine_04.csv', format: 'csv', date: '24 Jan 2026', size: '856 KB', status: 'ready' },
-  { id: 3, name: 'Rapport_Q4_2025.pdf', format: 'pdf', date: '22 Jan 2026', size: '1.8 MB', status: 'ready' },
-  { id: 4, name: 'Revenus_Janvier.xlsx', format: 'excel', date: '20 Jan 2026', size: '1.2 MB', status: 'ready' }
-])
+const recentExports = ref<any[]>([])
 
 // ==================== END FINANCE DATA STRUCTURES ====================
 </script>

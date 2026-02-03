@@ -132,35 +132,35 @@
       </div>
     </div>
 
-    <!-- Right Side - Illustration -->
-    <div class="hidden lg:flex flex-1 items-center justify-center p-8" style="background-color: #222628;">
-      <div class="text-center max-w-lg">
-        <div class="mb-8">
-          <Truck class="w-24 h-24 text-orange-500 mx-auto" />
-        </div>
-        <h2 class="text-3xl font-bold text-white mb-4">
+    <!-- Right Side - Animated Illustration -->
+    <div class="hidden lg:flex flex-1 items-center justify-center relative overflow-hidden" style="background-color: #222628;">
+      <!-- Header Text -->
+      <div class="absolute top-8 left-0 right-0 text-center z-20 px-8">
+        <h2 class="text-2xl font-bold text-white mb-2">
           Rejoignez Mouraqib
         </h2>
-        <p class="text-gray-400 text-lg">
-          Créez votre compte gratuitement et commencez à suivre
-          vos colis en quelques minutes.
+        <p class="text-gray-400 text-sm max-w-md mx-auto">
+          Découvrez en temps réel comment gérer vos livraisons
         </p>
-        <div class="mt-8 space-y-4 text-left max-w-sm mx-auto">
-          <div class="flex items-center space-x-3 text-gray-300">
-            <CheckCircle class="w-5 h-5 text-green-500 flex-shrink-0" />
-            <span>Suivi en temps réel de vos colis</span>
+      </div>
+
+      <!-- Animation Component -->
+      <DeliveryAnimation class="w-full h-full" />
+
+      <!-- Bottom Features -->
+      <div class="absolute bottom-8 left-0 right-0 z-20 px-8">
+        <div class="flex items-center justify-center gap-6 flex-wrap">
+          <div class="flex items-center space-x-2 text-gray-300 text-sm">
+            <CheckCircle class="w-4 h-4 text-green-500 flex-shrink-0" />
+            <span>Suivi en temps réel</span>
           </div>
-          <div class="flex items-center space-x-3 text-gray-300">
-            <CheckCircle class="w-5 h-5 text-green-500 flex-shrink-0" />
-            <span>Notifications automatiques par SMS/WhatsApp</span>
+          <div class="flex items-center space-x-2 text-gray-300 text-sm">
+            <CheckCircle class="w-4 h-4 text-green-500 flex-shrink-0" />
+            <span>Notifications SMS</span>
           </div>
-          <div class="flex items-center space-x-3 text-gray-300">
-            <CheckCircle class="w-5 h-5 text-green-500 flex-shrink-0" />
-            <span>Statistiques et rapports détaillés</span>
-          </div>
-          <div class="flex items-center space-x-3 text-gray-300">
-            <CheckCircle class="w-5 h-5 text-green-500 flex-shrink-0" />
-            <span>Gestion de votre base clients</span>
+          <div class="flex items-center space-x-2 text-gray-300 text-sm">
+            <CheckCircle class="w-4 h-4 text-green-500 flex-shrink-0" />
+            <span>Statistiques</span>
           </div>
         </div>
       </div>
@@ -173,7 +173,8 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
-import { Eye, EyeOff, Loader2, Moon, Sun, Truck, CheckCircle } from 'lucide-vue-next'
+import { Eye, EyeOff, Loader2, Moon, Sun, CheckCircle } from 'lucide-vue-next'
+import DeliveryAnimation from '@/components/DeliveryAnimation.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
