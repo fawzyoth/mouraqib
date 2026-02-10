@@ -6365,9 +6365,13 @@
                 <option value="pending">Non payé</option>
                 <option value="overdue">En retard</option>
               </select>
-              <button class="flex items-center space-x-2 px-4 py-2 bg-primary-blue hover:bg-primary-blue-hover text-white rounded-lg text-sm font-medium">
+              <button @click="showReconciliationModal = true" class="flex items-center space-x-2 px-4 py-2 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg text-sm font-medium transition-colors">
+                <CheckCircle class="w-4 h-4" />
+                <span>Vérifier</span>
+              </button>
+              <button class="flex items-center space-x-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors">
                 <FileDown class="w-4 h-4" />
-                <span>Exporter manifeste</span>
+                <span>Exporter</span>
               </button>
             </div>
           </div>
@@ -6494,6 +6498,170 @@
             <p class="text-gray-500">Aucun paiement en attente</p>
           </div>
         </main>
+
+        <!-- Payment Reconciliation Modal -->
+        <Teleport to="body">
+          <div v-if="showReconciliationModal" class="fixed inset-0 z-50 flex items-center justify-center">
+            <div class="absolute inset-0 bg-black/50" @click="closeReconciliationModal"></div>
+            <div class="relative bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+              <!-- Header -->
+              <div class="p-5 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+                <div>
+                  <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Vérification des paiements</h2>
+                  <p class="text-sm text-gray-500">Réconciliez vos paiements avec vos relevés</p>
+                </div>
+                <button @click="closeReconciliationModal" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                  <X class="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <!-- Tabs -->
+              <div class="flex border-b border-gray-200 dark:border-gray-800">
+                <button @click="reconciliationActiveTab = 'bank'" :class="['flex-1 px-4 py-3 text-sm font-medium transition-colors', reconciliationActiveTab === 'bank' ? 'text-orange-600 border-b-2 border-orange-500' : 'text-gray-500 hover:text-gray-700']">
+                  Relevé bancaire
+                </button>
+                <button @click="reconciliationActiveTab = 'manual'" :class="['flex-1 px-4 py-3 text-sm font-medium transition-colors', reconciliationActiveTab === 'manual' ? 'text-orange-600 border-b-2 border-orange-500' : 'text-gray-500 hover:text-gray-700']">
+                  Saisie manuelle
+                </button>
+                <button @click="reconciliationActiveTab = 'results'" :class="['flex-1 px-4 py-3 text-sm font-medium transition-colors', reconciliationActiveTab === 'results' ? 'text-orange-600 border-b-2 border-orange-500' : 'text-gray-500 hover:text-gray-700']">
+                  Résultats
+                  <span v-if="matchingResults.length > 0" class="ml-1 px-1.5 py-0.5 text-xs bg-orange-100 text-orange-700 rounded-full">{{ matchingResults.length }}</span>
+                </button>
+              </div>
+
+              <!-- Body -->
+              <div class="flex-1 overflow-y-auto p-5">
+                <!-- Bank Tab -->
+                <div v-if="reconciliationActiveTab === 'bank'" class="space-y-5">
+                  <div class="border border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-6 text-center">
+                    <Upload class="w-10 h-10 text-gray-400 mx-auto mb-3" />
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Importer un relevé bancaire (CSV, Excel)</p>
+                    <label class="inline-flex items-center space-x-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium cursor-pointer transition-colors">
+                      <Upload class="w-4 h-4" />
+                      <span>Choisir un fichier</span>
+                      <input type="file" accept=".csv,.xlsx" class="hidden" @change="handleBankFileUpload" />
+                    </label>
+                    <p v-if="bankTransactionsFile" class="mt-2 text-sm text-green-600">{{ bankTransactionsFile.name }}</p>
+                  </div>
+
+                  <div v-if="bankTransactions.length > 0" class="space-y-3">
+                    <div class="flex items-center justify-between">
+                      <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Transactions ({{ bankTransactions.length }})</p>
+                      <button @click="runAutoMatching" class="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors">
+                        Lancer le rapprochement
+                      </button>
+                    </div>
+                    <div class="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-800">
+                      <div v-for="tx in bankTransactions" :key="tx.id" class="p-3 flex items-center justify-between">
+                        <div>
+                          <p class="text-sm text-gray-900 dark:text-white">{{ tx.description }}</p>
+                          <p class="text-xs text-gray-500">{{ tx.date }}</p>
+                        </div>
+                        <div class="text-right">
+                          <p class="text-sm font-medium text-green-600">+{{ tx.amount.toLocaleString() }} TND</p>
+                          <span v-if="tx.matched" class="text-xs text-green-600">Rapproché</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Manual Tab -->
+                <div v-if="reconciliationActiveTab === 'manual'" class="space-y-4">
+                  <div class="grid grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Transporteur</label>
+                      <select v-model="manualPaymentData.carrierId" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm">
+                        <option value="">Sélectionner...</option>
+                        <option v-for="carrier in carriersList" :key="carrier.id" :value="carrier.id">{{ carrier.name }}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Montant reçu (TND)</label>
+                      <input type="number" v-model="manualPaymentData.amount" placeholder="0.00" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" />
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+                      <input type="date" v-model="manualPaymentData.date" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" />
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Référence</label>
+                      <input type="text" v-model="manualPaymentData.reference" placeholder="Ex: VIR-2026-001" class="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm" />
+                    </div>
+                  </div>
+
+                  <div v-if="manualPaymentData.carrierId" class="space-y-2">
+                    <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Paiements attendus</p>
+                    <div class="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-800">
+                      <div v-for="carrier in manifestByCarrier.filter(c => c.id === manualPaymentData.carrierId)" :key="carrier.id" class="p-3 flex items-center justify-between">
+                        <div>
+                          <p class="text-sm text-gray-900 dark:text-white">{{ carrier.name }}</p>
+                          <p class="text-xs text-gray-500">{{ carrier.shipments.length }} colis</p>
+                        </div>
+                        <p :class="['text-sm font-medium', manualPaymentData.amount && Math.abs(carrier.netAmount - manualPaymentData.amount) < 10 ? 'text-green-600' : 'text-gray-900 dark:text-white']">{{ carrier.netAmount.toLocaleString() }} TND</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button @click="submitManualPayment" :disabled="!manualPaymentData.carrierId || !manualPaymentData.amount" :class="['w-full py-2.5 rounded-lg text-sm font-medium transition-colors', manualPaymentData.carrierId && manualPaymentData.amount ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 cursor-not-allowed']">
+                    Enregistrer le paiement
+                  </button>
+                </div>
+
+                <!-- Results Tab -->
+                <div v-if="reconciliationActiveTab === 'results'" class="space-y-4">
+                  <div class="grid grid-cols-3 gap-3">
+                    <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-center">
+                      <p class="text-xl font-bold text-green-600">{{ matchingStats.totalMatched }}</p>
+                      <p class="text-xs text-gray-500">Rapprochés</p>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-center">
+                      <p class="text-xl font-bold text-orange-600">{{ matchingStats.totalUnmatched }}</p>
+                      <p class="text-xs text-gray-500">Non rapprochés</p>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-center">
+                      <p class="text-xl font-bold text-gray-900 dark:text-white">{{ matchingStats.totalExpected }}</p>
+                      <p class="text-xs text-gray-500">Total</p>
+                    </div>
+                  </div>
+
+                  <div v-if="matchingResults.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-800">
+                    <div v-for="result in matchingResults" :key="result.carrier.id" class="p-3 flex items-center justify-between">
+                      <div class="flex items-center space-x-3">
+                        <div :class="['w-8 h-8 rounded-full flex items-center justify-center', result.status === 'matched' ? 'bg-green-100 dark:bg-green-900/30' : result.status === 'confirmed' ? 'bg-gray-100 dark:bg-gray-700' : 'bg-orange-100 dark:bg-orange-900/30']">
+                          <CheckCircle :class="['w-4 h-4', result.status === 'matched' ? 'text-green-600' : result.status === 'confirmed' ? 'text-gray-400' : 'text-orange-600']" />
+                        </div>
+                        <div>
+                          <p class="text-sm font-medium text-gray-900 dark:text-white">{{ result.carrier.name }}</p>
+                          <p class="text-xs text-gray-500">{{ result.carrier.shipments.length }} colis</p>
+                        </div>
+                      </div>
+                      <div class="flex items-center space-x-3">
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ result.carrier.netAmount.toLocaleString() }} TND</p>
+                        <button v-if="result.status === 'matched'" @click="confirmMatchedPayment(result)" class="px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs font-medium transition-colors">
+                          Confirmer
+                        </button>
+                        <span v-else-if="result.status === 'confirmed'" class="text-xs text-gray-400">Confirmé</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-else class="text-center py-8">
+                    <Search class="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                    <p class="text-sm text-gray-500">Importez un relevé pour commencer</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Footer -->
+              <div class="p-4 border-t border-gray-200 dark:border-gray-800 flex items-center justify-end">
+                <button @click="closeReconciliationModal" class="px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors">
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        </Teleport>
       </template>
 
       <!-- ==================== FINANCE - PAIEMENTS REÇUS ==================== -->
@@ -14314,6 +14482,101 @@ const filteredManifestByCarrier = computed(() => {
   }
   return result
 })
+
+// ==================== PAYMENT VERIFICATION / RECONCILIATION ====================
+const showReconciliationModal = ref(false)
+const reconciliationActiveTab = ref<'bank' | 'manual' | 'results'>('bank')
+
+// Bank transactions data
+const bankTransactionsFile = ref<File | null>(null)
+const bankTransactions = ref([
+  { id: 'bank-001', date: '28 Jan 2026', description: 'VIR YALIDINE REF YAL-BATCH-2026-078', amount: 1875, matched: false },
+  { id: 'bank-002', date: '25 Jan 2026', description: 'VIREMENT ZR EXPRESS 2026-045', amount: 3690, matched: false },
+  { id: 'bank-003', date: '22 Jan 2026', description: 'MAYSTRO DELIVERY PAIEMENT', amount: 2850, matched: false },
+  { id: 'bank-004', date: '20 Jan 2026', description: 'VIR YALIDINE BATCH 2026', amount: 5000, matched: false }
+])
+
+// Manual entry
+const manualPaymentData = ref({
+  carrierId: '',
+  amount: null as number | null,
+  date: new Date().toISOString().split('T')[0],
+  reference: ''
+})
+
+// Matching results
+const matchingResults = ref<any[]>([])
+const matchingStats = reactive({
+  totalExpected: 0,
+  totalMatched: 0,
+  totalUnmatched: 0,
+  matchedAmount: 0,
+  unmatchedAmount: 0
+})
+
+// Run auto-matching
+function runAutoMatching() {
+  const results: any[] = []
+  const carriers = manifestByCarrier.value
+
+  carriers.forEach(carrier => {
+    const matchedTx = bankTransactions.value.find(tx => {
+      if (tx.matched) return false
+      if (Math.abs(tx.amount - carrier.netAmount) < 10) {
+        const descLower = tx.description.toLowerCase()
+        if (descLower.includes(carrier.name.toLowerCase())) return true
+      }
+      return false
+    })
+
+    results.push({
+      carrier,
+      transaction: matchedTx,
+      status: matchedTx ? 'matched' : 'unmatched'
+    })
+
+    if (matchedTx) matchedTx.matched = true
+  })
+
+  matchingStats.totalExpected = results.length
+  matchingStats.totalMatched = results.filter(r => r.status === 'matched').length
+  matchingStats.totalUnmatched = results.filter(r => r.status === 'unmatched').length
+  matchingStats.matchedAmount = results.filter(r => r.status === 'matched').reduce((sum, r) => sum + r.carrier.netAmount, 0)
+  matchingStats.unmatchedAmount = results.filter(r => r.status === 'unmatched').reduce((sum, r) => sum + r.carrier.netAmount, 0)
+
+  matchingResults.value = results
+  reconciliationActiveTab.value = 'results'
+}
+
+// Confirm matched payment
+function confirmMatchedPayment(result: any) {
+  const idx = matchingResults.value.findIndex(r => r.carrier.id === result.carrier.id)
+  if (idx > -1) {
+    matchingResults.value[idx].status = 'confirmed'
+    matchingStats.totalMatched--
+  }
+}
+
+// Submit manual payment
+function submitManualPayment() {
+  if (!manualPaymentData.value.carrierId || !manualPaymentData.value.amount) return
+  alert(`Paiement de ${manualPaymentData.value.amount?.toLocaleString()} TND enregistré`)
+  manualPaymentData.value = { carrierId: '', amount: null, date: new Date().toISOString().split('T')[0], reference: '' }
+}
+
+// Handle bank file upload
+function handleBankFileUpload(event: Event) {
+  const target = event.target as HTMLInputElement
+  if (target.files && target.files[0]) {
+    bankTransactionsFile.value = target.files[0]
+  }
+}
+
+// Close modal
+function closeReconciliationModal() {
+  showReconciliationModal.value = false
+  reconciliationActiveTab.value = 'bank'
+}
 
 // ==================== PAIEMENTS REÇUS (Received Payments) ====================
 const receivedPaymentsMonth = ref('2026-01')
