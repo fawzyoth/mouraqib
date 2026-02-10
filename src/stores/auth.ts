@@ -22,12 +22,20 @@ export const useAuthStore = defineStore('auth', () => {
   const session = ref<Session | null>(null)
   const isLoading = ref(false)
   const isInitialized = ref(false)
+  const isDemoMode = ref(false)
 
-  const isAuthenticated = computed(() => !!session.value && !!user.value)
+  const isAuthenticated = computed(() => isDemoMode.value || (!!session.value && !!user.value))
   const isPlatformAdmin = computed(() => user.value?.isAdmin ?? false)
 
   async function initialize() {
     if (isInitialized.value) return
+
+    // Check for demo mode first
+    checkDemoMode()
+    if (isDemoMode.value) {
+      isInitialized.value = true
+      return
+    }
 
     // Skip initialization if Supabase is not configured
     if (!isSupabaseConfigured) {
@@ -156,6 +164,30 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // Demo mode sign-in (bypasses Supabase)
+  function signInDemo(): { success: boolean } {
+    isDemoMode.value = true
+    user.value = {
+      id: 'demo-user-001',
+      name: 'Utilisateur Demo',
+      email: 'demo@mouraqib.com',
+      organization: 'Ma Boutique Demo',
+      organizationId: 'demo-org-001',
+      role: 'owner',
+      isAdmin: false,
+      avatarUrl: null
+    }
+    localStorage.setItem('demoMode', 'true')
+    return { success: true }
+  }
+
+  // Check for demo mode on init
+  function checkDemoMode() {
+    if (localStorage.getItem('demoMode') === 'true') {
+      signInDemo()
+    }
+  }
+
   async function signUp(
     name: string,
     email: string,
@@ -258,6 +290,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function signOut() {
     try {
+      // Clear demo mode
+      isDemoMode.value = false
+      localStorage.removeItem('demoMode')
+
       await supabase.auth.signOut()
       user.value = null
       profile.value = null
@@ -350,8 +386,10 @@ export const useAuthStore = defineStore('auth', () => {
     isInitialized,
     isAuthenticated,
     isPlatformAdmin,
+    isDemoMode,
     initialize,
     signIn,
+    signInDemo,
     signUp,
     signOut,
     requestPasswordReset,
