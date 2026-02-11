@@ -10,9 +10,6 @@
         <button @click="openGlobalSearch" class="p-2 hover:bg-gray-800 rounded-lg">
           <Search class="w-5 h-5" />
         </button>
-        <button @click="languageStore.toggleLanguage()" class="p-2 hover:bg-gray-800 rounded-lg">
-          <Globe class="w-5 h-5" />
-        </button>
       </div>
     </div>
 
@@ -20,7 +17,7 @@
     <div
       :class="[
         'fixed inset-0 z-50 lg:hidden text-white flex flex-col transform transition-transform duration-300 ease-in-out',
-        sidebarOpen ? 'translate-x-0' : (languageStore.isRTL ? 'translate-x-full' : '-translate-x-full')
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       ]"
       style="background-color: #222628;"
     >
@@ -85,7 +82,7 @@
         <ul class="space-y-0.5">
           <li v-for="item in currentSubNavigation" :key="item.id">
             <button
-              @click="activeSection = item.id; subMenuOpen = false"
+              @click="activeSection = item.id; subMenuOpen = false; showSearchResultsPage = false"
               :class="[
                 'w-full flex items-center space-x-3 py-2.5 px-4 text-sm font-medium transition-colors',
                 activeSection === item.id
@@ -206,7 +203,7 @@
         <ul class="space-y-0.5">
           <li v-for="item in currentSubNavigation" :key="item.id">
             <button
-              @click="activeSection = item.id"
+              @click="activeSection = item.id; showSearchResultsPage = false"
               :class="[
                 'w-full flex items-center space-x-3 py-2.5 pl-4 pr-4 text-sm font-medium transition-colors border-l-4',
                 activeSection === item.id
@@ -239,8 +236,151 @@
 
     <!-- Main Content -->
     <div class="flex-1 flex flex-col overflow-hidden pt-14 lg:pt-0">
+      <!-- Search Results Page (Full Screen) -->
+      <template v-if="showSearchResultsPage">
+        <!-- Header -->
+        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button @click="closeSearchResultsPage" class="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                <ArrowLeft class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              <div>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Résultats de recherche</h1>
+                <p class="text-sm text-gray-500 mt-0.5">{{ fullSearchResults.length }} résultat{{ fullSearchResults.length > 1 ? 's' : '' }} pour "{{ searchResultsQuery }}"</p>
+              </div>
+            </div>
+            <div class="flex items-center space-x-2">
+              <button @click="closeSearchResultsPage" class="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors border border-gray-200 dark:border-gray-700">
+                <X class="w-4 h-4" />
+                <span class="hidden sm:inline">Fermer</span>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <!-- Search Results Content -->
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6">
+          <div class="max-w-6xl mx-auto">
+            <!-- Search Input & Filters -->
+            <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 mb-4">
+              <div class="flex flex-col sm:flex-row gap-4">
+                <!-- Search Input -->
+                <div class="flex-1 relative">
+                  <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    v-model="searchResultsQuery"
+                    type="text"
+                    placeholder="Rechercher un colis, client, numéro de suivi..."
+                    class="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-[#4959b4] focus:border-transparent"
+                  />
+                </div>
+                <!-- Status Filter -->
+                <select
+                  v-model="searchResultsFilter"
+                  class="px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-[#4959b4]"
+                >
+                  <option value="all">Tous les statuts</option>
+                  <option value="pending">En attente</option>
+                  <option value="in-transit">En livraison</option>
+                  <option value="delivered">Livrés</option>
+                  <option value="returned">Retournés</option>
+                </select>
+                <!-- Sort -->
+                <select
+                  v-model="searchResultsSort"
+                  class="px-3 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-[#4959b4]"
+                >
+                  <option value="date">Date (récent)</option>
+                  <option value="tracking">Numéro de suivi</option>
+                  <option value="recipient">Destinataire</option>
+                  <option value="amount">Montant</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Results Grid -->
+            <div v-if="fullSearchResults.length > 0" class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead class="bg-gray-50 dark:bg-gray-800">
+                    <tr>
+                      <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Colis</th>
+                      <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Destinataire</th>
+                      <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Transporteur</th>
+                      <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Statut</th>
+                      <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Montant</th>
+                      <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                    <tr
+                      v-for="result in fullSearchResults"
+                      :key="result.id"
+                      class="hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors"
+                      @click="selectedShipment = result; showShipmentDetail = true; closeSearchResultsPage()"
+                    >
+                      <td class="px-4 py-4">
+                        <div class="flex items-center gap-3">
+                          <div class="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                            <Package class="w-5 h-5 text-gray-500" />
+                          </div>
+                          <div>
+                            <p class="text-sm font-semibold font-mono text-gray-900 dark:text-white">{{ result.trackingNumber }}</p>
+                            <p class="text-xs text-gray-500">{{ new Date(result.createdAt).toLocaleDateString('fr-FR') }}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="px-4 py-4">
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ result.recipient }}</p>
+                        <p class="text-xs text-gray-500 truncate max-w-[200px]">{{ result.recipientAddress }}</p>
+                      </td>
+                      <td class="px-4 py-4 hidden md:table-cell">
+                        <p class="text-sm text-gray-700 dark:text-gray-300">{{ result.carrier }}</p>
+                      </td>
+                      <td class="px-4 py-4">
+                        <span :class="[
+                          'px-2 py-1 text-xs rounded-full font-medium',
+                          result.status === 'Delivered' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                          result.status === 'Out for delivery' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
+                          result.status === 'Pending' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
+                          result.status === 'Returned' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
+                          'bg-gray-100 dark:bg-gray-800 text-gray-600'
+                        ]">
+                          {{ result.status === 'Delivered' ? 'Livré' : result.status === 'Out for delivery' ? 'En livraison' : result.status === 'Pending' ? 'En attente' : result.status === 'Returned' ? 'Retourné' : result.status }}
+                        </span>
+                      </td>
+                      <td class="px-4 py-4 text-right">
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ result.amount }} TND</p>
+                      </td>
+                      <td class="px-4 py-4 text-center">
+                        <button
+                          @click.stop="selectedShipment = result; showShipmentDetail = true; closeSearchResultsPage()"
+                          class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                          title="Voir les détails"
+                        >
+                          <Eye class="w-4 h-4 text-gray-500" />
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- No Results -->
+            <div v-else class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-12 text-center">
+              <SearchX class="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Aucun résultat trouvé</h3>
+              <p class="text-gray-500 mb-4">Aucun colis ne correspond à "{{ searchResultsQuery }}"</p>
+              <p class="text-sm text-gray-400">Essayez avec un numéro de suivi, nom de client, ou numéro de téléphone</p>
+            </div>
+          </div>
+        </main>
+      </template>
+
       <!-- Shipments Section -->
-      <template v-if="activeSection === 'all-shipments'">
+      <template v-else-if="activeSection === 'all-shipments'">
         <!-- Header -->
         <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
           <div class="flex items-center justify-between">
@@ -10239,6 +10379,17 @@
                 <p class="text-gray-500">Aucun résultat pour "{{ globalSearchQuery }}"</p>
                 <p class="text-sm text-gray-400 mt-1">Essayez un numéro de suivi, nom de client ou téléphone</p>
               </div>
+
+              <!-- View All Results Button -->
+              <div v-if="globalSearchQuery && globalSearchResults.length > 0" class="px-3 pb-2">
+                <button
+                  @click="openSearchResultsPage"
+                  class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#4959b4] hover:bg-[#3d4a9e] text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  <ExternalLink class="w-4 h-4" />
+                  Voir tous les résultats
+                </button>
+              </div>
             </div>
           </div>
 
@@ -11027,7 +11178,6 @@ import {
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useLanguageStore } from '@/stores/language'
 import {
   shipmentsService,
   clientsService,
@@ -11039,7 +11189,6 @@ import {
 
 const router = useRouter()
 const authStore = useAuthStore()
-const languageStore = useLanguageStore()
 
 // Loading state
 const isLoadingData = ref(false)
@@ -11833,6 +11982,8 @@ function selectMainSection(section: string) {
   if (firstSubItem) {
     activeSection.value = firstSubItem.id
   }
+  // Close search results page when navigating to a section
+  showSearchResultsPage.value = false
 }
 
 // Computed for delivered count
@@ -12715,6 +12866,12 @@ const globalSearchInput = ref<HTMLInputElement | null>(null)
 const selectedSearchIndex = ref(0)
 const recentSearches = ref<string[]>([])
 
+// Full Search Results Page
+const showSearchResultsPage = ref(false)
+const searchResultsQuery = ref('')
+const searchResultsFilter = ref<'all' | 'pending' | 'delivered' | 'in-transit' | 'returned'>('all')
+const searchResultsSort = ref<'date' | 'tracking' | 'recipient' | 'amount'>('date')
+
 const searchSuggestions = [
   { type: 'tracking', label: 'Rechercher par numéro de suivi', hint: 'Ex: TN-2026-0001', icon: markRaw(Package) },
   { type: 'phone', label: 'Rechercher par téléphone', hint: 'Ex: +216 22 333 444', icon: markRaw(PhoneIcon) },
@@ -12737,6 +12894,65 @@ const globalSearchResults = computed(() => {
     )
   }).slice(0, 10)
 })
+
+// Full search results (no limit, with filters)
+const fullSearchResults = computed(() => {
+  if (!searchResultsQuery.value || searchResultsQuery.value.length < 2) return []
+
+  const query = searchResultsQuery.value.toLowerCase().trim()
+
+  let results = shipments.value.filter(shipment => {
+    return (
+      shipment.trackingNumber.toLowerCase().includes(query) ||
+      shipment.recipient.toLowerCase().includes(query) ||
+      shipment.recipientPhone.toLowerCase().includes(query) ||
+      shipment.recipientAddress.toLowerCase().includes(query) ||
+      (shipment.orderId && shipment.orderId.toLowerCase().includes(query))
+    )
+  })
+
+  // Apply status filter
+  if (searchResultsFilter.value !== 'all') {
+    const statusMap: Record<string, string> = {
+      'pending': 'Pending',
+      'delivered': 'Delivered',
+      'in-transit': 'Out for delivery',
+      'returned': 'Returned'
+    }
+    results = results.filter(s => s.status === statusMap[searchResultsFilter.value])
+  }
+
+  // Apply sorting
+  results = [...results].sort((a, b) => {
+    switch (searchResultsSort.value) {
+      case 'tracking':
+        return a.trackingNumber.localeCompare(b.trackingNumber)
+      case 'recipient':
+        return a.recipient.localeCompare(b.recipient)
+      case 'amount':
+        return b.amount - a.amount
+      case 'date':
+      default:
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    }
+  })
+
+  return results
+})
+
+// Open full search results page
+function openSearchResultsPage() {
+  searchResultsQuery.value = globalSearchQuery.value
+  searchResultsFilter.value = 'all'
+  closeGlobalSearch()
+  showSearchResultsPage.value = true
+}
+
+// Close search results page
+function closeSearchResultsPage() {
+  showSearchResultsPage.value = false
+  searchResultsQuery.value = ''
+}
 
 function openGlobalSearch() {
   showGlobalSearch.value = true

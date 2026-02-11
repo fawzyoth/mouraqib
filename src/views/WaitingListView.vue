@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-white dark:bg-gray-950 font-arabic" :class="themeStore.isDark ? 'dark' : ''" dir="rtl">
+  <div class="min-h-screen bg-white dark:bg-gray-950" :class="themeStore.isDark ? 'dark' : ''">
     <!-- Navigation -->
     <nav class="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-950/95 backdrop-blur-sm border-b border-gray-100 dark:border-gray-800">
       <div class="max-w-6xl mx-auto px-4 sm:px-6">

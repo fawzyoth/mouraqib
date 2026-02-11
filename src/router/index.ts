@@ -65,9 +65,17 @@ router.beforeEach(async (to, from, next) => {
   const requiresAuth = to.meta.requiresAuth
   const authRedirect = to.meta.authRedirect
 
+  // Check for demo mode first
+  const isDemoMode = localStorage.getItem('demoMode') === 'true'
+  if (isDemoMode) {
+    if (authRedirect) {
+      return next({ name: 'dashboard' })
+    }
+    return next()
+  }
+
   // Skip auth checks if Supabase is not configured
   if (!isSupabaseConfigured) {
-    // Allow access to public routes, redirect protected routes to signin
     if (requiresAuth) {
       return next({ name: 'signin' })
     }
@@ -85,19 +93,17 @@ router.beforeEach(async (to, from, next) => {
 
   // If route requires auth and user is not authenticated
   if (requiresAuth && !isAuthenticated) {
-    // Redirect to signin with return URL
     return next({
       name: 'signin',
       query: { redirect: to.fullPath }
     })
   }
 
-  // If user is authenticated and trying to access auth pages (signin/signup)
+  // If user is authenticated and trying to access auth pages
   if (authRedirect && isAuthenticated) {
     return next({ name: 'dashboard' })
   }
 
-  // Otherwise, proceed normally
   next()
 })
 
