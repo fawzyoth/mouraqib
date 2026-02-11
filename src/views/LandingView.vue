@@ -222,6 +222,41 @@
       </div>
     </section>
 
+    <!-- Countdown Timer -->
+    <section class="py-12 px-4 sm:px-6">
+      <div class="max-w-3xl mx-auto">
+        <div class="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-8 shadow-lg shadow-orange-500/25">
+          <h2 class="text-xl font-semibold text-white text-center mb-6">Lancement dans</h2>
+          <div class="grid grid-cols-4 gap-4">
+            <div class="text-center">
+              <div class="bg-white/20 backdrop-blur rounded-xl p-4 mb-2">
+                <span class="text-3xl sm:text-4xl font-bold text-white">{{ String(countdown.days).padStart(2, '0') }}</span>
+              </div>
+              <span class="text-sm text-white/80">Jours</span>
+            </div>
+            <div class="text-center">
+              <div class="bg-white/20 backdrop-blur rounded-xl p-4 mb-2">
+                <span class="text-3xl sm:text-4xl font-bold text-white">{{ String(countdown.hours).padStart(2, '0') }}</span>
+              </div>
+              <span class="text-sm text-white/80">Heures</span>
+            </div>
+            <div class="text-center">
+              <div class="bg-white/20 backdrop-blur rounded-xl p-4 mb-2">
+                <span class="text-3xl sm:text-4xl font-bold text-white">{{ String(countdown.minutes).padStart(2, '0') }}</span>
+              </div>
+              <span class="text-sm text-white/80">Minutes</span>
+            </div>
+            <div class="text-center">
+              <div class="bg-white/20 backdrop-blur rounded-xl p-4 mb-2">
+                <span class="text-3xl sm:text-4xl font-bold text-white">{{ String(countdown.seconds).padStart(2, '0') }}</span>
+              </div>
+              <span class="text-sm text-white/80">Secondes</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Problem Section -->
     <section id="problem" class="py-20 px-4 sm:px-6 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 relative overflow-hidden">
       <!-- Decorative elements -->
@@ -1315,7 +1350,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useThemeStore } from '@/stores/theme'
 import {
   Moon,
@@ -1350,6 +1385,41 @@ import {
 } from 'lucide-vue-next'
 
 const themeStore = useThemeStore()
+
+// Countdown timer - Launch date: February 26, 2026 (15 days)
+const launchDate = new Date('2026-02-26T00:00:00')
+
+const countdown = reactive({
+  days: 0,
+  hours: 0,
+  minutes: 0,
+  seconds: 0
+})
+
+let countdownInterval: number | null = null
+
+function updateCountdown() {
+  const now = new Date().getTime()
+  const distance = launchDate.getTime() - now
+
+  if (distance > 0) {
+    countdown.days = Math.floor(distance / (1000 * 60 * 60 * 24))
+    countdown.hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+    countdown.minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60))
+    countdown.seconds = Math.floor((distance % (1000 * 60)) / 1000)
+  }
+}
+
+onMounted(() => {
+  updateCountdown()
+  countdownInterval = window.setInterval(updateCountdown, 1000)
+})
+
+onUnmounted(() => {
+  if (countdownInterval) {
+    clearInterval(countdownInterval)
+  }
+})
 
 // Pricing calculator
 const deliveredCount = ref(500)

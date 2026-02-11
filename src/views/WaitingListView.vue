@@ -345,8 +345,8 @@ import { supabase } from '@/lib/supabase'
 
 const themeStore = useThemeStore()
 
-// Countdown timer - Fixed launch date: February 13, 2026
-const launchDate = new Date('2026-02-13T00:00:00')
+// Countdown timer - Fixed launch date: February 26, 2026 (15 days from Feb 11)
+const launchDate = new Date('2026-02-26T00:00:00')
 
 const countdown = reactive({
   days: 0,
