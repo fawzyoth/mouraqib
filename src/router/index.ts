@@ -11,6 +11,12 @@ const router = createRouter({
       meta: { public: true }
     },
     {
+      path: '/waitinglist',
+      name: 'waiting-list-v2',
+      component: () => import('@/views/WaitingListV2View.vue'),
+      meta: { public: true }
+    },
+    {
       path: '/landing',
       name: 'landing',
       component: () => import('@/views/LandingView.vue'),
