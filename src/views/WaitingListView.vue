@@ -25,51 +25,288 @@
     </nav>
 
     <!-- Hero Section -->
-    <section class="pt-24 pb-16 px-4 sm:px-6 relative overflow-hidden min-h-[80vh] flex items-center">
-      <!-- Background decorative elements -->
-      <div class="absolute top-20 left-0 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl -z-10"></div>
-      <div class="absolute bottom-0 right-0 w-80 h-80 bg-orange-400/5 rounded-full blur-3xl -z-10"></div>
-      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-orange-500/5 to-transparent rounded-full blur-3xl -z-10"></div>
+    <section class="pt-24 pb-16 px-4 sm:px-6 relative overflow-hidden min-h-[85vh] flex items-center">
+      <div class="max-w-6xl mx-auto w-full">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
 
-      <div class="max-w-4xl mx-auto text-center w-full">
-        <div class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-100 to-orange-50 dark:from-orange-900/30 dark:to-orange-800/20 rounded-full mb-8 border border-orange-200/50 dark:border-orange-700/30">
-          <span class="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
-          <span class="text-sm font-medium text-orange-700 dark:text-orange-400">قريب - {{ spotsLeft }} بلاصة باقية</span>
+          <!-- Right Column: Text Content -->
+          <div class="order-1">
+            <!-- Badge -->
+            <div class="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm mb-6">
+              <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ registeredCount }}+ بائع في قائمة الانتظار</span>
+            </div>
+
+            <!-- Heading -->
+            <h1 class="text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 dark:text-white leading-tight mb-6">
+              نفس الخدمة، نفس المصاريف…
+              <br />
+              أما <span class="text-orange-500">مرابيح أكثر؟</span>
+              <br />
+              السر في إنك <span class="text-orange-500">تراقب كل كولي</span> وين مشات
+            </h1>
+
+            <!-- Sub text -->
+            <p class="text-base sm:text-lg text-gray-500 dark:text-gray-400 leading-relaxed mb-6">
+              مراقب هو تطبيق يساعدك تراقب كل عمليات التجارة الإلكترونية متاعك.
+              تتبّع colis، retours، pickups، وفلوسك في الوقت الحقيقي، من dashboard وحدة واضحة وبسيطة، باش تكون ديما متحكم في مشروعك.
+            </p>
+
+            <!-- Checkmarks -->
+            <div class="flex flex-wrap items-center gap-5 mb-8 text-sm text-gray-600 dark:text-gray-400">
+              <div class="flex items-center gap-2">
+                <CheckCircle class="w-5 h-5 text-green-500" />
+                <span>تتبّع 100% تلقائي</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <CheckCircle class="w-5 h-5 text-green-500" />
+                <span>+15 شركة ليفريزون</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <CheckCircle class="w-5 h-5 text-green-500" />
+                <span>Rapports فورية</span>
+              </div>
+            </div>
+
+            <!-- CTA Button -->
+            <button
+              @click="scrollToForm"
+              class="w-full flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-2xl transition-all shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 text-lg"
+            >
+              <span>سجّل توّا</span>
+              <ArrowLeft class="w-5 h-5" />
+            </button>
+
+            <!-- Note -->
+            <p class="text-sm text-gray-400 dark:text-gray-500 mt-3 flex items-center gap-2">
+              <span>⚡</span>
+              <span>إعداد في أقل من 5 دقائق</span>
+            </p>
+          </div>
+
+          <!-- Left Column: Feature Cards -->
+          <div class="order-2">
+            <div class="relative">
+              <div class="bg-gradient-to-br from-gray-50 to-orange-50/50 dark:from-gray-800 dark:to-gray-800 rounded-3xl p-6 shadow-xl border border-gray-200/80 dark:border-gray-700">
+                <!-- Mini header -->
+                <div class="flex items-center justify-between mb-5" dir="ltr">
+                  <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full bg-red-400"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-400"></div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span class="text-xs text-gray-500 font-mono">mouraqib.com</span>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <!-- Colis Tracking -->
+                  <div class="bg-white dark:bg-gray-700/50 rounded-2xl p-4 border border-gray-200 dark:border-gray-600 hover:border-orange-300 hover:shadow-md transition-all">
+                    <div class="w-9 h-9 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center mb-3">
+                      <Package class="w-4.5 h-4.5 text-orange-500" />
+                    </div>
+                    <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-1">تتبّع الكوليات</h3>
+                    <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed mb-3">كل كولي وين وصلت في الوقت الحقيقي</p>
+                    <div class="flex items-center gap-1.5">
+                      <div class="h-1.5 flex-1 bg-orange-500 rounded-full"></div>
+                      <div class="h-1.5 flex-1 bg-orange-200 rounded-full"></div>
+                      <div class="h-1.5 flex-1 bg-orange-100 rounded-full"></div>
+                    </div>
+                    <div class="mt-2 flex items-center justify-between">
+                      <span class="text-[10px] text-orange-500 font-bold">1,247</span>
+                      <span class="text-[10px] text-gray-400">كولي نشط</span>
+                    </div>
+                  </div>
+
+                  <!-- Transport Integrations -->
+                  <div class="bg-white dark:bg-gray-700/50 rounded-2xl p-4 border border-gray-200 dark:border-gray-600 hover:border-blue-300 hover:shadow-md transition-all">
+                    <div class="w-9 h-9 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mb-3">
+                      <Truck class="w-4.5 h-4.5 text-blue-500" />
+                    </div>
+                    <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-1">شركات الليفريزون</h3>
+                    <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed mb-3">+15 شركة في dashboard واحد</p>
+                    <div class="flex items-center gap-1.5" dir="ltr">
+                      <div class="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-[8px] text-blue-600 dark:text-blue-400 font-bold">R</div>
+                      <div class="w-6 h-6 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-[8px] text-green-600 dark:text-green-400 font-bold">A</div>
+                      <div class="w-6 h-6 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center text-[8px] text-yellow-600 dark:text-yellow-400 font-bold">D</div>
+                      <div class="w-6 h-6 bg-gray-100 dark:bg-gray-600 rounded-full flex items-center justify-center text-[8px] text-gray-500 dark:text-gray-300 font-bold">+12</div>
+                    </div>
+                  </div>
+
+                  <!-- Clients -->
+                  <div class="bg-white dark:bg-gray-700/50 rounded-2xl p-4 border border-gray-200 dark:border-gray-600 hover:border-green-300 hover:shadow-md transition-all">
+                    <div class="w-9 h-9 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mb-3">
+                      <Users class="w-4.5 h-4.5 text-green-500" />
+                    </div>
+                    <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-1">إدارة العملاء</h3>
+                    <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed mb-3">كل عميل، كل طلب، كل تفصيلة</p>
+                    <div class="space-y-1.5">
+                      <div class="flex items-center justify-between">
+                        <span class="text-[10px] text-green-600 dark:text-green-400 font-bold">87%</span>
+                        <span class="text-[10px] text-gray-400">Taux livraison</span>
+                      </div>
+                      <div class="h-1.5 w-full bg-gray-100 dark:bg-gray-600 rounded-full">
+                        <div class="h-1.5 w-[87%] bg-gradient-to-r from-green-500 to-green-400 rounded-full"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Pickup Followup -->
+                  <div class="bg-white dark:bg-gray-700/50 rounded-2xl p-4 border border-gray-200 dark:border-gray-600 hover:border-purple-300 hover:shadow-md transition-all">
+                    <div class="w-9 h-9 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mb-3">
+                      <BarChart3 class="w-4.5 h-4.5 text-purple-500" />
+                    </div>
+                    <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-1">متابعة الPickup</h3>
+                    <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed mb-3">شوف كل pickup ومتى يتسلّم</p>
+                    <div class="flex items-end gap-1" dir="ltr">
+                      <div class="w-4 h-3 bg-purple-100 dark:bg-purple-900/30 rounded-sm"></div>
+                      <div class="w-4 h-5 bg-purple-200 dark:bg-purple-800/40 rounded-sm"></div>
+                      <div class="w-4 h-8 bg-purple-300 dark:bg-purple-700/50 rounded-sm"></div>
+                      <div class="w-4 h-6 bg-purple-400 dark:bg-purple-600/70 rounded-sm"></div>
+                      <div class="w-4 h-10 bg-purple-500 rounded-sm"></div>
+                      <div class="w-4 h-7 bg-purple-400 rounded-sm"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
+      </div>
+    </section>
 
-        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white leading-relaxed mb-6">
-          نفس الخدمة، نفس المصاريف… أما <span class="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-600">مرابيح أكثر؟</span>
-          <br class="hidden sm:block" />
-          السر في إنك تراقب كل كولي وين مشات
-        </h1>
+    <!-- Before & After Section -->
+    <section class="py-12 px-4 sm:px-6 bg-white dark:bg-gray-900 overflow-hidden" dir="ltr">
+      <div class="max-w-7xl mx-auto relative">
 
-        <p class="text-xl text-gray-600 dark:text-gray-400 leading-loose max-w-2xl mx-auto mb-10">
-          شوف كل شي واضح. كل pickup، كل ليفريزون، كل retour. Rapports مفصّلة و pointage في 3 دقايق.
-        </p>
+        <!-- Angry Person - Far Left (desktop only) -->
+        <img src="@/assets/angry.png" alt="قبل" class="before-after-person absolute left-0 bottom-0 md:w-[320px] lg:w-[390px] xl:w-[460px] object-contain z-10 pointer-events-none select-none hidden md:block" />
 
-        <!-- CTA Button -->
-        <button
-          @click="scrollToForm"
-          class="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-2xl transition-all shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 text-lg"
-        >
-          <span>سجّل توّا ببلاش</span>
-          <ChevronDown class="w-5 h-5 animate-bounce" />
-        </button>
+        <!-- Happy Person - Far Right (desktop only) -->
+        <img src="@/assets/happy.png" alt="بعد" class="before-after-person absolute right-0 bottom-0 md:w-[280px] lg:w-[340px] xl:w-[400px] object-contain z-10 pointer-events-none select-none hidden md:block" />
 
-        <!-- Quick stats -->
-        <div class="mt-12 flex items-center justify-center gap-8 text-sm text-gray-500 dark:text-gray-400">
-          <div class="flex items-center gap-2">
-            <Check class="w-4 h-4 text-green-500" />
-            <span>ببلاش 100%</span>
+        <!-- Cards Grid - Center -->
+        <div class="relative z-20 grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6 px-0 md:px-40 lg:px-52 xl:px-60 py-8">
+
+          <!-- LEFT Column: Problems -->
+          <div class="space-y-2" dir="rtl">
+            <div class="text-center mb-3">
+              <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-red-100 dark:bg-red-900/30 rounded-full">
+                <X class="w-3.5 h-3.5 text-red-600" />
+                <span class="text-xs font-medium text-red-700 dark:text-red-400">قبل Mouraqib</span>
+              </span>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800/95 rounded-lg p-3 border border-red-200/60 dark:border-red-900/50 shadow-sm">
+              <div class="flex items-start gap-2">
+                <div class="w-6 h-6 bg-red-100 dark:bg-red-900/30 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <X class="w-3 h-3 text-red-500" />
+                </div>
+                <div>
+                  <h3 class="text-xs text-gray-900 dark:text-white mb-0.5">5 dashboards مختلفة</h3>
+                  <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">كل شركة ليفريزون عندها dashboard وحدها</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800/95 rounded-lg p-3 border border-red-200/60 dark:border-red-900/50 shadow-sm">
+              <div class="flex items-start gap-2">
+                <div class="w-6 h-6 bg-red-100 dark:bg-red-900/30 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <X class="w-3 h-3 text-red-500" />
+                </div>
+                <div>
+                  <h3 class="text-xs text-gray-900 dark:text-white mb-0.5">الريتور يضيّع فلوسك</h3>
+                  <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">ما تعرفش شكون رجعلك وشكون لا</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800/95 rounded-lg p-3 border border-red-200/60 dark:border-red-900/50 shadow-sm">
+              <div class="flex items-start gap-2">
+                <div class="w-6 h-6 bg-red-100 dark:bg-red-900/30 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <X class="w-3 h-3 text-red-500" />
+                </div>
+                <div>
+                  <h3 class="text-xs text-gray-900 dark:text-white mb-0.5">الفلوس ما تجيكش في وقتها</h3>
+                  <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">تستنّى وما تعرفش وين وصلو فلوسك</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800/95 rounded-lg p-3 border border-red-200/60 dark:border-red-900/50 shadow-sm">
+              <div class="flex items-start gap-2">
+                <div class="w-6 h-6 bg-red-100 dark:bg-red-900/30 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <X class="w-3 h-3 text-red-500" />
+                </div>
+                <div>
+                  <h3 class="text-xs text-gray-900 dark:text-white mb-0.5">ما عندكش rapports واضحة</h3>
+                  <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">لازم تحسب يدوي. ضياع وقت وأخطاء</p>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <Check class="w-4 h-4 text-green-500" />
-            <span>بلا كارت بنكية</span>
+
+          <!-- RIGHT Column: Features -->
+          <div class="space-y-2" dir="rtl">
+            <div class="text-center mb-3">
+              <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 rounded-full">
+                <Check class="w-3.5 h-3.5 text-green-600" />
+                <span class="text-xs font-medium text-green-700 dark:text-green-400">مع Mouraqib</span>
+              </span>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800/95 rounded-lg p-3 border border-green-200/60 dark:border-green-900/50 shadow-sm">
+              <div class="flex items-start gap-2">
+                <div class="w-6 h-6 bg-orange-100 dark:bg-orange-900/30 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Check class="w-3 h-3 text-orange-500" />
+                </div>
+                <div>
+                  <h3 class="text-xs text-gray-900 dark:text-white mb-0.5">Dashboard واحد يكفي</h3>
+                  <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">كل شركات الليفريزون في بلاصة وحدة</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800/95 rounded-lg p-3 border border-green-200/60 dark:border-green-900/50 shadow-sm">
+              <div class="flex items-start gap-2">
+                <div class="w-6 h-6 bg-orange-100 dark:bg-orange-900/30 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Check class="w-3 h-3 text-orange-500" />
+                </div>
+                <div>
+                  <h3 class="text-xs text-gray-900 dark:text-white mb-0.5">تتبّع كل retour</h3>
+                  <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">شوف كل ريتور وين وصل. كل شي بالأرقام</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800/95 rounded-lg p-3 border border-green-200/60 dark:border-green-900/50 shadow-sm">
+              <div class="flex items-start gap-2">
+                <div class="w-6 h-6 bg-orange-100 dark:bg-orange-900/30 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Check class="w-3 h-3 text-orange-500" />
+                </div>
+                <div>
+                  <h3 class="text-xs text-gray-900 dark:text-white mb-0.5">Pointage الخلاص في 3 دقايق</h3>
+                  <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">قارن إلّي خلّصوك بإلّي لازم يخلّصوك</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white dark:bg-gray-800/95 rounded-lg p-3 border border-green-200/60 dark:border-green-900/50 shadow-sm">
+              <div class="flex items-start gap-2">
+                <div class="w-6 h-6 bg-orange-100 dark:bg-orange-900/30 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Check class="w-3 h-3 text-orange-500" />
+                </div>
+                <div>
+                  <h3 class="text-xs text-gray-900 dark:text-white mb-0.5">Rapports مفصّلة</h3>
+                  <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">أرباحك، خسائرك، أداء كل شركة... كل شي واضح</p>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <Check class="w-4 h-4 text-green-500" />
-            <span>+15 شركة ليفريزون</span>
-          </div>
+
         </div>
       </div>
     </section>
@@ -340,7 +577,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useThemeStore } from '@/stores/theme'
-import { Moon, Sun, UserPlus, ArrowLeft, Loader2, CheckCircle, ChevronDown, Check } from 'lucide-vue-next'
+import { Moon, Sun, UserPlus, ArrowLeft, Loader2, CheckCircle, ChevronDown, Check, X, Package, Truck, Users, BarChart3 } from 'lucide-vue-next'
 import { supabase } from '@/lib/supabase'
 
 const themeStore = useThemeStore()
@@ -498,9 +735,9 @@ async function submitForm() {
 
 <style scoped>
 .font-arabic {
-  font-family: 'IBM Plex Sans Arabic', -apple-system, BlinkMacSystemFont, sans-serif;
-  letter-spacing: 0.01em;
-  line-height: 1.7;
+  font-family: 'Alexandria', 'IBM Plex Sans Arabic', -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: -0.01em;
+  line-height: 1.6;
   font-weight: 400;
 }
 
@@ -524,5 +761,10 @@ textarea::placeholder {
   font-size: 0.9em;
   opacity: 0.5;
   font-weight: 400;
+}
+
+.before-after-person {
+  mask-image: linear-gradient(to top, transparent 0%, transparent 5%, black 45%);
+  -webkit-mask-image: linear-gradient(to top, transparent 0%, transparent 5%, black 45%);
 }
 </style>
