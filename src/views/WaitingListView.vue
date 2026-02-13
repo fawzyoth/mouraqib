@@ -38,9 +38,9 @@
         </div>
 
         <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white leading-relaxed mb-6">
-          خلّي <span class="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-600">كل كولي</span>
+          نفس الخدمة، نفس المصاريف… أما <span class="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-600">مرابيح أكثر؟</span>
           <br class="hidden sm:block" />
-          تحت عينيك
+          السر في إنك تراقب كل كولي وين مشات
         </h1>
 
         <p class="text-xl text-gray-600 dark:text-gray-400 leading-loose max-w-2xl mx-auto mb-10">
