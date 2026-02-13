@@ -3727,224 +3727,207 @@
                 <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
               </button>
               <div>
-                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Planifier un enlèvement</h1>
-                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Sélectionnez les colis à faire enlever par le transporteur</p>
+                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Scan pickup</h1>
+                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Scannez chaque bordereau pour confirmer les colis prêts au ramassage</p>
               </div>
             </div>
             <button
-              @click="requestPickup"
-              :disabled="selectedPickups.length === 0"
-              class="btn-primary text-xs sm:text-sm px-3 sm:px-4 py-2"
+              @click="openPickupConfirmation"
+              :disabled="confirmedShipments.length === 0"
+              :class="['btn-primary text-xs sm:text-sm px-3 sm:px-4 py-2', confirmedShipments.length === 0 && 'opacity-50 cursor-not-allowed']"
             >
               <Truck class="w-4 h-4" />
-              <span class="hidden sm:inline">Planifier ({{ selectedPickups.length }})</span>
+              <span class="hidden sm:inline">Demander enlèvement ({{ confirmedShipments.length }})</span>
+              <span class="sm:hidden">{{ confirmedShipments.length }}</span>
             </button>
           </div>
         </header>
 
-        <main class="flex-1 overflow-y-auto p-6">
-          <!-- Stats Cards -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
-              <div class="flex items-center space-x-3">
-                <div class="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                  <Clock class="w-5 h-5 text-yellow-600" />
-                </div>
-                <div>
-                  <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ pendingPickups.length }}</p>
-                  <p class="text-sm text-gray-500">En attente</p>
-                </div>
-              </div>
-            </div>
-            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
-              <div class="flex items-center space-x-3">
-                <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                  <CalendarClock class="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ scheduledPickups.length }}</p>
-                  <p class="text-sm text-gray-500">Programmés</p>
-                </div>
-              </div>
-            </div>
-            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
-              <div class="flex items-center space-x-3">
-                <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                  <CheckCircle class="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ completedPickupsCount }}</p>
-                  <p class="text-sm text-gray-500">Terminés ce mois</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Pending Pickups List -->
-          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
-            <div class="p-4 border-b border-gray-200 dark:border-gray-800">
-              <div class="flex items-center justify-between">
-                <h3 class="font-semibold text-gray-900 dark:text-white">Colis en attente d'enlèvement</h3>
-                <button @click="selectAllPickups" class="text-sm text-[#4959b4] hover:underline">
-                  {{ selectedPickups.length === pendingPickups.length && pendingPickups.length > 0 ? 'Tout désélectionner' : 'Tout sélectionner' }}
-                </button>
-              </div>
-            </div>
-
-            <div v-if="pendingPickups.length === 0" class="p-8 text-center">
-              <div class="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Package class="w-8 h-8 text-gray-400" />
-              </div>
-              <p class="text-gray-500 dark:text-gray-400">Aucun colis en attente d'enlèvement</p>
-              <p class="text-sm text-gray-400 mt-1">Les nouveaux colis apparaîtront ici</p>
-            </div>
-
-            <div v-else class="divide-y divide-gray-200 dark:divide-gray-800">
-              <div v-for="shipment in pendingPickups" :key="shipment.id" class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                <div class="flex items-start space-x-4">
-                  <input type="checkbox" :checked="selectedPickups.includes(shipment.id)" @change="togglePickupSelection(shipment.id)" class="mt-1 w-5 h-5 rounded" />
-                  <div class="flex-1">
-                    <div class="flex items-center justify-between mb-2">
-                      <div class="flex items-center space-x-2">
-                        <span class="font-mono font-semibold text-gray-900 dark:text-white">{{ shipment.trackingNumber }}</span>
-                        <span class="px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-xs rounded font-medium">En attente</span>
-                      </div>
-                      <span class="text-sm text-gray-500">{{ shipment.carrier }}</span>
-                    </div>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p class="text-gray-500">Destinataire</p>
-                        <p class="text-gray-900 dark:text-white font-medium">{{ shipment.recipient }}</p>
-                      </div>
-                      <div>
-                        <p class="text-gray-500">Téléphone</p>
-                        <p class="text-gray-900 dark:text-white">{{ shipment.recipientPhone }}</p>
-                      </div>
-                      <div>
-                        <p class="text-gray-500">Adresse</p>
-                        <p class="text-gray-900 dark:text-white">{{ shipment.recipientAddress }}</p>
-                      </div>
-                      <div>
-                        <p class="text-gray-500">Montant</p>
-                        <p class="text-gray-900 dark:text-white font-medium">{{ shipment.amount }} TND</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </main>
-      </template>
-
-      <!-- Pickup Requests Section -->
-      <template v-if="activeSection === 'pickup-requests'">
-        <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
-          <div class="flex items-center justify-between">
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6">
+          <!-- Scan Input -->
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4 mb-4">
             <div class="flex items-center gap-3">
-              <button @click="subMenuOpen = !subMenuOpen" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-                <ListFilter class="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              <div class="p-2.5 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                <ScanBarcode class="w-5 h-5 text-orange-600" />
+              </div>
+              <input
+                v-model="scanInput"
+                @keydown.enter.prevent="handleScan"
+                type="text"
+                placeholder="Scanner ou saisir le N° de suivi..."
+                class="flex-1 px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-base font-mono focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500"
+                autofocus
+              />
+              <button @click="handleScan" class="px-5 py-3 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-xl transition-colors text-sm whitespace-nowrap">
+                Scanner
               </button>
-              <div>
-                <h1 class="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Demandes d'enlèvement</h1>
-                <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Suivez vos demandes d'enlèvement en cours</p>
-              </div>
             </div>
+            <!-- Scan Feedback -->
+            <transition name="fade">
+              <div v-if="scanFeedback" class="mt-3 flex items-center gap-2 text-sm px-3 py-2 rounded-lg" :class="{
+                'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400': scanFeedback.type === 'success',
+                'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400': scanFeedback.type === 'error',
+                'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400': scanFeedback.type === 'warning'
+              }">
+                <CheckCircle v-if="scanFeedback.type === 'success'" class="w-4 h-4 flex-shrink-0" />
+                <AlertCircle v-else class="w-4 h-4 flex-shrink-0" />
+                <span>{{ scanFeedback.message }}</span>
+              </div>
+            </transition>
           </div>
-        </header>
 
-        <main class="flex-1 overflow-y-auto p-6">
           <!-- Stats Cards -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
-              <div class="flex items-center space-x-3">
-                <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                  <PackageOpen class="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ pickupRequests.length }}</p>
-                  <p class="text-sm text-gray-500">Total demandes</p>
-                </div>
-              </div>
-            </div>
-            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
-              <div class="flex items-center space-x-3">
-                <div class="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                  <Clock class="w-5 h-5 text-yellow-600" />
-                </div>
-                <div>
-                  <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ pickupRequests.filter(p => p.status === 'pending').length }}</p>
-                  <p class="text-sm text-gray-500">En attente confirmation</p>
-                </div>
-              </div>
-            </div>
-            <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
+          <div class="grid grid-cols-3 gap-3 mb-4">
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-3 sm:p-4 border border-gray-200 dark:border-gray-800">
               <div class="flex items-center space-x-3">
                 <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
                   <CheckCircle class="w-5 h-5 text-green-600" />
                 </div>
                 <div>
-                  <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ pickupRequests.filter(p => p.status === 'confirmed').length }}</p>
-                  <p class="text-sm text-gray-500">Confirmées aujourd'hui</p>
+                  <p class="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">{{ confirmedShipments.length }}<span class="text-sm font-normal text-gray-400">/{{ pickupCandidates.length }}</span></p>
+                  <p class="text-xs sm:text-sm text-gray-500">Confirmés</p>
+                </div>
+              </div>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-3 sm:p-4 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                  <Truck class="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <p class="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">{{ confirmedByCarrier.length }}</p>
+                  <p class="text-xs sm:text-sm text-gray-500">Transporteurs</p>
+                </div>
+              </div>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-xl p-3 sm:p-4 border border-gray-200 dark:border-gray-800">
+              <div class="flex items-center space-x-3">
+                <div class="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                  <Wallet class="w-5 h-5 text-orange-600" />
+                </div>
+                <div>
+                  <p class="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">{{ confirmedTotalCOD.toLocaleString() }}</p>
+                  <p class="text-xs sm:text-sm text-gray-500">COD (TND)</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Pickup Requests Table -->
-          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
-            <div class="p-4 border-b border-gray-200 dark:border-gray-800">
-              <div class="flex items-center justify-between">
-                <h3 class="font-semibold text-gray-900 dark:text-white">Demandes d'enlèvement</h3>
-                <select v-model="pickupRequestFilter" class="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
-                  <option value="all">Tous les statuts</option>
-                  <option value="pending">En attente</option>
-                  <option value="confirmed">Confirmée</option>
-                  <option value="cancelled">Annulée</option>
-                </select>
-              </div>
+          <!-- Empty State: No candidates at all -->
+          <div v-if="pickupCandidates.length === 0" class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-12 text-center">
+            <div class="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Package class="w-8 h-8 text-gray-400" />
             </div>
+            <p class="text-gray-500 dark:text-gray-400 font-medium">Aucun colis prêt pour l'enlèvement</p>
+            <p class="text-sm text-gray-400 mt-1">Les colis avec bordereaux imprimés apparaîtront ici automatiquement</p>
+            <p v-if="pendingPickups.length > 0" class="text-sm text-orange-500 mt-3">{{ pendingPickups.length }} colis en attente — imprimez les bordereaux d'abord</p>
+          </div>
 
-            <div v-if="filteredPickupRequests.length === 0" class="p-8 text-center">
-              <div class="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                <PackageOpen class="w-8 h-8 text-gray-400" />
-              </div>
-              <p class="text-gray-500 dark:text-gray-400">Aucune demande d'enlèvement</p>
-              <p class="text-sm text-gray-400 mt-1">Planifiez un enlèvement pour commencer</p>
-            </div>
-
-            <div v-else class="divide-y divide-gray-200 dark:divide-gray-800">
-              <div v-for="request in filteredPickupRequests" :key="request.id" @click="viewPickupDetail(request)" class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer">
+          <!-- Shipments Grouped by Carrier -->
+          <div v-else class="space-y-4">
+            <div v-for="group in pickupByCarrier" :key="group.carrier" class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+              <!-- Carrier Group Header -->
+              <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
                 <div class="flex items-center justify-between">
-                  <div class="flex items-center space-x-4">
-                    <div class="p-2 rounded-lg" :class="request.status === 'confirmed' ? 'bg-green-100 dark:bg-green-900/30' : request.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900/30' : 'bg-red-100 dark:bg-red-900/30'">
-                      <Truck :class="['w-5 h-5', request.status === 'confirmed' ? 'text-green-600' : request.status === 'pending' ? 'text-yellow-600' : 'text-red-600']" />
+                  <div class="flex items-center gap-2">
+                    <Truck class="w-4 h-4 text-gray-500" />
+                    <h3 class="font-semibold text-gray-900 dark:text-white">{{ group.carrier }}</h3>
+                    <span :class="[
+                      'px-2 py-0.5 text-xs rounded-full font-medium',
+                      group.confirmedCount === group.shipments.length
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                        : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
+                    ]">{{ group.confirmedCount }}/{{ group.shipments.length }} confirmés</span>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <button
+                      @click="confirmAllCarrier(group.carrier)"
+                      v-if="group.confirmedCount < group.shipments.length"
+                      class="text-xs text-orange-600 hover:text-orange-700 font-medium"
+                    >Tout confirmer</button>
+                    <span class="text-sm font-medium text-gray-500">{{ group.shipments.reduce((sum, s) => sum + (s.cod || s.totalPrice || 0), 0).toLocaleString() }} TND</span>
+                  </div>
+                </div>
+              </div>
+              <!-- Shipments List -->
+              <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                <div
+                  v-for="shipment in group.shipments"
+                  :key="shipment.trackingNumber"
+                  :class="[
+                    'px-4 py-3 flex items-center justify-between transition-colors',
+                    shipment.confirmed
+                      ? 'bg-green-50/50 dark:bg-green-900/10'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800/30'
+                  ]"
+                >
+                  <div class="flex items-center gap-3 flex-1 min-w-0">
+                    <!-- Confirmed/Unconfirmed indicator -->
+                    <div :class="[
+                      'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors',
+                      shipment.confirmed
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700'
+                    ]">
+                      <CheckCircle v-if="shipment.confirmed" class="w-4 h-4" />
+                      <span v-else class="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-500"></span>
                     </div>
-                    <div>
+                    <div class="min-w-0">
                       <div class="flex items-center gap-2">
-                        <p class="font-semibold text-gray-900 dark:text-white">{{ request.id }}</p>
                         <span :class="[
-                          'px-2 py-0.5 text-xs rounded-full font-medium',
-                          request.status === 'confirmed' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
-                          request.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
-                          'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                        ]">
-                          {{ request.status === 'confirmed' ? 'Confirmée' : request.status === 'pending' ? 'En attente' : 'Annulée' }}
-                        </span>
+                          'font-mono text-sm font-semibold',
+                          shipment.confirmed
+                            ? 'text-green-700 dark:text-green-400'
+                            : 'text-gray-900 dark:text-white'
+                        ]">{{ shipment.trackingNumber }}</span>
+                        <span v-if="shipment.confirmed" class="text-xs text-green-600 dark:text-green-500 font-medium">Confirmé</span>
                       </div>
-                      <p class="text-sm text-gray-500">{{ request.date }} • {{ request.timeSlot }} • {{ request.shipmentCount }} colis</p>
+                      <p class="text-xs text-gray-500 truncate">{{ shipment.customerName }} · {{ shipment.recipientPhone }}</p>
                     </div>
                   </div>
-                  <div class="flex items-center gap-2">
-                    <button @click.stop="viewPickupDetail(request)" class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-                      <Eye class="w-4 h-4" />
-                    </button>
-                    <button v-if="request.status === 'pending'" @click.stop class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
+                  <div class="flex items-center gap-3">
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ (shipment.cod || shipment.totalPrice || 0).toLocaleString() }} TND</span>
+                    <button
+                      v-if="shipment.confirmed"
+                      @click="unconfirmShipment(shipment.trackingNumber)"
+                      class="p-1.5 text-green-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      title="Retirer la confirmation"
+                    >
                       <X class="w-4 h-4" />
                     </button>
+                    <button
+                      v-else
+                      @click="confirmShipmentManual(shipment.trackingNumber)"
+                      class="p-1.5 text-gray-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                      title="Confirmer manuellement"
+                    >
+                      <CheckCircle class="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </div>
+            </div>
+
+            <!-- Bottom Actions -->
+            <div class="flex items-center justify-between bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+              <button @click="clearScanSession" class="text-sm text-gray-500 hover:text-red-500 transition-colors flex items-center gap-1.5">
+                <Trash2 class="w-4 h-4" />
+                Réinitialiser
+              </button>
+              <button
+                @click="openPickupConfirmation"
+                :disabled="confirmedShipments.length === 0"
+                :class="[
+                  'px-5 py-2.5 font-medium rounded-xl transition-colors text-sm flex items-center gap-2',
+                  confirmedShipments.length > 0
+                    ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                ]"
+              >
+                <Truck class="w-4 h-4" />
+                Demander enlèvement ({{ confirmedShipments.length }} colis)
+                <ArrowRight class="w-4 h-4" />
+              </button>
             </div>
           </div>
         </main>
@@ -8987,36 +8970,26 @@
 
     <!-- Pickup Request Modal -->
     <Teleport to="body">
-      <div v-if="showPickupRequestModal" class="fixed inset-0 z-50 flex items-center justify-center">
-        <div class="absolute inset-0 bg-black/50" @click="showPickupRequestModal = false"></div>
-        <div class="relative bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg p-6">
+      <!-- Scan Pickup Confirmation Modal -->
+      <div v-if="showPickupConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/50" @click="showPickupConfirmModal = false"></div>
+        <div class="relative bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
           <div class="flex items-center justify-between mb-6">
             <div>
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Demander un enlèvement</h3>
-              <p class="text-sm text-gray-500 mt-1">{{ selectedPickups.length }} colis sélectionné{{ selectedPickups.length > 1 ? 's' : '' }}</p>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Confirmer l'enlèvement</h3>
+              <p class="text-sm text-gray-500 mt-1">{{ confirmedShipments.length }} colis · {{ confirmedByCarrier.length }} transporteur{{ confirmedByCarrier.length > 1 ? 's' : '' }}</p>
             </div>
-            <button @click="showPickupRequestModal = false" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+            <button @click="showPickupConfirmModal = false" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
               <X class="w-5 h-5 text-gray-500" />
             </button>
           </div>
 
           <div class="space-y-4">
-            <!-- Selected Shipments Summary -->
-            <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-              <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Colis à enlever</p>
-              <div class="space-y-2 max-h-32 overflow-y-auto">
-                <div v-for="id in selectedPickups" :key="id" class="flex items-center justify-between text-sm">
-                  <span class="font-mono text-gray-900 dark:text-white">{{ getShipmentById(id)?.trackingNumber }}</span>
-                  <span class="text-gray-500">{{ getShipmentById(id)?.carrier }}</span>
-                </div>
-              </div>
-            </div>
-
             <!-- Pickup Date -->
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date d'enlèvement</label>
               <input
-                v-model="pickupDate"
+                v-model="pickupSchedule.date"
                 type="date"
                 :min="minPickupDate"
                 class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -9027,7 +9000,7 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Créneau horaire</label>
               <select
-                v-model="pickupTimeSlot"
+                v-model="pickupSchedule.timeSlot"
                 class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               >
                 <option value="">Sélectionner un créneau</option>
@@ -9042,19 +9015,39 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Adresse d'enlèvement</label>
               <textarea
-                v-model="pickupAddress"
+                v-model="pickupSchedule.address"
                 rows="2"
                 class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"
               ></textarea>
             </div>
 
-            <!-- Carrier Info -->
+            <!-- Per-Carrier Summary -->
+            <div class="space-y-3">
+              <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Résumé par transporteur</p>
+              <div v-for="group in confirmedByCarrier" :key="group.carrier" class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <Truck class="w-4 h-4 text-gray-500" />
+                    <span class="font-medium text-sm text-gray-900 dark:text-white">{{ group.carrier }}</span>
+                  </div>
+                  <span class="text-xs px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full font-medium">{{ group.shipments.length }} colis</span>
+                </div>
+                <div class="space-y-1 max-h-24 overflow-y-auto">
+                  <div v-for="s in group.shipments" :key="s.trackingNumber" class="flex items-center justify-between text-xs">
+                    <span class="font-mono text-gray-600 dark:text-gray-400">{{ s.trackingNumber }}</span>
+                    <span class="text-gray-500">{{ (s.cod || s.totalPrice || 0).toLocaleString() }} TND</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Info Box -->
             <div class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4">
               <div class="flex items-start space-x-3">
                 <AlertCircle class="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
                 <div class="text-sm">
-                  <p class="font-medium text-orange-800 dark:text-orange-200">Information importante</p>
-                  <p class="text-orange-700 dark:text-orange-300 mt-1">Le transporteur passera à l'adresse indiquée pendant le créneau sélectionné. Assurez-vous que les colis sont prêts.</p>
+                  <p class="font-medium text-orange-800 dark:text-orange-200">{{ confirmedByCarrier.length }} demande{{ confirmedByCarrier.length > 1 ? 's' : '' }} d'enlèvement {{ confirmedByCarrier.length > 1 ? 'seront créées' : 'sera créée' }}</p>
+                  <p class="text-orange-700 dark:text-orange-300 mt-1">Une demande par transporteur. Assurez-vous que les colis sont prêts pour le ramassage.</p>
                 </div>
               </div>
             </div>
@@ -9062,22 +9055,23 @@
 
           <div class="flex justify-end space-x-3 mt-6">
             <button
-              @click="showPickupRequestModal = false"
+              @click="showPickupConfirmModal = false"
               class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
             >
               Annuler
             </button>
             <button
-              @click="confirmPickupRequest"
-              :disabled="!pickupDate || !pickupTimeSlot"
+              @click="confirmScanPickup"
+              :disabled="!pickupSchedule.date || !pickupSchedule.timeSlot || confirmingPickup"
               :class="[
-                'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                pickupDate && pickupTimeSlot
-                  ? 'bg-primary-blue hover:bg-primary-blue-hover text-white'
+                'px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2',
+                pickupSchedule.date && pickupSchedule.timeSlot && !confirmingPickup
+                  ? 'bg-orange-500 hover:bg-orange-600 text-white'
                   : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
               ]"
             >
-              Confirmer l'enlèvement
+              <Loader2 v-if="confirmingPickup" class="w-4 h-4 animate-spin" />
+              Créer {{ confirmedByCarrier.length }} demande{{ confirmedByCarrier.length > 1 ? 's' : '' }}
             </button>
           </div>
         </div>
@@ -10694,10 +10688,10 @@
                       Total encaissé
                     </td>
                     <td class="px-4 py-3 hidden sm:table-cell text-xs text-gray-500">
-                      ({{ selectedPickupDetail.shipments.filter((s: any) => s.status === 'Delivered').length }} livrés)
+                      ({{ selectedPickupDetail.shipments.filter(s => s.status === 'Delivered').length }} livrés)
                     </td>
                     <td class="px-4 py-3 text-right text-sm font-semibold text-green-600 dark:text-green-400">
-                      {{ selectedPickupDetail.shipments.filter((s: any) => s.status === 'Delivered').reduce((sum: number, s: any) => sum + (s.amount || 0), 0) }} TND
+                      {{ selectedPickupDetail.shipments.filter(s => s.status === 'Delivered').reduce((sum, s) => sum + (s.amount || 0), 0) }} TND
                     </td>
                   </tr>
                 </tfoot>
@@ -11174,7 +11168,9 @@ import {
   ListFilter,
   Trash2,
   Save,
-  Monitor
+  Monitor,
+  ScanBarcode,
+  Loader2
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -11910,8 +11906,7 @@ const subNavigation: Record<string, Array<{ id: string; label: string; icon: any
     { id: 'labels', label: 'Bordereaux', icon: markRaw(FileCheck) },
   ],
   pickups: [
-    { id: 'schedule-pickup', label: 'Planifier enlèvement', icon: markRaw(CalendarClock) },
-    { id: 'pickup-requests', label: 'Demandes d\'enlèvement', icon: markRaw(PackageOpen) },
+    { id: 'schedule-pickup', label: 'Scan pickup', icon: markRaw(ScanBarcode) },
     { id: 'pickup-history', label: 'Historique', icon: markRaw(History) },
   ],
   returns: [
@@ -12248,11 +12243,14 @@ const activeStatusTab = ref('all')
 const searchQuery = ref('')
 const showAddShipmentModal = ref(false)
 const selectedShipment = ref<any>(null)
-const selectedPickups = ref<number[]>([])
-const showPickupRequestModal = ref(false)
-const pickupDate = ref('')
-const pickupTimeSlot = ref('')
-const pickupAddress = ref('123 Avenue Habib Bourguiba, Tunis, Tunisie')
+// Scan-based pickup workflow
+const scanInput = ref('')
+const scanLoading = ref(false)
+const scanFeedback = ref<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null)
+const confirmedTrackingNumbers = ref<Set<string>>(new Set())
+const showPickupConfirmModal = ref(false)
+const pickupSchedule = reactive({ date: '', timeSlot: '', address: '123 Avenue Habib Bourguiba, Tunis, Tunisie' })
+const confirmingPickup = ref(false)
 const selectedLabels = ref<number[]>([])
 const showPrintLabelModal = ref(false)
 const labelToPrint = ref<any>(null)
@@ -13588,7 +13586,135 @@ const statusTabs = computed(() => [
 ])
 
 // Shipments - empty by default, loaded from Supabase
-const shipments = ref<any[]>([])
+// Seed with demo data for testing
+const shipments = ref<any[]>([
+  {
+    id: 1001, trackingNumber: 'TN-2026-10001001', carrier: 'Yalidine', service: 'Standard', status: 'Pending',
+    latestEvent: '12 fév. : Colis créé', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Alger Centre, Alger',
+    deliveryDate: null, transitDays: 0, orderNumber: 'CMD-1001', customerName: 'Ahmed Ben Ali',
+    labelNumber: 'BRD-2026-100001', labelPrinted: true, labelPrintedAt: '12 fév. 2026 à 09:15',
+    weight: 1.2, dimensions: '25x20x10', cod: 4500, senderName: 'Ma Boutique', senderAddress: 'Tunis',
+    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 100 200', recipientPhoneSecondary: '',
+    recipientAddress: '12 Rue Didouche Mourad, 16000 Alger Centre, Alger',
+    productDescription: 'Robe été collection 2026', fragile: false, reference: 'REF-A001',
+    productPrice: 4000, deliveryFee: 500, totalPrice: 4500,
+    events: [{ status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '12 fév. 2026 à 09:15', completed: true }]
+  },
+  {
+    id: 1002, trackingNumber: 'TN-2026-10001002', carrier: 'Yalidine', service: 'Express', status: 'Pending',
+    latestEvent: '12 fév. : Colis créé', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Oran, Oran',
+    deliveryDate: null, transitDays: 0, orderNumber: 'CMD-1002', customerName: 'Fatma Saidi',
+    labelNumber: 'BRD-2026-100002', labelPrinted: true, labelPrintedAt: '12 fév. 2026 à 09:20',
+    weight: 0.8, dimensions: '20x15x8', cod: 3200, senderName: 'Ma Boutique', senderAddress: 'Tunis',
+    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 200 300', recipientPhoneSecondary: '',
+    recipientAddress: '45 Boulevard de la Soummam, 31000 Oran',
+    productDescription: 'Sac à main cuir', fragile: false, reference: 'REF-A002',
+    productPrice: 2800, deliveryFee: 400, totalPrice: 3200,
+    events: [{ status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '12 fév. 2026 à 09:20', completed: true }]
+  },
+  {
+    id: 1003, trackingNumber: 'TN-2026-10001003', carrier: 'Yalidine', service: 'Standard', status: 'Pending',
+    latestEvent: '12 fév. : Colis créé', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Bab Ezzouar, Alger',
+    deliveryDate: null, transitDays: 0, orderNumber: 'CMD-1003', customerName: 'Karim Trabelsi',
+    labelNumber: 'BRD-2026-100003', labelPrinted: true, labelPrintedAt: '12 fév. 2026 à 10:00',
+    weight: 2.0, dimensions: '30x25x15', cod: 2800, senderName: 'Ma Boutique', senderAddress: 'Tunis',
+    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 300 400', recipientPhoneSecondary: '',
+    recipientAddress: '8 Cité AADL, 16028 Bab Ezzouar, Alger',
+    productDescription: 'Chaussures sport Nike', fragile: false, reference: 'REF-A003',
+    productPrice: 2400, deliveryFee: 400, totalPrice: 2800,
+    events: [{ status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '12 fév. 2026 à 10:00', completed: true }]
+  },
+  {
+    id: 1004, trackingNumber: 'TN-2026-10001004', carrier: 'ZR Express', service: 'Standard', status: 'Pending',
+    latestEvent: '12 fév. : Colis créé', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Constantine, Constantine',
+    deliveryDate: null, transitDays: 0, orderNumber: 'CMD-1004', customerName: 'Salma Hamdi',
+    labelNumber: 'BRD-2026-100004', labelPrinted: true, labelPrintedAt: '12 fév. 2026 à 10:30',
+    weight: 1.5, dimensions: '25x20x12', cod: 5500, senderName: 'Ma Boutique', senderAddress: 'Tunis',
+    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 400 500', recipientPhoneSecondary: '',
+    recipientAddress: '22 Rue Abane Ramdane, 25000 Constantine',
+    productDescription: 'Ensemble jogging premium', fragile: false, reference: 'REF-A004',
+    productPrice: 5000, deliveryFee: 500, totalPrice: 5500,
+    events: [{ status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '12 fév. 2026 à 10:30', completed: true }]
+  },
+  {
+    id: 1005, trackingNumber: 'TN-2026-10001005', carrier: 'ZR Express', service: 'Express', status: 'Pending',
+    latestEvent: '12 fév. : Colis créé', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Sétif, Sétif',
+    deliveryDate: null, transitDays: 0, orderNumber: 'CMD-1005', customerName: 'Nour Gharbi',
+    labelNumber: 'BRD-2026-100005', labelPrinted: true, labelPrintedAt: '12 fév. 2026 à 11:00',
+    weight: 0.5, dimensions: '15x12x5', cod: 4000, senderName: 'Ma Boutique', senderAddress: 'Tunis',
+    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 500 600', recipientPhoneSecondary: '',
+    recipientAddress: '15 Cité Mabouda, 19000 Sétif',
+    productDescription: 'Montre connectée', fragile: true, reference: 'REF-A005',
+    productPrice: 3500, deliveryFee: 500, totalPrice: 4000,
+    events: [{ status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '12 fév. 2026 à 11:00', completed: true }]
+  },
+  {
+    id: 1006, trackingNumber: 'TN-2026-10001006', carrier: 'Maystro Delivery', service: 'Standard', status: 'Pending',
+    latestEvent: '13 fév. : Colis créé', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Annaba, Annaba',
+    deliveryDate: null, transitDays: 0, orderNumber: 'CMD-1006', customerName: 'Youssef Bouzid',
+    labelNumber: 'BRD-2026-100006', labelPrinted: true, labelPrintedAt: '13 fév. 2026 à 08:45',
+    weight: 1.0, dimensions: '20x18x10', cod: 3800, senderName: 'Ma Boutique', senderAddress: 'Tunis',
+    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 600 700', recipientPhoneSecondary: '',
+    recipientAddress: '3 Rue Ben M\'hidi, 23000 Annaba',
+    productDescription: 'Parfum collection luxe', fragile: true, reference: 'REF-A006',
+    productPrice: 3300, deliveryFee: 500, totalPrice: 3800,
+    events: [{ status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '13 fév. 2026 à 08:45', completed: true }]
+  },
+  {
+    id: 1007, trackingNumber: 'TN-2026-10001007', carrier: 'Maystro Delivery', service: 'Express', status: 'Pending',
+    latestEvent: '13 fév. : Colis créé', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Blida, Blida',
+    deliveryDate: null, transitDays: 0, orderNumber: 'CMD-1007', customerName: 'Amira Khelifi',
+    labelNumber: 'BRD-2026-100007', labelPrinted: true, labelPrintedAt: '13 fév. 2026 à 09:10',
+    weight: 3.0, dimensions: '40x30x20', cod: 8500, senderName: 'Ma Boutique', senderAddress: 'Tunis',
+    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 700 800', recipientPhoneSecondary: '+216 55 700 801',
+    recipientAddress: '67 Avenue de l\'ALN, 09000 Blida',
+    productDescription: 'Veste cuir homme + ceinture', fragile: false, reference: 'REF-A007',
+    productPrice: 8000, deliveryFee: 500, totalPrice: 8500,
+    events: [{ status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '13 fév. 2026 à 09:10', completed: true }]
+  },
+  {
+    id: 1008, trackingNumber: 'TN-2026-10001008', carrier: 'Yalidine', service: 'Standard', status: 'Pending',
+    latestEvent: '13 fév. : Colis créé', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Tlemcen, Tlemcen',
+    deliveryDate: null, transitDays: 0, orderNumber: 'CMD-1008', customerName: 'Mohamed Cherif',
+    labelNumber: 'BRD-2026-100008', labelPrinted: true, labelPrintedAt: '13 fév. 2026 à 09:30',
+    weight: 1.8, dimensions: '28x22x12', cod: 6200, senderName: 'Ma Boutique', senderAddress: 'Tunis',
+    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 800 900', recipientPhoneSecondary: '',
+    recipientAddress: '10 Place Emir Abdelkader, 13000 Tlemcen',
+    productDescription: 'Lunettes de soleil Ray-Ban + étui', fragile: true, reference: 'REF-A008',
+    productPrice: 5700, deliveryFee: 500, totalPrice: 6200,
+    events: [{ status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '13 fév. 2026 à 09:30', completed: true }]
+  },
+  {
+    id: 1009, trackingNumber: 'TN-2026-10001009', carrier: 'ZR Express', service: 'Standard', status: 'Pending',
+    latestEvent: '13 fév. : Colis créé', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Béjaïa, Béjaïa',
+    deliveryDate: null, transitDays: 0, orderNumber: 'CMD-1009', customerName: 'Lina Boudiaf',
+    labelNumber: 'BRD-2026-100009', labelPrinted: false, labelPrintedAt: null,
+    weight: 0.6, dimensions: '18x15x8', cod: 2900, senderName: 'Ma Boutique', senderAddress: 'Tunis',
+    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 900 100', recipientPhoneSecondary: '',
+    recipientAddress: '5 Rue de la Liberté, 06000 Béjaïa',
+    productDescription: 'Portefeuille cuir femme', fragile: false, reference: 'REF-A009',
+    productPrice: 2400, deliveryFee: 500, totalPrice: 2900,
+    events: [{ status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '13 fév. 2026 à 10:00', completed: true }]
+  },
+  {
+    id: 1010, trackingNumber: 'TN-2026-10001010', carrier: 'Maystro Delivery', service: 'Standard', status: 'Delivered',
+    latestEvent: '10 fév. : Livré', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Batna, Batna',
+    deliveryDate: '10 fév. 2026', transitDays: 3, orderNumber: 'CMD-1010', customerName: 'Rania Messaoudi',
+    labelNumber: 'BRD-2026-100010', labelPrinted: true, labelPrintedAt: '7 fév. 2026 à 14:00',
+    weight: 1.0, dimensions: '20x15x10', cod: 3500, senderName: 'Ma Boutique', senderAddress: 'Tunis',
+    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 010 020', recipientPhoneSecondary: '',
+    recipientAddress: '30 Rue de la République, 05000 Batna',
+    productDescription: 'Accessoires téléphone', fragile: false, reference: 'REF-A010',
+    productPrice: 3000, deliveryFee: 500, totalPrice: 3500,
+    events: [
+      { status: 'Livré', description: 'Colis livré au destinataire', location: 'Batna', date: '10 fév. 2026 à 14:30', completed: true },
+      { status: 'En cours de livraison', description: 'En cours de distribution', location: 'Batna', date: '10 fév. 2026 à 08:00', completed: true },
+      { status: 'En transit', description: 'Arrivé au hub Batna', location: 'Batna', date: '9 fév. 2026 à 16:00', completed: true },
+      { status: 'Ramassé', description: 'Colis ramassé', location: 'Tunis', date: '7 fév. 2026 à 15:00', completed: true },
+      { status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '7 fév. 2026 à 14:00', completed: true }
+    ]
+  }
+])
 
 // Carriers - empty by default, loaded from Supabase
 const carriers = ref<any[]>([])
@@ -13881,6 +14007,50 @@ const pickupHistory = ref<any[]>([])
 
 // Failed Pickups
 const failedPickupsData = ref<any[]>([])
+
+// Scan-based pickup computed properties
+
+// All pending shipments with printed labels = candidates for pickup
+const pickupCandidates = computed(() => {
+  return shipments.value.filter(s => s.status === 'Pending' && s.labelPrinted)
+})
+
+// Group candidates by carrier, with confirmed status per shipment
+const pickupByCarrier = computed(() => {
+  const groups: Record<string, { carrier: string; shipments: any[]; confirmedCount: number }> = {}
+  pickupCandidates.value.forEach(s => {
+    const carrier = s.carrier || 'Non assigné'
+    if (!groups[carrier]) {
+      groups[carrier] = { carrier, shipments: [], confirmedCount: 0 }
+    }
+    const isConfirmed = confirmedTrackingNumbers.value.has(s.trackingNumber)
+    groups[carrier].shipments.push({ ...s, confirmed: isConfirmed })
+    if (isConfirmed) groups[carrier].confirmedCount++
+  })
+  return Object.values(groups).sort((a, b) => a.carrier.localeCompare(b.carrier))
+})
+
+// Only confirmed shipments (for pickup request)
+const confirmedShipments = computed(() => {
+  return pickupCandidates.value.filter(s => confirmedTrackingNumbers.value.has(s.trackingNumber))
+})
+
+// Confirmed grouped by carrier (for confirmation modal)
+const confirmedByCarrier = computed(() => {
+  const groups: Record<string, { carrier: string; shipments: any[] }> = {}
+  confirmedShipments.value.forEach(s => {
+    const carrier = s.carrier || 'Non assigné'
+    if (!groups[carrier]) {
+      groups[carrier] = { carrier, shipments: [] }
+    }
+    groups[carrier].shipments.push(s)
+  })
+  return Object.values(groups).sort((a, b) => a.carrier.localeCompare(b.carrier))
+})
+
+const confirmedTotalCOD = computed(() => {
+  return confirmedShipments.value.reduce((sum, s) => sum + (s.cod || s.totalPrice || 0), 0)
+})
 
 // Carrier Performance
 const carrierPerformance = ref<any[]>([])
@@ -14530,23 +14700,6 @@ function getReturnStatusClass(status: string) {
   }
 }
 
-// Pickup functions
-function togglePickupSelection(id: number) {
-  const index = selectedPickups.value.indexOf(id)
-  if (index === -1) {
-    selectedPickups.value.push(id)
-  } else {
-    selectedPickups.value.splice(index, 1)
-  }
-}
-
-function selectAllPickups() {
-  if (selectedPickups.value.length === pendingPickups.value.length) {
-    selectedPickups.value = []
-  } else {
-    selectedPickups.value = pendingPickups.value.map(s => s.id)
-  }
-}
 
 // Label functions
 function toggleLabelSelection(id: number) {
@@ -14608,51 +14761,161 @@ function closePrintModal() {
   labelToPrint.value = null
 }
 
-function requestPickup() {
-  if (selectedPickups.value.length > 0) {
-    showPickupRequestModal.value = true
+
+// ==================== SCAN-BASED PICKUP METHODS ====================
+
+function playScanSound(type: 'success' | 'error') {
+  try {
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+    const oscillator = audioCtx.createOscillator()
+    const gainNode = audioCtx.createGain()
+    oscillator.connect(gainNode)
+    gainNode.connect(audioCtx.destination)
+    oscillator.frequency.value = type === 'success' ? 800 : 300
+    oscillator.type = 'sine'
+    gainNode.gain.value = 0.15
+    oscillator.start()
+    oscillator.stop(audioCtx.currentTime + 0.15)
+    if (navigator.vibrate) navigator.vibrate(type === 'success' ? 100 : [100, 50, 100])
+  } catch {}
+}
+
+function showScanFeedbackMsg(type: 'success' | 'error' | 'warning', message: string) {
+  scanFeedback.value = { type, message }
+  setTimeout(() => { scanFeedback.value = null }, 3000)
+}
+
+function handleScan() {
+  const input = scanInput.value.trim()
+  scanInput.value = ''
+  if (!input) return
+
+  // Check if already confirmed
+  if (confirmedTrackingNumbers.value.has(input)) {
+    playScanSound('error')
+    showScanFeedbackMsg('warning', `Colis ${input} déjà confirmé`)
+    return
   }
+
+  // Lookup in local shipments
+  const shipment = shipments.value.find(s => s.trackingNumber === input)
+  if (!shipment) {
+    playScanSound('error')
+    showScanFeedbackMsg('error', `Colis ${input} introuvable`)
+    return
+  }
+
+  // Validate status
+  if (shipment.status !== 'Pending') {
+    playScanSound('error')
+    showScanFeedbackMsg('error', `Colis ${input} n'est pas en attente (${shipment.status})`)
+    return
+  }
+
+  // Validate label is printed
+  if (!shipment.labelPrinted) {
+    playScanSound('error')
+    showScanFeedbackMsg('error', `Bordereau ${input} non imprimé — imprimez-le d'abord`)
+    return
+  }
+
+  // Confirm the shipment for pickup
+  confirmedTrackingNumbers.value = new Set([...confirmedTrackingNumbers.value, input])
+  playScanSound('success')
+  showScanFeedbackMsg('success', `Colis ${input} confirmé (${shipment.carrier || 'Non assigné'})`)
 }
 
-function getShipmentById(id: number) {
-  return shipments.value.find(s => s.id === id)
+function confirmShipmentManual(trackingNumber: string) {
+  confirmedTrackingNumbers.value = new Set([...confirmedTrackingNumbers.value, trackingNumber])
 }
 
-function confirmPickupRequest() {
-  if (pickupDate.value && pickupTimeSlot.value && selectedPickups.value.length > 0) {
+function unconfirmShipment(trackingNumber: string) {
+  const newSet = new Set(confirmedTrackingNumbers.value)
+  newSet.delete(trackingNumber)
+  confirmedTrackingNumbers.value = newSet
+}
+
+function confirmAllCarrier(carrier: string) {
+  const group = pickupByCarrier.value.find(g => g.carrier === carrier)
+  if (!group) return
+  const newSet = new Set(confirmedTrackingNumbers.value)
+  group.shipments.forEach(s => newSet.add(s.trackingNumber))
+  confirmedTrackingNumbers.value = newSet
+}
+
+function clearScanSession() {
+  confirmedTrackingNumbers.value = new Set()
+  scanInput.value = ''
+  scanFeedback.value = null
+}
+
+function openPickupConfirmation() {
+  if (confirmedShipments.value.length === 0) return
+  pickupSchedule.date = ''
+  pickupSchedule.timeSlot = ''
+  showPickupConfirmModal.value = true
+}
+
+function confirmScanPickup() {
+  if (!pickupSchedule.date || !pickupSchedule.timeSlot || confirmedShipments.value.length === 0) return
+  confirmingPickup.value = true
+
+  const dateFormatted = new Date(pickupSchedule.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  const now = new Date()
+  const nowFormatted = now.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) + ' à ' + now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+
+  // Create one pickup request per carrier group (only confirmed colis)
+  confirmedByCarrier.value.forEach(group => {
+    const pickupId = Date.now() + Math.random()
+
+    // Add to pickup requests list
+    pickupRequests.value.unshift({
+      id: pickupId,
+      carrier: group.carrier,
+      shipmentCount: group.shipments.length,
+      shipmentIds: group.shipments.map(s => s.id),
+      date: dateFormatted,
+      timeSlot: pickupSchedule.timeSlot,
+      address: pickupSchedule.address,
+      status: 'pending',
+      createdAt: nowFormatted
+    })
+
     // Add to scheduled pickups
     scheduledPickups.value.push({
-      id: Date.now(),
-      shipmentIds: [...selectedPickups.value],
-      shipmentCount: selectedPickups.value.length,
-      date: new Date(pickupDate.value).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
-      timeSlot: pickupTimeSlot.value,
-      address: pickupAddress.value,
+      id: pickupId,
+      shipmentIds: group.shipments.map(s => s.id),
+      shipmentCount: group.shipments.length,
+      date: dateFormatted,
+      timeSlot: pickupSchedule.timeSlot,
+      address: pickupSchedule.address,
+      carrier: group.carrier,
       status: 'scheduled'
     })
 
-    // Update shipment statuses to "Pickup Scheduled"
-    selectedPickups.value.forEach(id => {
-      const shipment = shipments.value.find(s => s.id === id)
+    // Update shipment statuses
+    group.shipments.forEach(confirmed => {
+      const shipment = shipments.value.find(s => s.id === confirmed.id)
       if (shipment) {
         shipment.status = 'Out for delivery'
-        shipment.latestEvent = `${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} : Enlèvement programmé`
+        shipment.latestEvent = `${now.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} : Enlèvement programmé`
         shipment.events.unshift({
           status: 'En transit',
-          description: `Enlèvement programmé pour le ${new Date(pickupDate.value).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} (${pickupTimeSlot.value})`,
-          location: pickupAddress.value,
-          date: new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) + ' à ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          description: `Enlèvement programmé pour le ${dateFormatted} (${pickupSchedule.timeSlot}) - ${group.carrier}`,
+          location: pickupSchedule.address,
+          date: nowFormatted,
           completed: true
         })
       }
     })
+  })
 
-    // Reset form
-    selectedPickups.value = []
-    pickupDate.value = ''
-    pickupTimeSlot.value = ''
-    showPickupRequestModal.value = false
-  }
+  // Reset
+  confirmedTrackingNumbers.value = new Set()
+  scanInput.value = ''
+  scanFeedback.value = null
+  confirmingPickup.value = false
+  showPickupConfirmModal.value = false
 }
 
 // ==================== FINANCE DATA STRUCTURES ====================
