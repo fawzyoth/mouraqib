@@ -580,6 +580,10 @@ import { useThemeStore } from '@/stores/theme'
 import { Moon, Sun, UserPlus, ArrowLeft, Loader2, CheckCircle, ChevronDown, Check, X, Package, Truck, Users, BarChart3 } from 'lucide-vue-next'
 import { supabase } from '@/lib/supabase'
 
+declare global {
+  interface Window { fbq: (...args: any[]) => void }
+}
+
 const themeStore = useThemeStore()
 
 // Countdown timer - Fixed launch date: February 26, 2026 (15 days from Feb 11)
@@ -623,6 +627,10 @@ function scrollToForm() {
   const formElement = document.getElementById('registration-form')
   if (formElement) {
     formElement.scrollIntoView({ behavior: 'smooth' })
+  }
+  // Facebook Pixel - user clicked CTA
+  if (typeof window.fbq === 'function') {
+    window.fbq('track', 'Lead')
   }
 }
 
@@ -671,6 +679,29 @@ async function fetchRegisteredCount() {
   }
 }
 
+async function sendCAPIEvent(eventName: string, userData: { email: string; phone: string; first_name: string; last_name: string }) {
+  try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    if (!supabaseUrl) return
+
+    await fetch(`${supabaseUrl}/functions/v1/facebook-capi`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        event_name: eventName,
+        user_data: userData,
+        event_source_url: window.location.href,
+      }),
+    })
+  } catch (e) {
+    // Silent fail - CAPI is supplementary to browser pixel
+    console.warn('CAPI event failed:', e)
+  }
+}
+
 async function submitForm() {
   errorMessage.value = ''
 
@@ -714,6 +745,21 @@ async function submitForm() {
     userPosition.value = registeredCount.value + 1
     registeredCount.value = Math.min(registeredCount.value + 1, 100)
     showSuccess.value = true
+
+    // Facebook Pixel - CompleteRegistration event (browser-side)
+    if (typeof window.fbq === 'function') {
+      window.fbq('track', 'CompleteRegistration')
+    }
+
+    // Facebook CAPI - CompleteRegistration event (server-side)
+    // Fire-and-forget: don't block UX on CAPI response
+    const capiUserData = {
+      email: form.email,
+      phone: form.phone,
+      first_name: form.firstName,
+      last_name: form.lastName,
+    }
+    sendCAPIEvent('CompleteRegistration', capiUserData)
 
     // Reset form
     form.firstName = ''
