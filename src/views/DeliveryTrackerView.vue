@@ -11182,6 +11182,7 @@ import {
   pickupsService,
   transactionsService
 } from '@/services'
+import { seedDemoData } from '@/data/demo'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -13026,6 +13027,28 @@ function handleGlobalKeydown(e: KeyboardEvent) {
 
 onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown)
+
+  if (authStore.isDemoMode) {
+    seedDemoData(
+      {
+        boutiques, configuredCarriers, clientsList, clientStats,
+        shipments, carriers, dashboardStats, todayStats, userBalance,
+        urgentActions, dailyTasksCategories, activityLogs,
+        delayedShipments, delayedPatterns, returnAlerts, financialStats,
+        payments, paymentStats, returnsData, returnsList, carriersReturnStats,
+        reportAnalytics, pickupRequests, pickupHistory, failedPickupsData,
+        scheduledPickups, teamMembers, activeSessions,
+        chartData, analyticsKpis, analyticsKpiComparison,
+        deliveryPerformance, returnIntelligence, riskZones,
+        anomalyDetection, trends, failedSearches,
+        receivedPaymentsData, receivedPaymentsStats, discrepancyStats, reconciliationByCarrier,
+        revenueStats, revenueByCategory, revenueByRegion, revenueChartData,
+        returnLossesStats, returnLossesByReason, returnLossesByCarrier,
+        returnLossesDetails, invoicesStats, invoices, carrierPerformance
+      },
+      { FileCheck, AlertTriangle, RotateCcw, Clock, Package, Truck, Banknote, CheckCircle }
+    )
+  }
 })
 
 onUnmounted(() => {
@@ -13585,136 +13608,8 @@ const statusTabs = computed(() => [
   { id: 'pending', label: 'En attente', count: shipments.value.filter(s => s.status === 'pending').length },
 ])
 
-// Shipments - empty by default, loaded from Supabase
-// Seed with demo data for testing
-const shipments = ref<any[]>([
-  {
-    id: 1001, trackingNumber: 'TN-2026-10001001', carrier: 'Yalidine', service: 'Standard', status: 'Pending',
-    latestEvent: '12 fév. : Colis créé', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Alger Centre, Alger',
-    deliveryDate: null, transitDays: 0, orderNumber: 'CMD-1001', customerName: 'Ahmed Ben Ali',
-    labelNumber: 'BRD-2026-100001', labelPrinted: true, labelPrintedAt: '12 fév. 2026 à 09:15',
-    weight: 1.2, dimensions: '25x20x10', cod: 4500, senderName: 'Ma Boutique', senderAddress: 'Tunis',
-    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 100 200', recipientPhoneSecondary: '',
-    recipientAddress: '12 Rue Didouche Mourad, 16000 Alger Centre, Alger',
-    productDescription: 'Robe été collection 2026', fragile: false, reference: 'REF-A001',
-    productPrice: 4000, deliveryFee: 500, totalPrice: 4500,
-    events: [{ status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '12 fév. 2026 à 09:15', completed: true }]
-  },
-  {
-    id: 1002, trackingNumber: 'TN-2026-10001002', carrier: 'Yalidine', service: 'Express', status: 'Pending',
-    latestEvent: '12 fév. : Colis créé', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Oran, Oran',
-    deliveryDate: null, transitDays: 0, orderNumber: 'CMD-1002', customerName: 'Fatma Saidi',
-    labelNumber: 'BRD-2026-100002', labelPrinted: true, labelPrintedAt: '12 fév. 2026 à 09:20',
-    weight: 0.8, dimensions: '20x15x8', cod: 3200, senderName: 'Ma Boutique', senderAddress: 'Tunis',
-    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 200 300', recipientPhoneSecondary: '',
-    recipientAddress: '45 Boulevard de la Soummam, 31000 Oran',
-    productDescription: 'Sac à main cuir', fragile: false, reference: 'REF-A002',
-    productPrice: 2800, deliveryFee: 400, totalPrice: 3200,
-    events: [{ status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '12 fév. 2026 à 09:20', completed: true }]
-  },
-  {
-    id: 1003, trackingNumber: 'TN-2026-10001003', carrier: 'Yalidine', service: 'Standard', status: 'Pending',
-    latestEvent: '12 fév. : Colis créé', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Bab Ezzouar, Alger',
-    deliveryDate: null, transitDays: 0, orderNumber: 'CMD-1003', customerName: 'Karim Trabelsi',
-    labelNumber: 'BRD-2026-100003', labelPrinted: true, labelPrintedAt: '12 fév. 2026 à 10:00',
-    weight: 2.0, dimensions: '30x25x15', cod: 2800, senderName: 'Ma Boutique', senderAddress: 'Tunis',
-    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 300 400', recipientPhoneSecondary: '',
-    recipientAddress: '8 Cité AADL, 16028 Bab Ezzouar, Alger',
-    productDescription: 'Chaussures sport Nike', fragile: false, reference: 'REF-A003',
-    productPrice: 2400, deliveryFee: 400, totalPrice: 2800,
-    events: [{ status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '12 fév. 2026 à 10:00', completed: true }]
-  },
-  {
-    id: 1004, trackingNumber: 'TN-2026-10001004', carrier: 'ZR Express', service: 'Standard', status: 'Pending',
-    latestEvent: '12 fév. : Colis créé', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Constantine, Constantine',
-    deliveryDate: null, transitDays: 0, orderNumber: 'CMD-1004', customerName: 'Salma Hamdi',
-    labelNumber: 'BRD-2026-100004', labelPrinted: true, labelPrintedAt: '12 fév. 2026 à 10:30',
-    weight: 1.5, dimensions: '25x20x12', cod: 5500, senderName: 'Ma Boutique', senderAddress: 'Tunis',
-    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 400 500', recipientPhoneSecondary: '',
-    recipientAddress: '22 Rue Abane Ramdane, 25000 Constantine',
-    productDescription: 'Ensemble jogging premium', fragile: false, reference: 'REF-A004',
-    productPrice: 5000, deliveryFee: 500, totalPrice: 5500,
-    events: [{ status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '12 fév. 2026 à 10:30', completed: true }]
-  },
-  {
-    id: 1005, trackingNumber: 'TN-2026-10001005', carrier: 'ZR Express', service: 'Express', status: 'Pending',
-    latestEvent: '12 fév. : Colis créé', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Sétif, Sétif',
-    deliveryDate: null, transitDays: 0, orderNumber: 'CMD-1005', customerName: 'Nour Gharbi',
-    labelNumber: 'BRD-2026-100005', labelPrinted: true, labelPrintedAt: '12 fév. 2026 à 11:00',
-    weight: 0.5, dimensions: '15x12x5', cod: 4000, senderName: 'Ma Boutique', senderAddress: 'Tunis',
-    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 500 600', recipientPhoneSecondary: '',
-    recipientAddress: '15 Cité Mabouda, 19000 Sétif',
-    productDescription: 'Montre connectée', fragile: true, reference: 'REF-A005',
-    productPrice: 3500, deliveryFee: 500, totalPrice: 4000,
-    events: [{ status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '12 fév. 2026 à 11:00', completed: true }]
-  },
-  {
-    id: 1006, trackingNumber: 'TN-2026-10001006', carrier: 'Maystro Delivery', service: 'Standard', status: 'Pending',
-    latestEvent: '13 fév. : Colis créé', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Annaba, Annaba',
-    deliveryDate: null, transitDays: 0, orderNumber: 'CMD-1006', customerName: 'Youssef Bouzid',
-    labelNumber: 'BRD-2026-100006', labelPrinted: true, labelPrintedAt: '13 fév. 2026 à 08:45',
-    weight: 1.0, dimensions: '20x18x10', cod: 3800, senderName: 'Ma Boutique', senderAddress: 'Tunis',
-    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 600 700', recipientPhoneSecondary: '',
-    recipientAddress: '3 Rue Ben M\'hidi, 23000 Annaba',
-    productDescription: 'Parfum collection luxe', fragile: true, reference: 'REF-A006',
-    productPrice: 3300, deliveryFee: 500, totalPrice: 3800,
-    events: [{ status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '13 fév. 2026 à 08:45', completed: true }]
-  },
-  {
-    id: 1007, trackingNumber: 'TN-2026-10001007', carrier: 'Maystro Delivery', service: 'Express', status: 'Pending',
-    latestEvent: '13 fév. : Colis créé', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Blida, Blida',
-    deliveryDate: null, transitDays: 0, orderNumber: 'CMD-1007', customerName: 'Amira Khelifi',
-    labelNumber: 'BRD-2026-100007', labelPrinted: true, labelPrintedAt: '13 fév. 2026 à 09:10',
-    weight: 3.0, dimensions: '40x30x20', cod: 8500, senderName: 'Ma Boutique', senderAddress: 'Tunis',
-    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 700 800', recipientPhoneSecondary: '+216 55 700 801',
-    recipientAddress: '67 Avenue de l\'ALN, 09000 Blida',
-    productDescription: 'Veste cuir homme + ceinture', fragile: false, reference: 'REF-A007',
-    productPrice: 8000, deliveryFee: 500, totalPrice: 8500,
-    events: [{ status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '13 fév. 2026 à 09:10', completed: true }]
-  },
-  {
-    id: 1008, trackingNumber: 'TN-2026-10001008', carrier: 'Yalidine', service: 'Standard', status: 'Pending',
-    latestEvent: '13 fév. : Colis créé', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Tlemcen, Tlemcen',
-    deliveryDate: null, transitDays: 0, orderNumber: 'CMD-1008', customerName: 'Mohamed Cherif',
-    labelNumber: 'BRD-2026-100008', labelPrinted: true, labelPrintedAt: '13 fév. 2026 à 09:30',
-    weight: 1.8, dimensions: '28x22x12', cod: 6200, senderName: 'Ma Boutique', senderAddress: 'Tunis',
-    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 800 900', recipientPhoneSecondary: '',
-    recipientAddress: '10 Place Emir Abdelkader, 13000 Tlemcen',
-    productDescription: 'Lunettes de soleil Ray-Ban + étui', fragile: true, reference: 'REF-A008',
-    productPrice: 5700, deliveryFee: 500, totalPrice: 6200,
-    events: [{ status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '13 fév. 2026 à 09:30', completed: true }]
-  },
-  {
-    id: 1009, trackingNumber: 'TN-2026-10001009', carrier: 'ZR Express', service: 'Standard', status: 'Pending',
-    latestEvent: '13 fév. : Colis créé', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Béjaïa, Béjaïa',
-    deliveryDate: null, transitDays: 0, orderNumber: 'CMD-1009', customerName: 'Lina Boudiaf',
-    labelNumber: 'BRD-2026-100009', labelPrinted: false, labelPrintedAt: null,
-    weight: 0.6, dimensions: '18x15x8', cod: 2900, senderName: 'Ma Boutique', senderAddress: 'Tunis',
-    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 900 100', recipientPhoneSecondary: '',
-    recipientAddress: '5 Rue de la Liberté, 06000 Béjaïa',
-    productDescription: 'Portefeuille cuir femme', fragile: false, reference: 'REF-A009',
-    productPrice: 2400, deliveryFee: 500, totalPrice: 2900,
-    events: [{ status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '13 fév. 2026 à 10:00', completed: true }]
-  },
-  {
-    id: 1010, trackingNumber: 'TN-2026-10001010', carrier: 'Maystro Delivery', service: 'Standard', status: 'Delivered',
-    latestEvent: '10 fév. : Livré', originFlag: '🇹🇳', origin: 'Tunisie', destination: 'Batna, Batna',
-    deliveryDate: '10 fév. 2026', transitDays: 3, orderNumber: 'CMD-1010', customerName: 'Rania Messaoudi',
-    labelNumber: 'BRD-2026-100010', labelPrinted: true, labelPrintedAt: '7 fév. 2026 à 14:00',
-    weight: 1.0, dimensions: '20x15x10', cod: 3500, senderName: 'Ma Boutique', senderAddress: 'Tunis',
-    senderPhone: '+216 50 000 001', recipientPhone: '+216 55 010 020', recipientPhoneSecondary: '',
-    recipientAddress: '30 Rue de la République, 05000 Batna',
-    productDescription: 'Accessoires téléphone', fragile: false, reference: 'REF-A010',
-    productPrice: 3000, deliveryFee: 500, totalPrice: 3500,
-    events: [
-      { status: 'Livré', description: 'Colis livré au destinataire', location: 'Batna', date: '10 fév. 2026 à 14:30', completed: true },
-      { status: 'En cours de livraison', description: 'En cours de distribution', location: 'Batna', date: '10 fév. 2026 à 08:00', completed: true },
-      { status: 'En transit', description: 'Arrivé au hub Batna', location: 'Batna', date: '9 fév. 2026 à 16:00', completed: true },
-      { status: 'Ramassé', description: 'Colis ramassé', location: 'Tunis', date: '7 fév. 2026 à 15:00', completed: true },
-      { status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunis', date: '7 fév. 2026 à 14:00', completed: true }
-    ]
-  }
-])
+// Shipments - empty by default, loaded from Supabase or seeded in demo mode
+const shipments = ref<any[]>([])
 
 // Carriers - empty by default, loaded from Supabase
 const carriers = ref<any[]>([])
