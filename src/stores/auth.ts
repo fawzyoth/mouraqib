@@ -219,7 +219,9 @@ export const useAuthStore = defineStore('auth', () => {
         return { success: false, error: 'Les mots de passe ne correspondent pas' }
       }
 
-      // Sign up with Supabase
+      // Sign up with Supabase Auth
+      // The handle_new_user() DB trigger automatically creates
+      // the organization + profile + credits + default roles
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -239,38 +241,6 @@ export const useAuthStore = defineStore('auth', () => {
 
       if (!data.user) {
         return { success: false, error: 'Erreur lors de la création du compte' }
-      }
-
-      // Create organization for new user
-      const { data: orgData, error: orgError } = await supabase
-        .from('organizations')
-        .insert({
-          name: `${name}'s Organization`,
-          email: email
-        })
-        .select()
-        .single()
-
-      if (orgError) {
-        console.error('Error creating organization:', orgError)
-        // Continue without org - admin can assign later
-      }
-
-      // Create profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          name: name,
-          email: email,
-          organization_id: orgData?.id ?? null,
-          role: 'owner',
-          is_admin: false
-        })
-
-      if (profileError) {
-        console.error('Error creating profile:', profileError)
-        return { success: false, error: 'Erreur lors de la création du profil' }
       }
 
       // If email confirmation is required, session will be null

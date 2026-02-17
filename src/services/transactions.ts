@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { Transaction, TransactionInsert, OrganizationCredits } from '@/types/database'
+import type { Transaction, OrganizationCredits } from '@/types/database'
 
 export interface TransactionFilters {
   type?: 'credit' | 'debit'
@@ -42,6 +42,10 @@ export const transactionsService = {
     return data
   },
 
+  /**
+   * Add credits via the process-recharge Edge Function.
+   * This is atomic — no race conditions on concurrent calls.
+   */
   async addCredit(
     organizationId: string,
     createdBy: string,
@@ -51,114 +55,31 @@ export const transactionsService = {
     paymentMethod: 'cash' | 'transfer' | 'cheque',
     note?: string
   ) {
-    // Create transaction record
-    const { data: transaction, error: txError } = await supabase
-      .from('transactions')
-      .insert({
-        organization_id: organizationId,
-        created_by: createdBy,
-        type: 'credit',
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error('Not authenticated')
+
+    const response = await supabase.functions.invoke('process-recharge', {
+      body: {
+        organizationId,
         amount,
-        purchased_delivered: purchasedDelivered,
-        purchased_returned: purchasedReturned,
-        payment_method: paymentMethod,
-        note
-      })
-      .select()
-      .single()
+        purchasedDelivered,
+        purchasedReturned,
+        paymentMethod,
+        note,
+      },
+    })
 
-    if (txError) throw txError
-
-    // Update organization credits
-    const { data: currentCredits } = await supabase
-      .from('organization_credits')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .single()
-
-    if (currentCredits) {
-      await supabase
-        .from('organization_credits')
-        .update({
-          delivered_credits: currentCredits.delivered_credits + purchasedDelivered,
-          returned_credits: currentCredits.returned_credits + purchasedReturned,
-          balance: currentCredits.balance + amount
-        })
-        .eq('organization_id', organizationId)
+    if (response.error) {
+      throw new Error(response.error.message ?? 'Failed to process recharge')
     }
 
-    return transaction
+    return response.data
   },
 
-  async chargeDelivery(
-    organizationId: string,
-    createdBy: string,
-    deliveredCount: number,
-    returnedCount: number,
-    deliveredFee: number,
-    returnedFee: number,
-    note?: string
-  ) {
-    const amount = (deliveredCount * deliveredFee) + (returnedCount * returnedFee)
-
-    // Create transaction record
-    const { data: transaction, error: txError } = await supabase
-      .from('transactions')
-      .insert({
-        organization_id: organizationId,
-        created_by: createdBy,
-        type: 'debit',
-        amount,
-        billed_delivered: deliveredCount,
-        billed_returned: returnedCount,
-        note
-      })
-      .select()
-      .single()
-
-    if (txError) throw txError
-
-    // Update organization credits
-    const { data: currentCredits } = await supabase
-      .from('organization_credits')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .single()
-
-    if (currentCredits) {
-      await supabase
-        .from('organization_credits')
-        .update({
-          delivered_credits: Math.max(0, currentCredits.delivered_credits - deliveredCount),
-          returned_credits: Math.max(0, currentCredits.returned_credits - returnedCount),
-          unbilled_delivered: Math.max(0, currentCredits.unbilled_delivered - deliveredCount),
-          unbilled_returned: Math.max(0, currentCredits.unbilled_returned - returnedCount),
-          balance: currentCredits.balance - amount
-        })
-        .eq('organization_id', organizationId)
-    }
-
-    return transaction
-  },
-
-  async incrementUnbilled(organizationId: string, type: 'delivered' | 'returned') {
-    const { data: currentCredits } = await supabase
-      .from('organization_credits')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .single()
-
-    if (currentCredits) {
-      const updates = type === 'delivered'
-        ? { unbilled_delivered: currentCredits.unbilled_delivered + 1 }
-        : { unbilled_returned: currentCredits.unbilled_returned + 1 }
-
-      await supabase
-        .from('organization_credits')
-        .update(updates)
-        .eq('organization_id', organizationId)
-    }
-  },
+  // Note: chargeDelivery() and incrementUnbilled() have been removed.
+  // Billing is now handled automatically by the hourly sync-and-bill cron job.
+  // The cron finds shipments with status 'delivered' or 'returned' that have
+  // billed_at IS NULL, debits credits atomically, and marks them as billed.
 
   async getBalance(organizationId: string) {
     const { data, error } = await supabase
@@ -172,7 +93,7 @@ export const transactionsService = {
   },
 
   async getSummary(organizationId: string) {
-    const { data: credits } = await this.getCredits(organizationId)
+    const credits = await this.getCredits(organizationId)
     const { data: transactions } = await supabase
       .from('transactions')
       .select('type, amount')

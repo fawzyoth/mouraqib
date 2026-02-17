@@ -36,11 +36,16 @@ export const organizationsService = {
     return data
   },
 
-  async inviteMember(organizationId: string, email: string, role: string) {
-    // This would typically send an invitation email
-    // For now, we'll just create a placeholder profile
-    // The actual implementation depends on your invitation flow
-    throw new Error('Not implemented - requires email service')
+  async inviteMember(organizationId: string, email: string, role: string, boutiqueIds?: string[]) {
+    const response = await supabase.functions.invoke('invite-member', {
+      body: { email, role, boutiqueIds },
+    })
+
+    if (response.error) {
+      throw new Error(response.error.message ?? 'Failed to send invitation')
+    }
+
+    return response.data
   },
 
   async updateMemberRole(memberId: string, role: string) {

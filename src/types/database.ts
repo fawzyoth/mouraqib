@@ -19,6 +19,10 @@ export interface Database {
           tax_id: string | null
           rc_number: string | null
           logo_url: string | null
+          city: string | null
+          postal_code: string | null
+          currency: string
+          timezone: string
           created_at: string
           updated_at: string
         }
@@ -31,6 +35,10 @@ export interface Database {
           tax_id?: string | null
           rc_number?: string | null
           logo_url?: string | null
+          city?: string | null
+          postal_code?: string | null
+          currency?: string
+          timezone?: string
           created_at?: string
           updated_at?: string
         }
@@ -43,6 +51,10 @@ export interface Database {
           tax_id?: string | null
           rc_number?: string | null
           logo_url?: string | null
+          city?: string | null
+          postal_code?: string | null
+          currency?: string
+          timezone?: string
           created_at?: string
           updated_at?: string
         }
@@ -204,6 +216,10 @@ export interface Database {
           fee_returned: number
           fee_exchange: number
           fee_pickup: number
+          fee_big: number
+          fee_total_delivery: number
+          fee_payment: number
+          fee_withholding: number
           all_regions: boolean
           regions: string[] | null
           is_active: boolean
@@ -222,6 +238,10 @@ export interface Database {
           fee_returned?: number
           fee_exchange?: number
           fee_pickup?: number
+          fee_big?: number
+          fee_total_delivery?: number
+          fee_payment?: number
+          fee_withholding?: number
           all_regions?: boolean
           regions?: string[] | null
           is_active?: boolean
@@ -240,6 +260,10 @@ export interface Database {
           fee_returned?: number
           fee_exchange?: number
           fee_pickup?: number
+          fee_big?: number
+          fee_total_delivery?: number
+          fee_payment?: number
+          fee_withholding?: number
           all_regions?: boolean
           regions?: string[] | null
           is_active?: boolean
@@ -283,6 +307,7 @@ export interface Database {
           returned_at: string | null
           return_reason: string | null
           attempts: number
+          billed_at: string | null
           created_at: string
           updated_at: string
         }
@@ -321,6 +346,7 @@ export interface Database {
           returned_at?: string | null
           return_reason?: string | null
           attempts?: number
+          billed_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -359,6 +385,7 @@ export interface Database {
           returned_at?: string | null
           return_reason?: string | null
           attempts?: number
+          billed_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -524,6 +551,426 @@ export interface Database {
           updated_at?: string
         }
       }
+      // =============================================
+      // New tables from migration 002
+      // =============================================
+      roles: {
+        Row: {
+          id: string
+          organization_id: string
+          name: string
+          description: string | null
+          is_default: boolean
+          is_system: boolean
+          permissions: string[]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          name: string
+          description?: string | null
+          is_default?: boolean
+          is_system?: boolean
+          permissions?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          name?: string
+          description?: string | null
+          is_default?: boolean
+          is_system?: boolean
+          permissions?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      profile_boutiques: {
+        Row: {
+          id: string
+          profile_id: string
+          boutique_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          profile_id: string
+          boutique_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          profile_id?: string
+          boutique_id?: string
+          created_at?: string
+        }
+      }
+      notification_settings: {
+        Row: {
+          id: string
+          organization_id: string
+          event_type: string
+          email_enabled: boolean
+          sms_enabled: boolean
+          disabled_at: string | null
+          emails_sent: number
+          sms_sent: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          event_type: string
+          email_enabled?: boolean
+          sms_enabled?: boolean
+          disabled_at?: string | null
+          emails_sent?: number
+          sms_sent?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          event_type?: string
+          email_enabled?: boolean
+          sms_enabled?: boolean
+          disabled_at?: string | null
+          emails_sent?: number
+          sms_sent?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      activity_logs: {
+        Row: {
+          id: string
+          organization_id: string
+          user_id: string | null
+          type: 'status' | 'return' | 'payment' | 'error' | 'login' | 'settings'
+          message: string
+          entity_type: string | null
+          entity_id: string | null
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          user_id?: string | null
+          type: 'status' | 'return' | 'payment' | 'error' | 'login' | 'settings'
+          message: string
+          entity_type?: string | null
+          entity_id?: string | null
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          user_id?: string | null
+          type?: 'status' | 'return' | 'payment' | 'error' | 'login' | 'settings'
+          message?: string
+          entity_type?: string | null
+          entity_id?: string | null
+          metadata?: Json
+          created_at?: string
+        }
+      }
+      invoices: {
+        Row: {
+          id: string
+          organization_id: string
+          carrier_id: string | null
+          type: 'received' | 'sent'
+          number: string
+          reference: string | null
+          party_name: string
+          amount: number
+          status: 'paid' | 'pending' | 'overdue'
+          due_date: string | null
+          paid_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          carrier_id?: string | null
+          type: 'received' | 'sent'
+          number: string
+          reference?: string | null
+          party_name: string
+          amount?: number
+          status?: 'paid' | 'pending' | 'overdue'
+          due_date?: string | null
+          paid_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          carrier_id?: string | null
+          type?: 'received' | 'sent'
+          number?: string
+          reference?: string | null
+          party_name?: string
+          amount?: number
+          status?: 'paid' | 'pending' | 'overdue'
+          due_date?: string | null
+          paid_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      carrier_payments: {
+        Row: {
+          id: string
+          organization_id: string
+          carrier_id: string
+          reference: string | null
+          payment_date: string
+          total_cod: number
+          total_fees: number
+          net_received: number
+          status: 'pending' | 'confirmed' | 'disputed'
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          carrier_id: string
+          reference?: string | null
+          payment_date: string
+          total_cod?: number
+          total_fees?: number
+          net_received?: number
+          status?: 'pending' | 'confirmed' | 'disputed'
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          carrier_id?: string
+          reference?: string | null
+          payment_date?: string
+          total_cod?: number
+          total_fees?: number
+          net_received?: number
+          status?: 'pending' | 'confirmed' | 'disputed'
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      carrier_payment_shipments: {
+        Row: {
+          id: string
+          carrier_payment_id: string
+          shipment_id: string
+          cod_amount: number
+          fee_amount: number
+          net_amount: number
+        }
+        Insert: {
+          id?: string
+          carrier_payment_id: string
+          shipment_id: string
+          cod_amount?: number
+          fee_amount?: number
+          net_amount?: number
+        }
+        Update: {
+          id?: string
+          carrier_payment_id?: string
+          shipment_id?: string
+          cod_amount?: number
+          fee_amount?: number
+          net_amount?: number
+        }
+      }
+      payment_discrepancies: {
+        Row: {
+          id: string
+          organization_id: string
+          carrier_id: string
+          shipment_id: string | null
+          expected_amount: number
+          actual_amount: number
+          difference: number
+          status: 'pending' | 'resolved' | 'disputed'
+          resolved_at: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          carrier_id: string
+          shipment_id?: string | null
+          expected_amount?: number
+          actual_amount?: number
+          difference?: number
+          status?: 'pending' | 'resolved' | 'disputed'
+          resolved_at?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          carrier_id?: string
+          shipment_id?: string | null
+          expected_amount?: number
+          actual_amount?: number
+          difference?: number
+          status?: 'pending' | 'resolved' | 'disputed'
+          resolved_at?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      service_payments: {
+        Row: {
+          id: string
+          organization_id: string
+          date: string
+          description: string | null
+          reference: string | null
+          amount: number
+          status: 'paid' | 'pending' | 'failed'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          date: string
+          description?: string | null
+          reference?: string | null
+          amount?: number
+          status?: 'paid' | 'pending' | 'failed'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          date?: string
+          description?: string | null
+          reference?: string | null
+          amount?: number
+          status?: 'paid' | 'pending' | 'failed'
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      tracking_page_config: {
+        Row: {
+          id: string
+          organization_id: string
+          template_id: string | null
+          custom_logo: string | null
+          custom_colors: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          template_id?: string | null
+          custom_logo?: string | null
+          custom_colors?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          template_id?: string | null
+          custom_logo?: string | null
+          custom_colors?: Json
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      exports: {
+        Row: {
+          id: string
+          organization_id: string
+          created_by: string | null
+          data_type: string
+          format: 'excel' | 'csv' | 'pdf'
+          filters: Json
+          file_url: string | null
+          status: 'processing' | 'ready' | 'failed'
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          created_by?: string | null
+          data_type: string
+          format: 'excel' | 'csv' | 'pdf'
+          filters?: Json
+          file_url?: string | null
+          status?: 'processing' | 'ready' | 'failed'
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          created_by?: string | null
+          data_type?: string
+          format?: 'excel' | 'csv' | 'pdf'
+          filters?: Json
+          file_url?: string | null
+          status?: 'processing' | 'ready' | 'failed'
+          created_at?: string
+        }
+      }
+      failed_searches: {
+        Row: {
+          id: string
+          organization_id: string
+          query: string
+          phone: string | null
+          ip_address: string | null
+          contacted: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          query: string
+          phone?: string | null
+          ip_address?: string | null
+          contacted?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          query?: string
+          phone?: string | null
+          ip_address?: string | null
+          contacted?: boolean
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -544,7 +991,7 @@ export interface Database {
   }
 }
 
-// Helper types
+// Helper types - Row
 export type Organization = Database['public']['Tables']['organizations']['Row']
 export type Profile = Database['public']['Tables']['profiles']['Row']
 export type Boutique = Database['public']['Tables']['boutiques']['Row']
@@ -555,6 +1002,18 @@ export type ShipmentEvent = Database['public']['Tables']['shipment_events']['Row
 export type PickupRequest = Database['public']['Tables']['pickup_requests']['Row']
 export type Transaction = Database['public']['Tables']['transactions']['Row']
 export type OrganizationCredits = Database['public']['Tables']['organization_credits']['Row']
+export type Role = Database['public']['Tables']['roles']['Row']
+export type ProfileBoutique = Database['public']['Tables']['profile_boutiques']['Row']
+export type NotificationSetting = Database['public']['Tables']['notification_settings']['Row']
+export type ActivityLog = Database['public']['Tables']['activity_logs']['Row']
+export type Invoice = Database['public']['Tables']['invoices']['Row']
+export type CarrierPayment = Database['public']['Tables']['carrier_payments']['Row']
+export type CarrierPaymentShipment = Database['public']['Tables']['carrier_payment_shipments']['Row']
+export type PaymentDiscrepancy = Database['public']['Tables']['payment_discrepancies']['Row']
+export type ServicePayment = Database['public']['Tables']['service_payments']['Row']
+export type TrackingPageConfig = Database['public']['Tables']['tracking_page_config']['Row']
+export type Export = Database['public']['Tables']['exports']['Row']
+export type FailedSearch = Database['public']['Tables']['failed_searches']['Row']
 
 // Insert types
 export type OrganizationInsert = Database['public']['Tables']['organizations']['Insert']
@@ -566,6 +1025,18 @@ export type ShipmentInsert = Database['public']['Tables']['shipments']['Insert']
 export type ShipmentEventInsert = Database['public']['Tables']['shipment_events']['Insert']
 export type PickupRequestInsert = Database['public']['Tables']['pickup_requests']['Insert']
 export type TransactionInsert = Database['public']['Tables']['transactions']['Insert']
+export type RoleInsert = Database['public']['Tables']['roles']['Insert']
+export type ProfileBoutiqueInsert = Database['public']['Tables']['profile_boutiques']['Insert']
+export type NotificationSettingInsert = Database['public']['Tables']['notification_settings']['Insert']
+export type ActivityLogInsert = Database['public']['Tables']['activity_logs']['Insert']
+export type InvoiceInsert = Database['public']['Tables']['invoices']['Insert']
+export type CarrierPaymentInsert = Database['public']['Tables']['carrier_payments']['Insert']
+export type CarrierPaymentShipmentInsert = Database['public']['Tables']['carrier_payment_shipments']['Insert']
+export type PaymentDiscrepancyInsert = Database['public']['Tables']['payment_discrepancies']['Insert']
+export type ServicePaymentInsert = Database['public']['Tables']['service_payments']['Insert']
+export type TrackingPageConfigInsert = Database['public']['Tables']['tracking_page_config']['Insert']
+export type ExportInsert = Database['public']['Tables']['exports']['Insert']
+export type FailedSearchInsert = Database['public']['Tables']['failed_searches']['Insert']
 
 // Update types
 export type OrganizationUpdate = Database['public']['Tables']['organizations']['Update']
@@ -575,3 +1046,12 @@ export type ClientUpdate = Database['public']['Tables']['clients']['Update']
 export type CarrierUpdate = Database['public']['Tables']['carriers']['Update']
 export type ShipmentUpdate = Database['public']['Tables']['shipments']['Update']
 export type PickupRequestUpdate = Database['public']['Tables']['pickup_requests']['Update']
+export type RoleUpdate = Database['public']['Tables']['roles']['Update']
+export type NotificationSettingUpdate = Database['public']['Tables']['notification_settings']['Update']
+export type InvoiceUpdate = Database['public']['Tables']['invoices']['Update']
+export type CarrierPaymentUpdate = Database['public']['Tables']['carrier_payments']['Update']
+export type PaymentDiscrepancyUpdate = Database['public']['Tables']['payment_discrepancies']['Update']
+export type ServicePaymentUpdate = Database['public']['Tables']['service_payments']['Update']
+export type TrackingPageConfigUpdate = Database['public']['Tables']['tracking_page_config']['Update']
+export type ExportUpdate = Database['public']['Tables']['exports']['Update']
+export type FailedSearchUpdate = Database['public']['Tables']['failed_searches']['Update']

@@ -167,15 +167,13 @@ export const shipmentsService = {
   },
 
   async getStats(organizationId: string) {
-    const { data, error } = await supabase
-      .from('shipments')
-      .select('status')
-      .eq('organization_id', organizationId)
+    // Use server-side aggregation via RPC (no download-all-rows)
+    const { data, error } = await supabase.rpc('get_shipment_stats', {
+      p_organization_id: organizationId,
+    })
 
-    if (error) throw error
-
-    const stats = {
-      total: data.length,
+    const stats: Record<string, number> = {
+      total: 0,
       pending: 0,
       pickup_scheduled: 0,
       picked_up: 0,
@@ -186,11 +184,12 @@ export const shipmentsService = {
       cancelled: 0
     }
 
-    data.forEach(s => {
-      if (s.status in stats) {
-        stats[s.status as keyof typeof stats]++
+    if (!error && data) {
+      for (const row of data) {
+        stats[row.status] = Number(row.count)
+        stats.total += Number(row.count)
       }
-    })
+    }
 
     return stats
   },
