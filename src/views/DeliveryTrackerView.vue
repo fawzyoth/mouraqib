@@ -98,14 +98,11 @@
     <!-- Dashboard: Overview -->
     <DashboardOverview
       v-else-if="activeSection === 'overview'"
-      :stats="dashboardStats"
-      :recent-shipments="recentShipments"
+      :dashboard-stats="dashboardStats"
       :urgent-actions="urgentActions"
-      :delivery-chart-data="deliveryChartData"
-      :delivery-chart-labels="deliveryChartLabels"
-      :revenue-chart-data="revenueChartData"
-      :revenue-chart-labels="revenueChartLabels"
-      :today-date="todayDate"
+      :weather-regions="weatherRegions"
+      :delayed-shipments-count="delayedShipmentsCount"
+      :return-alerts-count="returnAlertsCount"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
       @navigate="(section) => { activeSection = section }"
     />
@@ -610,11 +607,11 @@
     :carriers="deliveryCarriers"
     :governorats="governorates"
     @close="showAddBoutiqueModal = false"
-    @save="saveBoutique"
+    @save="createBoutique"
   />
 
   <ChargeAccountModal
-    :show="showChargeModal"
+    :show="showChargeAccountModal"
     :user="selectedUserForCharge"
     :delivery-fees="deliveryFees"
     @close="closeChargeModal"
@@ -1314,6 +1311,7 @@ const clientStats = ref({
 
 // Clients list - empty by default
 const clientsList = ref<any[]>([])
+const clients = computed(() => clientsList.value)
 
 const filteredClients = computed(() => {
   return clientsList.value.filter(client => {
@@ -1548,6 +1546,9 @@ const activeStatusTab = ref('all')
 const searchQuery = ref('')
 const showAddShipmentModal = ref(false)
 const selectedShipment = ref<any>(null)
+const showShipmentDetail = ref(false)
+const showClientDetail = ref(false)
+const selectedClient = ref<any>(null)
 // Scan-based pickup workflow
 const scanInput = ref('')
 const scanLoading = ref(false)
@@ -1722,6 +1723,7 @@ const delayedDateRangeStart = ref('')
 const delayedDateRangeEnd = ref('')
 
 const delayedShipments = ref<any[]>([])
+const delayedShipmentsCount = computed(() => delayedShipments.value.length)
 
 // Delayed Patterns
 const delayedPatterns = ref<any[]>([])
@@ -1781,6 +1783,7 @@ const filteredDelayedShipmentsFinal = computed(() => {
 
 // Return Alerts
 const returnAlerts = ref<any[]>([])
+const returnAlertsCount = computed(() => returnAlerts.value.length)
 
 // Financial Stats
 const financialStats = reactive({
