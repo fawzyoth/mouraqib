@@ -36,6 +36,10 @@ export function useShipmentsData(orgId: Ref<string>) {
     userId: string | null,
     carrierId: string | null
   ): Promise<UIShipment | null> {
+    if (!orgId.value) {
+      toast.error('Organisation introuvable — veuillez vous reconnecter')
+      return null
+    }
     try {
       const insert = uiShipmentToInsert(form, orgId.value, userId, carrierId)
       const row = await shipmentsService.create(insert)

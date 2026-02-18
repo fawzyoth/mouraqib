@@ -39,6 +39,10 @@ export function useBoutiquesData(orgId: Ref<string>) {
   }
 
   async function create(formData: Record<string, any>): Promise<Boutique | null> {
+    if (!orgId.value) {
+      toast.error('Organisation introuvable — veuillez vous reconnecter')
+      return null
+    }
     try {
       const insert: BoutiqueInsert = {
         organization_id: orgId.value,

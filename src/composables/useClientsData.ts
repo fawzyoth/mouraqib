@@ -40,6 +40,10 @@ export function useClientsData(orgId: Ref<string>) {
   }
 
   async function create(formData: Record<string, any>): Promise<UIClient | null> {
+    if (!orgId.value) {
+      toast.error('Organisation introuvable — veuillez vous reconnecter')
+      return null
+    }
     try {
       const insert = uiClientToInsert(formData, orgId.value)
       const row = await clientsService.create(insert)

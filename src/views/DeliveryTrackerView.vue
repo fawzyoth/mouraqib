@@ -2518,6 +2518,69 @@ function handleGlobalKeydown(e: KeyboardEvent) {
   }
 }
 
+// Data loading extracted so it can be called from onMounted or from the orgId watcher
+let dataLoaded = false
+async function loadAppData() {
+  if (dataLoaded || !orgId.value || authStore.isDemoMode) return
+  dataLoaded = true
+
+  isLoadingData.value = true
+  try {
+    const orgContext = {
+      name: authStore.organization?.name || authStore.user?.name || '',
+      address: authStore.organization?.address || '',
+      phone: authStore.organization?.phone || '',
+    }
+
+    await Promise.all([
+      carriersData.load(),
+      boutiquesData.load(),
+      clientsData.load(),
+      shipmentsData.load(orgContext),
+      pickupsData.load(),
+      orgData.load(),
+      financeData.load(),
+    ])
+
+    // Sync composable data to DTV refs
+    syncComposableData()
+
+    // Load secondary data (non-blocking)
+    loadSecondaryData()
+
+    // Setup realtime subscriptions
+    shipmentsData.subscribe(orgContext)
+    financeData.subscribeToCredits()
+
+    // Activity logs realtime
+    activityLogsService.subscribeToChanges(orgId.value, (payload: any) => {
+      if (payload.new) {
+        const l = payload.new
+        activityLogs.value.unshift({
+          id: l.id,
+          type: l.type || 'info',
+          message: l.message || '',
+          tracking: l.entity_id || '',
+          date: new Date(l.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }),
+          time: new Date(l.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        })
+      }
+    })
+  } catch (e: any) {
+    console.error('Error loading app data:', e)
+    dataLoaded = false // Allow retry on failure
+  } finally {
+    isLoadingData.value = false
+  }
+}
+
+// If orgId arrives after onMounted (auth still loading), this watcher triggers the load
+watch(orgId, (newId) => {
+  if (newId && !dataLoaded && !authStore.isDemoMode) {
+    loadAppData()
+  }
+})
+
 onMounted(async () => {
   document.addEventListener('keydown', handleGlobalKeydown)
 
@@ -2541,55 +2604,8 @@ onMounted(async () => {
       },
       { FileCheck, AlertTriangle, RotateCcw, Clock, Package, Truck, Banknote, CheckCircle }
     )
-  } else if (orgId.value) {
-    // Load all data from Supabase in parallel
-    isLoadingData.value = true
-    try {
-      const orgContext = {
-        name: authStore.organization?.name || authStore.user?.name || '',
-        address: authStore.organization?.address || '',
-        phone: authStore.organization?.phone || '',
-      }
-
-      await Promise.all([
-        carriersData.load(),
-        boutiquesData.load(),
-        clientsData.load(),
-        shipmentsData.load(orgContext),
-        pickupsData.load(),
-        orgData.load(),
-        financeData.load(),
-      ])
-
-      // Sync composable data to DTV refs
-      syncComposableData()
-
-      // Load secondary data (non-blocking)
-      loadSecondaryData()
-
-      // Setup realtime subscriptions
-      shipmentsData.subscribe(orgContext)
-      financeData.subscribeToCredits()
-
-      // Activity logs realtime
-      activityLogsService.subscribeToChanges(orgId.value, (payload: any) => {
-        if (payload.new) {
-          const l = payload.new
-          activityLogs.value.unshift({
-            id: l.id,
-            type: l.type || 'info',
-            message: l.message || '',
-            tracking: l.entity_id || '',
-            date: new Date(l.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }),
-            time: new Date(l.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-          })
-        }
-      })
-    } catch (e: any) {
-      console.error('Error loading app data:', e)
-    } finally {
-      isLoadingData.value = false
-    }
+  } else {
+    await loadAppData()
   }
 })
 

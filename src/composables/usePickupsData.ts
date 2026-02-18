@@ -29,6 +29,10 @@ export function usePickupsData(orgId: Ref<string>) {
   }
 
   async function create(form: Record<string, any>, carrierId: string | null): Promise<UIPickup | null> {
+    if (!orgId.value) {
+      toast.error('Organisation introuvable — veuillez vous reconnecter')
+      return null
+    }
     try {
       const insert = uiPickupToInsert(form, orgId.value, carrierId)
       const row = await pickupsService.create(insert)

@@ -23,6 +23,10 @@ export function useCarriersData(orgId: Ref<string>) {
   }
 
   async function create(formData: Record<string, any>): Promise<UICarrier | null> {
+    if (!orgId.value) {
+      toast.error('Organisation introuvable — veuillez vous reconnecter')
+      return null
+    }
     try {
       const insert = uiCarrierToInsert(formData, orgId.value)
       const row = await carriersService.create(insert)
