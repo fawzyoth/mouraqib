@@ -31,14 +31,6 @@
               </p>
             </div>
           </div>
-          <div class="mt-4">
-            <router-link
-              :to="{ name: 'reset-password', query: { email: email, token: 'demo-token-123' } }"
-              class="text-sm text-green-700 dark:text-green-400 hover:underline"
-            >
-              (Demo) Cliquez ici pour simuler le lien reçu par email
-            </router-link>
-          </div>
         </div>
 
         <!-- Error Message -->

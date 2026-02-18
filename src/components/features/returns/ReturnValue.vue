@@ -218,10 +218,19 @@ interface CarrierReturnStats {
   recoveryRate: number
 }
 
-defineProps<{
-  returnsData: ReturnsData
-  carriersReturnStats: CarrierReturnStats[]
-}>()
+const { returnsData, carriersReturnStats } = withDefaults(defineProps<{
+  returnsData?: ReturnsData
+  carriersReturnStats?: CarrierReturnStats[]
+}>(), {
+  returnsData: () => ({
+    total: 0,
+    totalValue: 0,
+    recoveredValue: 0,
+    pendingValue: 0,
+    lostValue: 0,
+  }),
+  carriersReturnStats: () => [],
+})
 
 defineEmits<{
   'toggle-submenu': []

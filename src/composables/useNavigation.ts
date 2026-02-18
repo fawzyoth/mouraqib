@@ -38,10 +38,6 @@ import {
   Bell,
   Lock,
   CreditCard,
-  Layout,
-  Globe,
-  Palette,
-  SearchX,
 } from 'lucide-vue-next'
 
 export interface NavItem {
@@ -88,13 +84,6 @@ export const subSectionRoutes: Record<string, { path: string; mainSection: strin
   // Carriers
   'connected-carriers': { path: '/carriers', mainSection: 'carriers' },
   'add-carrier': { path: '/carriers/add', mainSection: 'carriers' },
-
-  // Tracking Page
-  'page-templates': { path: '/tracking', mainSection: 'tracking-page' },
-  'my-tracking-page': { path: '/tracking/my-page', mainSection: 'tracking-page' },
-  'page-branding': { path: '/tracking/branding', mainSection: 'tracking-page' },
-  'page-analytics': { path: '/tracking/analytics', mainSection: 'tracking-page' },
-  'failed-searches': { path: '/tracking/failed-searches', mainSection: 'tracking-page' },
 
   // Finance
   'expected-payments': { path: '/finance', mainSection: 'finance' },
@@ -175,13 +164,6 @@ export const subNavigation: Record<string, NavItem[]> = {
   carriers: [
     { id: 'connected-carriers', label: 'Transporteurs connectés', icon: markRaw(Building2) },
     { id: 'add-carrier', label: 'Ajouter transporteur', icon: markRaw(Plus) },
-  ],
-  'tracking-page': [
-    { id: 'page-templates', label: 'Modèles de page', icon: markRaw(Layout) },
-    { id: 'my-tracking-page', label: 'Ma page de suivi', icon: markRaw(Globe) },
-    { id: 'page-branding', label: 'Personnalisation', icon: markRaw(Palette) },
-    { id: 'page-analytics', label: 'Analytiques', icon: markRaw(BarChart3) },
-    { id: 'failed-searches', label: 'Recherches échouées', icon: markRaw(SearchX) },
   ],
   finance: [
     { id: 'expected-payments', label: 'Paiements attendus', icon: markRaw(Clock) },

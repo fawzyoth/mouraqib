@@ -143,13 +143,6 @@
                     <span class="inline-flex items-center px-3 py-2 border border-l-0 border-gray-200 dark:border-gray-700 rounded-r-lg bg-gray-100 dark:bg-gray-700 text-gray-500 text-sm">DT</span>
                   </div>
                 </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Total frais de livraison</label>
-                  <div class="flex">
-                    <input v-model.number="newCarrier.totalFraisLivraison" type="number" step="0.01" min="0" class="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-l-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
-                    <span class="inline-flex items-center px-3 py-2 border border-l-0 border-gray-200 dark:border-gray-700 rounded-r-lg bg-gray-100 dark:bg-gray-700 text-gray-500 text-sm">DT</span>
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -353,7 +346,6 @@ watch(() => props.editingCarrier, (carrier) => {
     newCarrier.fraisColisEchange = carrier.fraisColisEchange ?? DEFAULT_CARRIER_FEES.fraisColisEchange
     newCarrier.fraisColisBig = carrier.fraisColisBig ?? DEFAULT_CARRIER_FEES.fraisColisBig
     newCarrier.fraisColisPickup = carrier.fraisColisPickup ?? DEFAULT_CARRIER_FEES.fraisColisPickup
-    newCarrier.totalFraisLivraison = carrier.totalFraisLivraison ?? DEFAULT_CARRIER_FEES.totalFraisLivraison
     newCarrier.fraisPaiement = carrier.fraisPaiement ?? DEFAULT_CARRIER_FEES.fraisPaiement
     newCarrier.retenuPassage = carrier.retenuPassage ?? DEFAULT_CARRIER_FEES.retenuPassage
     newCarrier.allRegions = carrier.allRegions ?? true

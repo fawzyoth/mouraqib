@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="flex flex-col h-full">
     <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
@@ -461,7 +461,7 @@ import {
   AlertTriangle,
   CheckCircle
 } from 'lucide-vue-next'
-import { deliveryCarriers, carrierDeliveryFees } from '@/data/carriers-catalog'
+import { carrierDeliveryFees } from '@/data/carriers-catalog'
 import { tunisiaLocations } from '@/data/tunisia-locations'
 
 interface Client {
@@ -487,6 +487,7 @@ interface DeliveryCarrier {
 
 const props = defineProps<{
   clients: Client[]
+  carriers: { id: number; name: string; [key: string]: any }[]
 }>()
 
 const emit = defineEmits<{
@@ -540,11 +541,10 @@ const filteredShipmentClients = computed(() => {
 const carrierSearchQuery = ref('')
 
 const filteredCarriersLocal = computed(() => {
-  if (!carrierSearchQuery.value) return deliveryCarriers
+  if (!carrierSearchQuery.value) return props.carriers
   const search = carrierSearchQuery.value.toLowerCase()
-  return deliveryCarriers.filter(carrier =>
-    carrier.name.toLowerCase().includes(search) ||
-    carrier.description.toLowerCase().includes(search)
+  return props.carriers.filter(carrier =>
+    carrier.name.toLowerCase().includes(search)
   )
 })
 

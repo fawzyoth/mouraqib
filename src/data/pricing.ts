@@ -24,10 +24,12 @@ export const DEFAULT_CARRIER_FEES = {
   fraisColisEchange: 8.00,
   fraisColisBig: 12.00,
   fraisColisPickup: 3.00,
-  totalFraisLivraison: 7.00,
   fraisPaiement: 1.5,
   retenuPassage: 0.00,
 }
+
+// WhatsApp order number (international format, no +)
+export const WHATSAPP_ORDER_NUMBER = '32465987804'
 
 // Landing page pricing calculator — free tier
 export const FREE_TIER_PACKAGES = 500

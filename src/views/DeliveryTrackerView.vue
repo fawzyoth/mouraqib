@@ -1,4 +1,17 @@
 <template>
+  <!-- Loading overlay for initial data load -->
+  <div
+    v-if="isLoadingData && !authStore.isDemoMode"
+    class="fixed inset-0 z-[9999] flex items-center justify-center bg-white dark:bg-gray-950"
+  >
+    <div class="text-center">
+      <Loader2 class="w-8 h-8 animate-spin text-primary-blue mx-auto mb-3" />
+      <p class="text-sm text-gray-500">Chargement...</p>
+    </div>
+  </div>
+
+  <ToastContainer />
+
   <AppShell
     :main-section="mainSection"
     :active-section="activeSection"
@@ -151,6 +164,7 @@
     <CreateShipment
       v-else-if="activeSection === 'create-shipment'"
       :clients="clients"
+      :carriers="carriers"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
       @submit="handleCreateShipment"
       @reset="resetShipmentForm"
@@ -179,7 +193,7 @@
       v-else-if="activeSection === 'delivery-performance'"
       :analytics-date-range="analyticsDateRange"
       :delivery-performance="deliveryPerformance"
-      :carriers="configuredCarriers"
+      :carriers="carriers"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
       @update:analytics-date-range="analyticsDateRange = $event"
     />
@@ -288,8 +302,9 @@
     <!-- Carriers: Connected -->
     <ConnectedCarriers
       v-else-if="activeSection === 'connected-carriers'"
-      :carriers="configuredCarriers"
-      :carrier-stats="carrierStats"
+      :carriers="carriers"
+      :selected-carrier="selectedCarrier"
+      :delivery-carriers-count="deliveryCarriers.length - carriers.length"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
       @navigate="navigateTo"
       @select-carrier="selectCarrier"
@@ -322,14 +337,14 @@
       @save="saveCarrierFromPage"
     />
 
-    <!-- Tracking Pages -->
+    <!-- Tracking Pages (hidden — feature not yet ready for production)
     <TrackingPages
       v-else-if="activeSection === 'page-templates' || activeSection === 'my-tracking-page' || activeSection === 'page-branding' || activeSection === 'page-analytics' || activeSection === 'failed-searches'"
       :active-section="activeSection"
       :tracking-page-templates="trackingPageTemplates"
       :failed-searches="failedSearches"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
-    />
+    /> -->
 
     <!-- Finance: Expected Payments -->
     <ExpectedPayments
@@ -597,6 +612,7 @@
 
     <RechargeModal
       :show="showRechargeModal"
+      :org-name="companyProfile.name || authStore.organization?.name || ''"
       @close="showRechargeModal = false"
       @recharge="processRecharge"
     />
@@ -762,8 +778,23 @@ import {
   boutiquesService,
   carriersService,
   pickupsService,
-  transactionsService
+  transactionsService,
+  activityLogsService,
+  notificationSettingsService,
+  carrierPaymentsService,
+  paymentDiscrepanciesService,
+  failedSearchesService,
 } from '@/services'
+import { useCarriersData } from '@/composables/useCarriersData'
+import { useBoutiquesData } from '@/composables/useBoutiquesData'
+import { useClientsData } from '@/composables/useClientsData'
+import { useShipmentsData } from '@/composables/useShipmentsData'
+import { usePickupsData } from '@/composables/usePickupsData'
+import { useOrganizationData } from '@/composables/useOrganizationData'
+import { useFinanceData } from '@/composables/useFinanceData'
+import { useDerivedStats } from '@/composables/useDerivedStats'
+import { useToast } from '@/composables/useToast'
+import ToastContainer from '@/components/shared/ToastContainer.vue'
 import { seedDemoData } from '@/data/demo'
 import type { Boutique, CarrierConfigField, DeliveryCarrier, TeamMember, ConfiguredCarrier, NewBoutiqueForm } from '@/types/delivery-tracker'
 import { deliveryCarriers, standardConfigFields, carrierDeliveryFees } from '@/data/carriers-catalog'
@@ -832,8 +863,6 @@ import BulkImportModal from '@/components/modals/BulkImportModal.vue'
 import AddBoutiqueModal from '@/components/modals/AddBoutiqueModal.vue'
 import ChargeAccountModal from '@/components/modals/ChargeAccountModal.vue'
 import {
-  CREDIT_PRICE_DELIVERED,
-  CREDIT_PRICE_RETURNED,
   RECHARGE_DEFAULT_DELIVERED,
   RECHARGE_DEFAULT_RETURNED,
   ADMIN_FEE_DELIVERED,
@@ -843,9 +872,20 @@ import {
 
 const router = useRouter()
 const authStore = useAuthStore()
+const toast = useToast()
 
 // Loading state
 const isLoadingData = ref(false)
+
+// ==================== DB COMPOSABLES (non-demo mode) ====================
+const orgId = computed(() => authStore.user?.organizationId || '')
+const carriersData = useCarriersData(orgId)
+const boutiquesData = useBoutiquesData(orgId)
+const clientsData = useClientsData(orgId)
+const shipmentsData = useShipmentsData(orgId)
+const pickupsData = usePickupsData(orgId)
+const orgData = useOrganizationData(orgId)
+const financeData = useFinanceData(orgId)
 
 function handleLogout() {
   authStore.signOut()
@@ -886,24 +926,23 @@ const showRechargeModal = ref(false)
 const rechargeForm = ref({
   delivered: RECHARGE_DEFAULT_DELIVERED,
   returned: RECHARGE_DEFAULT_RETURNED,
-  paymentMethod: 'card' as 'card' | 'bank' | 'd17'
 })
 
-const rechargeTotalPrice = computed(() => {
-  return (rechargeForm.value.delivered * CREDIT_PRICE_DELIVERED) + (rechargeForm.value.returned * CREDIT_PRICE_RETURNED)
-})
+async function processRecharge(payload: { delivered: number; returned: number }) {
+  if (!authStore.isDemoMode) {
+    // WhatsApp order was already opened by the modal — just show confirmation toast
+    toast.success('Commande envoyée — vos crédits seront ajoutés après confirmation du paiement')
+    showRechargeModal.value = false
+    rechargeForm.value = { delivered: RECHARGE_DEFAULT_DELIVERED, returned: RECHARGE_DEFAULT_RETURNED }
+    return
+  }
 
-function processRecharge() {
-  const deliveredAdded = rechargeForm.value.delivered
-  const returnedAdded = rechargeForm.value.returned
+  // Demo mode: instant credit addition
+  userBalance.value.delivered += payload.delivered
+  userBalance.value.returned += payload.returned
 
-  // Add the purchased credits to balance
-  userBalance.value.delivered += deliveredAdded
-  userBalance.value.returned += returnedAdded
-
-  // Close modal and reset form
   showRechargeModal.value = false
-  rechargeForm.value = { delivered: RECHARGE_DEFAULT_DELIVERED, returned: RECHARGE_DEFAULT_RETURNED, paymentMethod: 'card' }
+  rechargeForm.value = { delivered: RECHARGE_DEFAULT_DELIVERED, returned: RECHARGE_DEFAULT_RETURNED }
 }
 
 const savedBoutiqueId = localStorage.getItem('deliveryTracker_currentBoutique')
@@ -1018,8 +1057,25 @@ function goToTeamSettings() {
   activeOrgTab.value = 'team'
 }
 
-function createBoutiqueSimple() {
+async function createBoutiqueSimple() {
   if (!canCreateBoutiqueSimple.value) return
+
+  if (!authStore.isDemoMode) {
+    const result = await boutiquesData.create({
+      name: newBoutiqueForm.name,
+      email: newBoutiqueForm.email,
+      phone: newBoutiqueForm.phone,
+      address: newBoutiqueForm.address,
+      governorate: newBoutiqueForm.governorate,
+      color: newBoutiqueForm.color,
+    })
+    if (result) {
+      boutiques.value = boutiquesData.boutiques.value
+      selectBoutique(result)
+    }
+    closeAddBoutiqueModal()
+    return
+  }
 
   const initials = newBoutiqueForm.name
     .split(' ')
@@ -1066,8 +1122,19 @@ function toggleBoutiqueForMember(boutiqueId: string) {
   }
 }
 
-function addTeamMember() {
+async function addTeamMember() {
   if (!newMemberForm.name || !newMemberForm.email || !newMemberForm.role) return
+
+  if (!authStore.isDemoMode) {
+    await orgData.addMember({ name: newMemberForm.name, email: newMemberForm.email, role: newMemberForm.role })
+    teamMembers.value = orgData.teamMembers.value
+    newMemberForm.name = ''
+    newMemberForm.email = ''
+    newMemberForm.role = ''
+    newMemberForm.boutiques = []
+    showAddMemberForm.value = false
+    return
+  }
 
   const initials = newMemberForm.name
     .split(' ')
@@ -1096,7 +1163,12 @@ function addTeamMember() {
   showAddMemberForm.value = false
 }
 
-function removeMember(memberId: string) {
+async function removeMember(memberId: string) {
+  if (!authStore.isDemoMode) {
+    await orgData.removeMember(memberId)
+    teamMembers.value = orgData.teamMembers.value
+    return
+  }
   const index = teamMembers.value.findIndex(m => m.id === memberId)
   if (index !== -1) {
     teamMembers.value.splice(index, 1)
@@ -1285,8 +1357,25 @@ function closeAddBoutiqueModal() {
   expandedCarrierConfig.value = null
 }
 
-function createBoutique() {
+async function createBoutique() {
   if (!canCreateBoutique.value) return
+
+  if (!authStore.isDemoMode) {
+    const result = await boutiquesData.create({
+      name: newBoutiqueForm.name,
+      email: newBoutiqueForm.email,
+      phone: newBoutiqueForm.phone,
+      address: newBoutiqueForm.address,
+      governorate: newBoutiqueForm.governorate,
+      color: newBoutiqueForm.color,
+    })
+    if (result) {
+      boutiques.value = boutiquesData.boutiques.value
+      selectBoutique(result)
+    }
+    closeAddBoutiqueModal()
+    return
+  }
 
   // Generate initials from name
   const initials = newBoutiqueForm.name
@@ -1480,7 +1569,25 @@ const clientRegionDistribution = computed(() => {
 })
 
 // Client management functions
-function submitNewClient() {
+async function submitNewClient() {
+  if (!authStore.isDemoMode) {
+    const result = await clientsData.create({
+      name: newClientForm.name,
+      phone: newClientForm.phone,
+      email: newClientForm.email,
+      address: newClientForm.address,
+      region: newClientForm.region,
+      status: newClientForm.status,
+    })
+    if (result) {
+      clientsList.value = clientsData.clientsList.value as any[]
+      clientStats.value = clientsData.clientStats.value
+    }
+    resetNewClientForm()
+    navigateTo('all-clients')
+    return
+  }
+
   const newClient = {
     id: Date.now(),
     name: newClientForm.name,
@@ -1500,7 +1607,25 @@ function submitNewClient() {
   navigateTo('all-clients')
 }
 
-function submitNewClientFromModal() {
+async function submitNewClientFromModal() {
+  if (!authStore.isDemoMode) {
+    const result = await clientsData.create({
+      name: newClientForm.name,
+      phone: newClientForm.phone,
+      email: newClientForm.email,
+      address: newClientForm.address,
+      region: newClientForm.region,
+      status: 'active',
+    })
+    if (result) {
+      clientsList.value = clientsData.clientsList.value as any[]
+      clientStats.value = clientsData.clientStats.value
+    }
+    resetNewClientForm()
+    showAddClientModal.value = false
+    return
+  }
+
   const newClient = {
     id: Date.now(),
     name: newClientForm.name,
@@ -1531,28 +1656,50 @@ function resetNewClientForm() {
   newClientForm.status = 'active'
 }
 
-function toggleClientVIP(client: any) {
+async function toggleClientVIP(client: any) {
+  const newStatus = client.status === 'vip' ? 'active' : 'vip'
+  if (!authStore.isDemoMode) {
+    await clientsData.updateStatus(client.id, newStatus)
+    clientsList.value = clientsData.clientsList.value as any[]
+    return
+  }
   const idx = clientsList.value.findIndex(c => c.id === client.id)
   if (idx !== -1) {
-    clientsList.value[idx].status = client.status === 'vip' ? 'active' : 'vip'
+    clientsList.value[idx].status = newStatus
   }
 }
 
-function toggleClientBlocked(client: any) {
+async function toggleClientBlocked(client: any) {
+  const newStatus = client.status === 'blocked' ? 'active' : 'blocked'
+  if (!authStore.isDemoMode) {
+    await clientsData.updateStatus(client.id, newStatus)
+    clientsList.value = clientsData.clientsList.value as any[]
+    return
+  }
   const idx = clientsList.value.findIndex(c => c.id === client.id)
   if (idx !== -1) {
-    clientsList.value[idx].status = client.status === 'blocked' ? 'active' : 'blocked'
+    clientsList.value[idx].status = newStatus
   }
 }
 
-function removeFromVIP(client: any) {
+async function removeFromVIP(client: any) {
+  if (!authStore.isDemoMode) {
+    await clientsData.updateStatus(client.id, 'active')
+    clientsList.value = clientsData.clientsList.value as any[]
+    return
+  }
   const idx = clientsList.value.findIndex(c => c.id === client.id)
   if (idx !== -1) {
     clientsList.value[idx].status = 'active'
   }
 }
 
-function unblockClient(client: any) {
+async function unblockClient(client: any) {
+  if (!authStore.isDemoMode) {
+    await clientsData.updateStatus(client.id, 'active')
+    clientsList.value = clientsData.clientsList.value as any[]
+    return
+  }
   const idx = clientsList.value.findIndex(c => c.id === client.id)
   if (idx !== -1) {
     clientsList.value[idx].status = 'active'
@@ -1822,6 +1969,7 @@ const financialStats = reactive({
   overduePayments: [] as any[],
   cashFlowProjection: [] as any[]
 })
+const financialSnapshot = financialStats
 
 // Activity Log
 const activityFilters = reactive({
@@ -1852,22 +2000,28 @@ const groupedActivityLogs = computed(() => {
 // ==================== END DASHBOARD DATA ====================
 
 // Notification Flows
-const notificationFlows = ref([
-  { name: 'When shipment updates to info received', enabled: false, disabledAt: 'Jan 26, 2026 at 11:37 PM', emailsSent: 0, smsSent: 0 },
-  { name: 'When shipment updates to in transit', enabled: false, disabledAt: null, emailsSent: '-', smsSent: '-' },
-  { name: 'When shipment updates to out for delivery', enabled: false, disabledAt: null, emailsSent: '-', smsSent: '-' },
-  { name: 'When shipment updates to available for pickup', enabled: false, disabledAt: null, emailsSent: '-', smsSent: '-' },
-  { name: 'When shipment updates to delivered', enabled: false, disabledAt: null, emailsSent: '-', smsSent: '-' },
-  { name: 'When shipment updates to exception', enabled: false, disabledAt: null, emailsSent: '-', smsSent: '-' },
-  { name: 'When shipment updates to failed attempt', enabled: false, disabledAt: null, emailsSent: '-', smsSent: '-' },
-])
+const notificationFlows = ref<any[]>([])
 
 function toggleFlow(index: number) {
-  notificationFlows.value[index].enabled = !notificationFlows.value[index].enabled
-  if (!notificationFlows.value[index].enabled) {
-    notificationFlows.value[index].disabledAt = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  const flow = notificationFlows.value[index]
+  flow.enabled = !flow.enabled
+  if (!flow.enabled) {
+    flow.disabledAt = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
   } else {
-    notificationFlows.value[index].disabledAt = null
+    flow.disabledAt = null
+  }
+
+  // Persist to DB for non-demo mode
+  if (!authStore.isDemoMode && flow.id) {
+    notificationSettingsService.update(flow.id, {
+      email_enabled: flow.enabled,
+      sms_enabled: flow.enabled,
+      disabled_at: flow.enabled ? null : new Date().toISOString(),
+    }).catch((e: any) => {
+      toast.error('Erreur mise à jour notification: ' + (e.message || e))
+      // Revert on failure
+      flow.enabled = !flow.enabled
+    })
   }
 }
 
@@ -1897,12 +2051,7 @@ const roleForm = ref({
   permissions: [] as string[]
 })
 
-const availableRoles = ref([
-  { id: 'owner', name: 'Owner', description: 'Propriétaire de l\'organisation. Toutes les permissions.', memberCount: 1, isDefault: true, isOwner: true, permissions: ['all'] },
-  { id: 'admin', name: 'Admin', description: 'Peut gérer l\'organisation, les paramètres et la facturation.', memberCount: 2, isDefault: true, isOwner: false, permissions: ['users.manage', 'settings.manage', 'billing.view', 'shipments.all', 'reports.view'] },
-  { id: 'manager', name: 'Manager', description: 'Peut gérer les colis et les clients.', memberCount: 3, isDefault: true, isOwner: false, permissions: ['shipments.all', 'clients.manage', 'reports.view'] },
-  { id: 'support', name: 'Support Agent', description: 'Peut voir et mettre à jour les colis.', memberCount: 1, isDefault: true, isOwner: false, permissions: ['shipments.view', 'shipments.update', 'clients.view'] },
-])
+const availableRoles = ref<any[]>([])
 
 const permissionCategories = [
   {
@@ -1991,9 +2140,20 @@ function closeMemberModal() {
   editingMember.value = null
 }
 
-function saveMember() {
+async function saveMember() {
   if (!memberForm.value.name || !memberForm.value.email || !memberForm.value.role) {
     alert('Veuillez remplir tous les champs obligatoires')
+    return
+  }
+
+  if (!authStore.isDemoMode && !editingMember.value) {
+    await orgData.addMember({
+      name: memberForm.value.name,
+      email: memberForm.value.email,
+      role: memberForm.value.role,
+    })
+    teamMembers.value = orgData.teamMembers.value
+    closeMemberModal()
     return
   }
 
@@ -2142,8 +2302,11 @@ const companyProfile = ref({
   timezone: 'Africa/Tunis'
 })
 
-function saveCompanyProfile() {
-  // Save company profile logic
+async function saveCompanyProfile() {
+  if (!authStore.isDemoMode) {
+    await orgData.saveProfile(companyProfile.value)
+    return
+  }
   alert('Profil entreprise enregistré avec succès!')
 }
 
@@ -2355,7 +2518,7 @@ function handleGlobalKeydown(e: KeyboardEvent) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('keydown', handleGlobalKeydown)
 
   if (authStore.isDemoMode) {
@@ -2378,12 +2541,224 @@ onMounted(() => {
       },
       { FileCheck, AlertTriangle, RotateCcw, Clock, Package, Truck, Banknote, CheckCircle }
     )
+  } else if (orgId.value) {
+    // Load all data from Supabase in parallel
+    isLoadingData.value = true
+    try {
+      const orgContext = {
+        name: authStore.organization?.name || authStore.user?.name || '',
+        address: authStore.organization?.address || '',
+        phone: authStore.organization?.phone || '',
+      }
+
+      await Promise.all([
+        carriersData.load(),
+        boutiquesData.load(),
+        clientsData.load(),
+        shipmentsData.load(orgContext),
+        pickupsData.load(),
+        orgData.load(),
+        financeData.load(),
+      ])
+
+      // Sync composable data to DTV refs
+      syncComposableData()
+
+      // Load secondary data (non-blocking)
+      loadSecondaryData()
+
+      // Setup realtime subscriptions
+      shipmentsData.subscribe(orgContext)
+      financeData.subscribeToCredits()
+
+      // Activity logs realtime
+      activityLogsService.subscribeToChanges(orgId.value, (payload: any) => {
+        if (payload.new) {
+          const l = payload.new
+          activityLogs.value.unshift({
+            id: l.id,
+            type: l.type || 'info',
+            message: l.message || '',
+            tracking: l.entity_id || '',
+            date: new Date(l.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }),
+            time: new Date(l.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          })
+        }
+      })
+    } catch (e: any) {
+      console.error('Error loading app data:', e)
+    } finally {
+      isLoadingData.value = false
+    }
   }
 })
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleGlobalKeydown)
+  // Cleanup realtime subscriptions
+  if (!authStore.isDemoMode) {
+    shipmentsData.unsubscribe()
+    financeData.unsubscribe()
+  }
 })
+
+// Sync composable data into existing DTV refs (so all existing template bindings keep working)
+function syncComposableData() {
+  // Carriers
+  carriers.value = carriersData.carriers.value as any[]
+  // Boutiques
+  boutiques.value = boutiquesData.boutiques.value
+  // Clients
+  clientsList.value = clientsData.clientsList.value as any[]
+  clientStats.value = clientsData.clientStats.value
+  // Shipments
+  shipments.value = shipmentsData.shipments.value as any[]
+  // Pickups
+  pickupRequests.value = pickupsData.pickupRequests.value as any[]
+  pickupHistory.value = pickupsData.pickupHistory.value as any[]
+  scheduledPickups.value = pickupsData.scheduledPickups.value as any[]
+  // Organization
+  teamMembers.value = orgData.teamMembers.value
+  availableRoles.value = orgData.availableRoles.value
+  companyProfile.value = orgData.companyProfile.value
+  // Finance
+  userBalance.value = financeData.userBalance.value
+  invoices.value = financeData.invoices.value
+  payments.value = financeData.payments.value
+  // Derived stats (compute carrier stats from loaded shipments)
+  const derived = useDerivedStats(
+    shipmentsData.shipments as any,
+    carriersData.carriers as any,
+    clientsData.clientsList as any,
+    financeData.userBalance
+  )
+  derived.computeCarrierStats()
+
+  // Update dashboard stats from derived
+  Object.assign(dashboardStats, derived.dashboardStats.value)
+  // Update chart data
+  chartData.value = derived.chartData.value
+  // Update analytics KPIs
+  Object.assign(analyticsKpis, derived.analyticsKpis.value)
+  // Update delivery performance
+  Object.assign(deliveryPerformance, derived.deliveryPerformance.value)
+  // Update returns data
+  Object.assign(returnsData, derived.returnsData.value)
+  // Update carrier return stats
+  carriersReturnStats.value = derived.carriersReturnStats.value
+
+  // Derive carriersList from loaded carriers
+  carriersList.value = carriers.value.map((c: any) => ({ id: c.id, name: c.name }))
+
+  // Compute invoicesStats from loaded invoices
+  const allInvoices = financeData.invoices.value
+  invoicesStats.totalInvoices = allInvoices.length
+  invoicesStats.pendingAmount = allInvoices.filter((i: any) => i.status === 'pending').reduce((s: number, i: any) => s + i.amount, 0)
+  invoicesStats.paidAmount = allInvoices.filter((i: any) => i.status === 'paid').reduce((s: number, i: any) => s + i.amount, 0)
+  invoicesStats.overdueCount = allInvoices.filter((i: any) => i.status === 'overdue').length
+
+  // Compute financial snapshot
+  Object.assign(financialStats, derived.financialSnapshot.value)
+
+  // Compute revenue stats from shipments
+  const allShipments = shipmentsData.shipments.value
+  const deliveredShipments = allShipments.filter((s: any) => s.status === 'Delivered')
+  const returnedShipments = allShipments.filter((s: any) => s.status === 'Returned')
+
+  const grossRevenue = deliveredShipments.reduce((s: number, sh: any) => s + sh.cod, 0)
+  const shippingCosts = allShipments.reduce((s: number, sh: any) => s + sh.deliveryFee, 0)
+  const netRevenue = grossRevenue - shippingCosts
+  revenueStats.grossRevenue = grossRevenue
+  revenueStats.netRevenue = netRevenue
+  revenueStats.shippingCosts = shippingCosts
+  revenueStats.marginPercent = grossRevenue > 0 ? Math.round((netRevenue / grossRevenue) * 100) : 0
+  revenueStats.avgOrderValue = deliveredShipments.length > 0 ? Math.round(grossRevenue / deliveredShipments.length) : 0
+
+  // Return losses stats
+  const returnLoss = returnedShipments.reduce((s: number, sh: any) => s + sh.deliveryFee, 0)
+  returnLossesStats.totalLoss = returnLoss
+  returnLossesStats.returnedCount = returnedShipments.length
+  returnLossesStats.shippingLoss = returnLoss
+
+  // Delayed shipments from derived
+  delayedShipments.value = derived.delayedShipments.value
+}
+
+// Load secondary/non-critical data (runs after primary sync, non-blocking)
+async function loadSecondaryData() {
+  const oid = orgId.value
+  if (!oid) return
+
+  try {
+    const [logs, notifSettings, cpRows, discStats, searches] = await Promise.all([
+      activityLogsService.getAll(oid, 50).catch(() => []),
+      notificationSettingsService.getAll(oid).catch(() => []),
+      carrierPaymentsService.getAll(oid).catch(() => []),
+      paymentDiscrepanciesService.getStats(oid).catch(() => null),
+      failedSearchesService.getAll(oid).catch(() => []),
+    ])
+
+    // Activity logs
+    activityLogs.value = (logs || []).map((l: any) => ({
+      id: l.id,
+      type: l.type || 'info',
+      message: l.message || '',
+      tracking: l.entity_id || '',
+      date: new Date(l.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }),
+      time: new Date(l.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+    }))
+
+    // Notification settings
+    if (notifSettings && notifSettings.length > 0) {
+      notificationFlows.value = notifSettings.map((ns: any) => ({
+        id: ns.id,
+        name: ns.event_type || '',
+        enabled: ns.email_enabled || ns.sms_enabled || false,
+        disabledAt: ns.disabled_at ? new Date(ns.disabled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + new Date(ns.disabled_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : null,
+        emailsSent: ns.emails_sent ?? 0,
+        smsSent: ns.sms_sent ?? 0,
+      }))
+    }
+
+    // Carrier payments → receivedPaymentsData
+    receivedPaymentsData.value = (cpRows || []).map((cp: any) => ({
+      id: cp.id,
+      carrier: cp.carrier?.name || 'Inconnu',
+      carrierId: cp.carrier_id,
+      reference: cp.reference || '',
+      date: new Date(cp.payment_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }),
+      totalCOD: cp.total_cod,
+      totalFees: cp.total_fees,
+      netReceived: cp.net_received,
+      status: cp.status,
+      notes: cp.notes || '',
+      shipments: [],
+    }))
+
+    // Update receivedPaymentsStats
+    receivedPaymentsStats.totalCOD = receivedPaymentsData.value.reduce((s: number, p: any) => s + p.totalCOD, 0)
+    receivedPaymentsStats.totalFees = receivedPaymentsData.value.reduce((s: number, p: any) => s + p.totalFees, 0)
+    receivedPaymentsStats.totalReceived = receivedPaymentsData.value.reduce((s: number, p: any) => s + p.netReceived, 0)
+    receivedPaymentsStats.paymentsCount = receivedPaymentsData.value.length
+    receivedPaymentsStats.shipmentsCount = 0
+
+    // Payment discrepancy stats
+    if (discStats) {
+      Object.assign(discrepancyStats, discStats)
+    }
+
+    // Failed searches
+    failedSearches.value = (searches || []).map((fs: any) => ({
+      id: fs.id,
+      query: fs.query,
+      phone: fs.phone || '',
+      contacted: fs.contacted,
+      date: new Date(fs.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }),
+    }))
+  } catch (e: any) {
+    console.error('Error loading secondary data:', e)
+  }
+}
 
 // ==========================================
 // Bulk Import
@@ -2496,56 +2871,7 @@ function openBulkImport() {
 }
 
 // Tracking Page Templates
-const trackingPageTemplates = ref([
-  {
-    id: 1,
-    name: 'Moderne Minimaliste',
-    description: 'Design épuré avec focus sur les informations essentielles',
-    gradientClass: 'from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900',
-    accentClass: 'bg-orange-500',
-    isPopular: true
-  },
-  {
-    id: 2,
-    name: 'Professionnel',
-    description: 'Style corporate avec timeline détaillée',
-    gradientClass: 'from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30',
-    accentClass: 'bg-blue-500',
-    isPopular: false
-  },
-  {
-    id: 3,
-    name: 'Coloré & Dynamique',
-    description: 'Design vibrant avec animations et icônes',
-    gradientClass: 'from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30',
-    accentClass: 'bg-purple-500',
-    isPopular: false
-  },
-  {
-    id: 4,
-    name: 'E-commerce',
-    description: 'Optimisé pour les boutiques en ligne',
-    gradientClass: 'from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30',
-    accentClass: 'bg-green-500',
-    isPopular: true
-  },
-  {
-    id: 5,
-    name: 'Dark Mode',
-    description: 'Thème sombre élégant',
-    gradientClass: 'from-gray-800 to-gray-900',
-    accentClass: 'bg-orange-500',
-    isPopular: false
-  },
-  {
-    id: 6,
-    name: 'Carte Interactive',
-    description: 'Avec suivi géographique en temps réel',
-    gradientClass: 'from-cyan-100 to-blue-100 dark:from-cyan-900/30 dark:to-blue-900/30',
-    accentClass: 'bg-cyan-500',
-    isPopular: false
-  },
-])
+const trackingPageTemplates = ref<any[]>([])
 
 // Failed Searches (customers who couldn't find their order)
 const failedSearches = ref<any[]>([])
@@ -3305,9 +3631,30 @@ function resetShipmentForm() {
   newShipment.reference = ''
 }
 
-function addShipment() {
+async function addShipment() {
   // Validate required fields
   if (!newShipment.customerName || !newShipment.phone || !newShipment.address || !newShipment.gouvernorat || !newShipment.delegation || !newShipment.productName) {
+    return
+  }
+
+  if (!authStore.isDemoMode) {
+    // Find carrier ID from name
+    const carrierObj = carriersData.carriers.value.find(c => c.name === newShipment.carrier)
+    const orgContext = {
+      name: authStore.organization?.name || authStore.user?.name || '',
+      address: authStore.organization?.address || '',
+      phone: authStore.organization?.phone || '',
+    }
+    const result = await shipmentsData.create(
+      { ...newShipment, productPrice: newShipment.productPrice, deliveryFee: newShipment.deliveryFee },
+      orgContext,
+      authStore.user?.id || null,
+      carrierObj?.id || null
+    )
+    if (result) {
+      shipments.value = shipmentsData.shipments.value as any[]
+    }
+    resetShipmentForm()
     return
   }
 
@@ -3364,6 +3711,18 @@ function addShipment() {
   resetShipmentForm()
 }
 
+// Aliases for template bindings (fixing decomposition mismatches)
+const handleCreateShipment = addShipment
+const addClient = submitNewClient
+const toggleClientVip = toggleClientVIP
+const totalVipRevenue = vipTotalRevenue
+const avgVipDeliveryRate = vipAverageDeliveryRate
+const toggleDailyTask = toggleTask
+const pendingPickupsCount = computed(() => pendingPickups.value.length)
+const returnCarriers = carriers
+const paymentHistory = payments
+const paymentHistoryStats = paymentStats
+
 // Carrier functions
 function openAddCarrierModal() {
   editingCarrier.value = null
@@ -3383,7 +3742,6 @@ function editCarrier(carrier: typeof carriers.value[0]) {
   newCarrier.fraisColisEchange = carrier.fraisColisEchange
   newCarrier.fraisColisBig = carrier.fraisColisBig
   newCarrier.fraisColisPickup = carrier.fraisColisPickup
-  newCarrier.totalFraisLivraison = carrier.totalFraisLivraison
   newCarrier.fraisPaiement = carrier.fraisPaiement
   newCarrier.retenuPassage = carrier.retenuPassage
   newCarrier.allRegions = carrier.allRegions
@@ -3425,7 +3783,7 @@ function clearAllRegions() {
   newCarrier.regions = []
 }
 
-function saveCarrier() {
+async function saveCarrier() {
   if (!newCarrier.name || !newCarrier.apiId || !newCarrier.apiKey) {
     return
   }
@@ -3435,68 +3793,15 @@ function saveCarrier() {
     return // At least one region must be selected
   }
 
-  if (editingCarrier.value) {
-    // Update existing carrier
-    const index = carriers.value.findIndex(c => c.id === editingCarrier.value)
-    if (index !== -1) {
-      carriers.value[index] = {
-        ...carriers.value[index],
-        name: newCarrier.name,
-        apiId: newCarrier.apiId,
-        apiKey: newCarrier.apiKey,
-        fraisColisLivres: newCarrier.fraisColisLivres,
-        fraisColisRetour: newCarrier.fraisColisRetour,
-        fraisColisEchange: newCarrier.fraisColisEchange,
-        fraisColisBig: newCarrier.fraisColisBig,
-        fraisColisPickup: newCarrier.fraisColisPickup,
-        totalFraisLivraison: newCarrier.totalFraisLivraison,
-        fraisPaiement: newCarrier.fraisPaiement,
-        retenuPassage: newCarrier.retenuPassage,
-        allRegions: newCarrier.allRegions,
-        regions: [...newCarrier.regions]
-      }
-      // Update selected carrier if it's the one being edited
-      if (selectedCarrier.value?.id === editingCarrier.value) {
-        selectedCarrier.value = carriers.value[index]
-      }
+  if (!authStore.isDemoMode) {
+    if (editingCarrier.value) {
+      await carriersData.update(String(editingCarrier.value), { ...newCarrier })
+    } else {
+      await carriersData.create({ ...newCarrier })
     }
-  } else {
-    // Add new carrier
-    const newId = Math.max(...carriers.value.map(c => c.id)) + 1
-    carriers.value.push({
-      id: newId,
-      name: newCarrier.name,
-      apiId: newCarrier.apiId,
-      apiKey: newCarrier.apiKey,
-      apiStatus: 'disconnected',
-      shipments: 0,
-      delivered: 0,
-      deliveryRate: 0,
-      avgTime: 0,
-      fraisColisLivres: newCarrier.fraisColisLivres,
-      fraisColisRetour: newCarrier.fraisColisRetour,
-      fraisColisEchange: newCarrier.fraisColisEchange,
-      fraisColisBig: newCarrier.fraisColisBig,
-      fraisColisPickup: newCarrier.fraisColisPickup,
-      totalFraisLivraison: newCarrier.totalFraisLivraison,
-      fraisPaiement: newCarrier.fraisPaiement,
-      retenuPassage: newCarrier.retenuPassage,
-      allRegions: newCarrier.allRegions,
-      regions: [...newCarrier.regions]
-    })
-  }
-
-  closeCarrierModal()
-}
-
-function saveCarrierFromPage() {
-  if (!newCarrier.name || !newCarrier.apiId || !newCarrier.apiKey) {
+    carriers.value = carriersData.carriers.value as any[]
+    closeCarrierModal()
     return
-  }
-
-  // Validate regions if not all regions
-  if (!newCarrier.allRegions && newCarrier.regions.length === 0) {
-    return // At least one region must be selected
   }
 
   if (editingCarrier.value) {
@@ -3513,7 +3818,7 @@ function saveCarrierFromPage() {
         fraisColisEchange: newCarrier.fraisColisEchange,
         fraisColisBig: newCarrier.fraisColisBig,
         fraisColisPickup: newCarrier.fraisColisPickup,
-        totalFraisLivraison: newCarrier.totalFraisLivraison,
+
         fraisPaiement: newCarrier.fraisPaiement,
         retenuPassage: newCarrier.retenuPassage,
         allRegions: newCarrier.allRegions,
@@ -3542,7 +3847,86 @@ function saveCarrierFromPage() {
       fraisColisEchange: newCarrier.fraisColisEchange,
       fraisColisBig: newCarrier.fraisColisBig,
       fraisColisPickup: newCarrier.fraisColisPickup,
-      totalFraisLivraison: newCarrier.totalFraisLivraison,
+
+      fraisPaiement: newCarrier.fraisPaiement,
+      retenuPassage: newCarrier.retenuPassage,
+      allRegions: newCarrier.allRegions,
+      regions: [...newCarrier.regions]
+    })
+  }
+
+  closeCarrierModal()
+}
+
+async function saveCarrierFromPage() {
+  if (!newCarrier.name || !newCarrier.apiId || !newCarrier.apiKey) {
+    return
+  }
+
+  // Validate regions if not all regions
+  if (!newCarrier.allRegions && newCarrier.regions.length === 0) {
+    return // At least one region must be selected
+  }
+
+  if (!authStore.isDemoMode) {
+    if (editingCarrier.value) {
+      await carriersData.update(String(editingCarrier.value), { ...newCarrier })
+    } else {
+      await carriersData.create({ ...newCarrier })
+    }
+    carriers.value = carriersData.carriers.value as any[]
+    editingCarrier.value = null
+    resetCarrierForm()
+    modalCarrierSearchQuery.value = ''
+    selectedModalCarrier.value = null
+    navigateTo('connected-carriers')
+    return
+  }
+
+  if (editingCarrier.value) {
+    // Update existing carrier
+    const index = carriers.value.findIndex(c => c.id === editingCarrier.value)
+    if (index !== -1) {
+      carriers.value[index] = {
+        ...carriers.value[index],
+        name: newCarrier.name,
+        apiId: newCarrier.apiId,
+        apiKey: newCarrier.apiKey,
+        fraisColisLivres: newCarrier.fraisColisLivres,
+        fraisColisRetour: newCarrier.fraisColisRetour,
+        fraisColisEchange: newCarrier.fraisColisEchange,
+        fraisColisBig: newCarrier.fraisColisBig,
+        fraisColisPickup: newCarrier.fraisColisPickup,
+
+        fraisPaiement: newCarrier.fraisPaiement,
+        retenuPassage: newCarrier.retenuPassage,
+        allRegions: newCarrier.allRegions,
+        regions: [...newCarrier.regions]
+      }
+      // Update selected carrier if it's the one being edited
+      if (selectedCarrier.value?.id === editingCarrier.value) {
+        selectedCarrier.value = carriers.value[index]
+      }
+    }
+  } else {
+    // Add new carrier
+    const newId = carriers.value.length > 0 ? Math.max(...carriers.value.map(c => c.id)) + 1 : 1
+    carriers.value.push({
+      id: newId,
+      name: newCarrier.name,
+      apiId: newCarrier.apiId,
+      apiKey: newCarrier.apiKey,
+      apiStatus: 'disconnected',
+      shipments: 0,
+      delivered: 0,
+      deliveryRate: 0,
+      avgTime: 0,
+      fraisColisLivres: newCarrier.fraisColisLivres,
+      fraisColisRetour: newCarrier.fraisColisRetour,
+      fraisColisEchange: newCarrier.fraisColisEchange,
+      fraisColisBig: newCarrier.fraisColisBig,
+      fraisColisPickup: newCarrier.fraisColisPickup,
+
       fraisPaiement: newCarrier.fraisPaiement,
       retenuPassage: newCarrier.retenuPassage,
       allRegions: newCarrier.allRegions,
@@ -3558,7 +3942,15 @@ function saveCarrierFromPage() {
   navigateTo('connected-carriers')
 }
 
-function deleteCarrier(carrierId: number) {
+async function deleteCarrier(carrierId: number) {
+  if (!authStore.isDemoMode) {
+    await carriersData.remove(String(carrierId))
+    carriers.value = carriersData.carriers.value as any[]
+    if (selectedCarrier.value?.id === carrierId) {
+      selectedCarrier.value = null
+    }
+    return
+  }
   const index = carriers.value.findIndex(c => c.id === carrierId)
   if (index !== -1) {
     carriers.value.splice(index, 1)
@@ -3750,7 +4142,7 @@ function openPickupConfirmation() {
   showPickupConfirmModal.value = true
 }
 
-function confirmScanPickup() {
+async function confirmScanPickup() {
   if (!pickupSchedule.date || !pickupSchedule.timeSlot || confirmedShipments.value.length === 0) return
   confirmingPickup.value = true
 
@@ -3815,12 +4207,7 @@ function confirmScanPickup() {
 // ==================== FINANCE DATA STRUCTURES ====================
 
 // Carriers List
-const carriersList = ref([
-  { id: 'yalidine', name: 'Yalidine' },
-  { id: 'zr-express', name: 'ZR Express' },
-  { id: 'maystro', name: 'Maystro' },
-  { id: 'ecotrack', name: 'Ecotrack' }
-])
+const carriersList = ref<{ id: string; name: string }[]>([])
 
 // ==================== PAIEMENTS ATTENDUS (Expected Payments) ====================
 const expectedPaymentsCarrierFilter = ref('all')

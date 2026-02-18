@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { subSectionRoutes } from '@/composables/useNavigation'
+import { useAuthStore } from '@/stores/auth'
 
 // Single lazy-import reference so Vue Router reuses the same component instance
 const DeliveryTrackerView = () => import('@/views/DeliveryTrackerView.vue')
@@ -52,15 +53,11 @@ const router = createRouter({
     },
     {
       path: '/forgot-password',
-      name: 'forgot-password',
-      component: () => import('@/views/ForgotPasswordView.vue'),
-      meta: { public: true }
+      redirect: '/signin'
     },
     {
       path: '/reset-password',
-      name: 'reset-password',
-      component: () => import('@/views/ResetPasswordView.vue'),
-      meta: { public: true }
+      redirect: '/signin'
     },
     // All app feature routes (each renders DeliveryTrackerView)
     ...appRoutes,
@@ -120,6 +117,14 @@ router.beforeEach(async (to, from, next) => {
   // If user is authenticated and trying to access auth pages
   if (authRedirect && isAuthenticated) {
     return next({ path: '/dashboard' })
+  }
+
+  // If route requires admin and user is not a platform admin
+  if (to.meta.requiresAdmin && isAuthenticated) {
+    const authStore = useAuthStore()
+    if (!authStore.isPlatformAdmin) {
+      return next({ path: '/dashboard' })
+    }
   }
 
   next()

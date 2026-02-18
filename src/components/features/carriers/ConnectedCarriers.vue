@@ -234,10 +234,6 @@
                   <td class="px-4 py-3 text-sm text-gray-900 dark:text-white">Frais colis pickup</td>
                   <td class="px-4 py-3 text-sm text-right font-medium text-gray-900 dark:text-white">{{ selectedCarrier.fraisColisPickup.toFixed(2) }} DT</td>
                 </tr>
-                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/30 bg-orange-50/50 dark:bg-orange-900/10">
-                  <td class="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">Total frais de livraison</td>
-                  <td class="px-4 py-3 text-sm text-right font-bold text-orange-600">{{ selectedCarrier.totalFraisLivraison.toFixed(2) }} DT</td>
-                </tr>
                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/30">
                   <td class="px-4 py-3 text-sm text-gray-900 dark:text-white">Frais de paiement</td>
                   <td class="px-4 py-3 text-sm text-right font-medium text-gray-900 dark:text-white">{{ selectedCarrier.fraisPaiement.toFixed(2) }} %</td>
@@ -351,7 +347,6 @@ interface Carrier {
   fraisColisEchange: number
   fraisColisBig: number
   fraisColisPickup: number
-  totalFraisLivraison: number
   fraisPaiement: number
   retenuPassage: number
   allRegions: boolean

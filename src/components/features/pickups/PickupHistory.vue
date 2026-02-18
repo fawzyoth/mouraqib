@@ -105,9 +105,11 @@ interface PickupHistoryItem {
   status: string
 }
 
-const props = defineProps<{
-  pickupHistory: PickupHistoryItem[]
-}>()
+const props = withDefaults(defineProps<{
+  pickupHistory?: PickupHistoryItem[]
+}>(), {
+  pickupHistory: () => [],
+})
 
 defineEmits<{
   'toggle-submenu': []
@@ -118,3 +120,4 @@ const completedCount = computed(() => {
   return props.pickupHistory.filter(p => p.status === 'completed').length
 })
 </script>
+

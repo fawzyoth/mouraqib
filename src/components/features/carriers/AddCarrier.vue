@@ -273,13 +273,6 @@
                     <span class="text-sm text-gray-400 font-medium">DT</span>
                   </div>
                 </div>
-                <div class="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-4 border border-orange-200 dark:border-orange-800/30">
-                  <label class="block text-xs font-medium text-orange-600 dark:text-orange-400 mb-2 uppercase tracking-wide">Total livraison</label>
-                  <div class="flex items-baseline gap-1">
-                    <input :value="newCarrier.totalFraisLivraison" @input="$emit('update:newCarrierField', 'totalFraisLivraison', Number(($event.target as HTMLInputElement).value))" type="number" step="0.01" min="0" class="w-full px-0 py-1 border-0 border-b-2 border-orange-300 dark:border-orange-600 bg-transparent text-xl font-bold text-orange-700 dark:text-orange-400 focus:ring-0 focus:border-orange-500" />
-                    <span class="text-sm text-orange-500 font-medium">DT</span>
-                  </div>
-                </div>
               </div>
 
               <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
@@ -432,8 +425,8 @@
                       <p class="text-[9px] text-gray-400 uppercase">Retour</p>
                     </div>
                     <div class="text-center p-2 bg-white dark:bg-gray-900 rounded-lg">
-                      <p class="text-sm font-bold text-orange-600">{{ newCarrier.totalFraisLivraison.toFixed(1) }}</p>
-                      <p class="text-[9px] text-gray-400 uppercase">Total</p>
+                      <p class="text-sm font-bold text-gray-900 dark:text-white">{{ newCarrier.fraisColisBig.toFixed(1) }}</p>
+                      <p class="text-[9px] text-gray-400 uppercase">BIG</p>
                     </div>
                   </div>
                   <div class="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
@@ -508,7 +501,6 @@ interface NewCarrierForm {
   fraisColisEchange: number
   fraisColisBig: number
   fraisColisPickup: number
-  totalFraisLivraison: number
   fraisPaiement: number
   retenuPassage: number
   allRegions: boolean

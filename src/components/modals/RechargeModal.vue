@@ -114,49 +114,6 @@
               <span class="text-xl font-bold text-orange-500">{{ rechargeTotalPrice.toFixed(3) }} TND</span>
             </div>
           </div>
-
-          <!-- Payment Method -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mode de paiement</label>
-            <div class="grid grid-cols-3 gap-2">
-              <button
-                @click="rechargeForm.paymentMethod = 'card'"
-                :class="[
-                  'p-3 rounded-xl border-2 text-center transition-colors',
-                  rechargeForm.paymentMethod === 'card'
-                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                ]"
-              >
-                <CreditCard class="w-6 h-6 mx-auto mb-1" :class="rechargeForm.paymentMethod === 'card' ? 'text-orange-500' : 'text-gray-400'" />
-                <span class="text-xs font-medium" :class="rechargeForm.paymentMethod === 'card' ? 'text-orange-600' : 'text-gray-600 dark:text-gray-400'">Carte</span>
-              </button>
-              <button
-                @click="rechargeForm.paymentMethod = 'bank'"
-                :class="[
-                  'p-3 rounded-xl border-2 text-center transition-colors',
-                  rechargeForm.paymentMethod === 'bank'
-                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                ]"
-              >
-                <Building class="w-6 h-6 mx-auto mb-1" :class="rechargeForm.paymentMethod === 'bank' ? 'text-orange-500' : 'text-gray-400'" />
-                <span class="text-xs font-medium" :class="rechargeForm.paymentMethod === 'bank' ? 'text-orange-600' : 'text-gray-600 dark:text-gray-400'">Virement</span>
-              </button>
-              <button
-                @click="rechargeForm.paymentMethod = 'd17'"
-                :class="[
-                  'p-3 rounded-xl border-2 text-center transition-colors',
-                  rechargeForm.paymentMethod === 'd17'
-                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                ]"
-              >
-                <Smartphone class="w-6 h-6 mx-auto mb-1" :class="rechargeForm.paymentMethod === 'd17' ? 'text-orange-500' : 'text-gray-400'" />
-                <span class="text-xs font-medium" :class="rechargeForm.paymentMethod === 'd17' ? 'text-orange-600' : 'text-gray-600 dark:text-gray-400'">D17</span>
-              </button>
-            </div>
-          </div>
         </div>
 
         <!-- Footer -->
@@ -165,17 +122,17 @@
             Annuler
           </button>
           <button
-            @click="processRecharge"
+            @click="orderViaWhatsApp"
             :disabled="rechargeTotalPrice === 0"
             :class="[
               'px-5 py-2.5 text-sm font-medium text-white rounded-lg transition-colors flex items-center gap-2',
               rechargeTotalPrice > 0
-                ? 'bg-[#4959b4] hover:bg-[#3a4791]'
+                ? 'bg-[#25D366] hover:bg-[#1da851]'
                 : 'bg-gray-300 cursor-not-allowed'
             ]"
           >
-            <Wallet class="w-4 h-4" />
-            Payer {{ rechargeTotalPrice.toFixed(3) }} TND
+            <MessageCircle class="w-4 h-4" />
+            Commander via WhatsApp
           </button>
         </div>
       </div>
@@ -189,10 +146,7 @@ import {
   X,
   Package,
   RefreshCw,
-  CreditCard,
-  Building,
-  Smartphone,
-  Wallet
+  MessageCircle
 } from 'lucide-vue-next'
 import {
   CREDIT_PRICE_DELIVERED,
@@ -201,34 +155,49 @@ import {
   CREDIT_PRICE_RETURNED_MILLIMES,
   RECHARGE_DEFAULT_DELIVERED,
   RECHARGE_DEFAULT_RETURNED,
+  WHATSAPP_ORDER_NUMBER,
 } from '@/data/pricing'
 
 const props = defineProps<{
   show: boolean
   userBalance: { delivered: number; returned: number }
+  orgName: string
 }>()
 
 const emit = defineEmits<{
   close: []
-  recharge: [payload: { delivered: number; returned: number; paymentMethod: 'card' | 'bank' | 'd17' }]
+  recharge: [payload: { delivered: number; returned: number }]
 }>()
 
 const rechargeForm = ref({
   delivered: RECHARGE_DEFAULT_DELIVERED,
   returned: RECHARGE_DEFAULT_RETURNED,
-  paymentMethod: 'card' as 'card' | 'bank' | 'd17'
 })
 
 const rechargeTotalPrice = computed(() => {
   return (rechargeForm.value.delivered * CREDIT_PRICE_DELIVERED) + (rechargeForm.value.returned * CREDIT_PRICE_RETURNED)
 })
 
-function processRecharge() {
+function orderViaWhatsApp() {
+  const deliveredPrice = (rechargeForm.value.delivered * CREDIT_PRICE_DELIVERED).toFixed(3)
+  const returnedPrice = (rechargeForm.value.returned * CREDIT_PRICE_RETURNED).toFixed(3)
+  const total = rechargeTotalPrice.value.toFixed(3)
+
+  const message = [
+    'Bonjour, je souhaite recharger mon compte Mouraqib:',
+    `- Colis Livré: ${rechargeForm.value.delivered} crédits (${deliveredPrice} TND)`,
+    `- Colis Retour: ${rechargeForm.value.returned} crédits (${returnedPrice} TND)`,
+    `- Total: ${total} TND`,
+    `Organisation: ${props.orgName}`,
+  ].join('\n')
+
+  const url = `https://wa.me/${WHATSAPP_ORDER_NUMBER}?text=${encodeURIComponent(message)}`
+  window.open(url, '_blank')
+
   emit('recharge', {
     delivered: rechargeForm.value.delivered,
     returned: rechargeForm.value.returned,
-    paymentMethod: rechargeForm.value.paymentMethod
   })
-  rechargeForm.value = { delivered: RECHARGE_DEFAULT_DELIVERED, returned: RECHARGE_DEFAULT_RETURNED, paymentMethod: 'card' }
+  rechargeForm.value = { delivered: RECHARGE_DEFAULT_DELIVERED, returned: RECHARGE_DEFAULT_RETURNED }
 }
 </script>

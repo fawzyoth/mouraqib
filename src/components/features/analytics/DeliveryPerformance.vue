@@ -134,11 +134,21 @@ interface Carrier {
   avgTime: number
 }
 
-defineProps<{
+const { deliveryPerformance, carriers } = withDefaults(defineProps<{
   analyticsDateRange: string
-  deliveryPerformance: DeliveryPerformanceData
-  carriers: Carrier[]
-}>()
+  deliveryPerformance?: DeliveryPerformanceData
+  carriers?: Carrier[]
+}>(), {
+  deliveryPerformance: () => ({
+    successfulDeliveries: 0,
+    totalAttempts: 0,
+    firstAttemptRate: 0,
+    avgDeliveryTime: 0,
+    onTimeRate: 0,
+    regionalPerformance: [],
+  }),
+  carriers: () => [],
+})
 
 defineEmits<{
   'toggle-submenu': []

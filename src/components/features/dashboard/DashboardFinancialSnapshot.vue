@@ -195,7 +195,20 @@ interface Props {
   financialStats: FinancialStats
 }
 
-defineProps<Props>()
+const { financialStats } = withDefaults(defineProps<Props>(), {
+  financialStats: () => ({
+    pendingCOD: 0,
+    pendingCODCount: 0,
+    pendingPayments: 0,
+    pendingCarriersCount: 0,
+    deliveryFees: 0,
+    netMargin: 0,
+    marginPercent: 0,
+    codByCarrier: [],
+    overduePayments: [],
+    cashFlowProjection: [],
+  }),
+})
 
 defineEmits<{
   (e: 'toggle-sub-menu'): void
