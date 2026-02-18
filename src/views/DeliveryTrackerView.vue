@@ -3647,22 +3647,27 @@ function resetShipmentForm() {
   newShipment.reference = ''
 }
 
-async function addShipment() {
+async function addShipment(submittedData?: any) {
+  // Use data from the child component's emit, or fall back to local newShipment
+  const data = submittedData || newShipment
+
   // Validate required fields
-  if (!newShipment.customerName || !newShipment.phone || !newShipment.address || !newShipment.gouvernorat || !newShipment.delegation || !newShipment.productName) {
+  if (!data.customerName || !data.phone || !data.address || !data.gouvernorat || !data.delegation || !data.productName) {
     return
   }
 
+  const shipmentTotal = submittedData?.totalPrice ?? ((data.productPrice || 0) + (data.deliveryFee || 0))
+
   if (!authStore.isDemoMode) {
     // Find carrier ID from name
-    const carrierObj = carriersData.carriers.value.find(c => c.name === newShipment.carrier)
+    const carrierObj = carriersData.carriers.value.find(c => c.name === data.carrier)
     const orgContext = {
       name: authStore.organization?.name || authStore.user?.name || '',
       address: authStore.organization?.address || '',
       phone: authStore.organization?.phone || '',
     }
     const result = await shipmentsData.create(
-      { ...newShipment, productPrice: newShipment.productPrice, deliveryFee: newShipment.deliveryFee },
+      { ...data, productPrice: data.productPrice, deliveryFee: data.deliveryFee },
       orgContext,
       authStore.user?.id || null,
       carrierObj?.id || null
@@ -3676,49 +3681,49 @@ async function addShipment() {
 
   const timestamp = Date.now()
   const labelNumber = `BRD-${new Date().getFullYear()}-${String(timestamp).slice(-6)}`
-  const reference = newShipment.reference || generateReference()
-  const trackingNumber = newShipment.trackingNumber || `TN-${new Date().getFullYear()}-${String(timestamp).slice(-8)}`
+  const reference = data.reference || generateReference()
+  const trackingNumber = data.trackingNumber || `TN-${new Date().getFullYear()}-${String(timestamp).slice(-8)}`
 
   // Build full destination address
   const fullDestination = [
-    newShipment.locality,
-    newShipment.delegation,
-    newShipment.gouvernorat
+    data.locality,
+    data.delegation,
+    data.gouvernorat
   ].filter(Boolean).join(', ')
 
   shipments.value.unshift({
     id: timestamp,
     trackingNumber: trackingNumber,
-    carrier: newShipment.carrier || 'À assigner',
+    carrier: data.carrier || 'À assigner',
     service: '-',
     status: 'Pending',
     latestEvent: `${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} : Colis créé`,
     originFlag: '🇹🇳',
     origin: 'Tunisie',
-    destination: fullDestination || newShipment.gouvernorat,
+    destination: fullDestination || data.gouvernorat,
     deliveryDate: null,
     transitDays: 0,
     orderNumber: `CMD-${timestamp}`,
-    customerName: newShipment.customerName,
+    customerName: data.customerName,
     // Auto-generated label data
     labelNumber: labelNumber,
     labelPrinted: false,
     labelPrintedAt: null,
     weight: 1.0,
     dimensions: '20x15x10',
-    cod: totalPrice.value,
+    cod: shipmentTotal,
     senderName: companyProfile.value.name || '',
     senderAddress: companyProfile.value.address ? `${companyProfile.value.address}, ${companyProfile.value.city}` : '',
     senderPhone: companyProfile.value.phone || '',
-    recipientPhone: `+216 ${newShipment.phone}`,
-    recipientPhoneSecondary: newShipment.phoneSecondary ? `+216 ${newShipment.phoneSecondary}` : '',
-    recipientAddress: `${newShipment.address}, ${newShipment.postalCode} ${fullDestination}`,
-    productDescription: newShipment.productName + (newShipment.description ? ` - ${newShipment.description}` : ''),
-    fragile: newShipment.isFragile,
+    recipientPhone: `+216 ${data.phone}`,
+    recipientPhoneSecondary: data.phoneSecondary ? `+216 ${data.phoneSecondary}` : '',
+    recipientAddress: `${data.address}, ${data.postalCode} ${fullDestination}`,
+    productDescription: data.productName + (data.description ? ` - ${data.description}` : ''),
+    fragile: data.isFragile,
     reference: reference,
-    productPrice: newShipment.productPrice,
-    deliveryFee: newShipment.deliveryFee,
-    totalPrice: totalPrice.value,
+    productPrice: data.productPrice,
+    deliveryFee: data.deliveryFee,
+    totalPrice: shipmentTotal,
     events: [
       { status: 'Informations reçues', description: 'Commande en attente de ramassage', location: 'Tunisie', date: new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) + ' à ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), completed: true },
     ]
