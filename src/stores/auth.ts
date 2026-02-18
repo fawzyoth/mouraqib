@@ -77,15 +77,30 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function loadUserProfile(supabaseUser: SupabaseUser) {
     try {
-      // Load profile
+      // Load profile (maybeSingle: returns null if no profile row exists yet)
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', supabaseUser.id)
-        .single()
+        .maybeSingle()
 
       if (profileError) {
         console.error('Error loading profile:', profileError)
+        return
+      }
+
+      if (!profileData) {
+        // Profile row doesn't exist yet — use auth metadata as fallback
+        user.value = {
+          id: supabaseUser.id,
+          name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || '',
+          email: supabaseUser.email || '',
+          organization: '',
+          organizationId: null,
+          role: 'user',
+          isAdmin: false,
+          avatarUrl: null
+        }
         return
       }
 
@@ -97,7 +112,7 @@ export const useAuthStore = defineStore('auth', () => {
           .from('organizations')
           .select('*')
           .eq('id', profileData.organization_id)
-          .single()
+          .maybeSingle()
 
         if (!orgError && orgData) {
           organization.value = orgData

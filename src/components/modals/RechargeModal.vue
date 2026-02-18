@@ -41,7 +41,7 @@
             <!-- Delivered packages -->
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Colis Livré <span class="text-gray-400 font-normal">(150 millimes/colis)</span>
+                Colis Livré <span class="text-gray-400 font-normal">({{ CREDIT_PRICE_DELIVERED_MILLIMES }} millimes/colis)</span>
               </label>
               <div class="flex items-center gap-2">
                 <button
@@ -71,7 +71,7 @@
             <!-- Returned packages -->
             <div>
               <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Colis Retour <span class="text-gray-400 font-normal">(50 millimes/colis)</span>
+                Colis Retour <span class="text-gray-400 font-normal">({{ CREDIT_PRICE_RETURNED_MILLIMES }} millimes/colis)</span>
               </label>
               <div class="flex items-center gap-2">
                 <button
@@ -102,12 +102,12 @@
           <!-- Summary -->
           <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 space-y-3">
             <div class="flex items-center justify-between text-sm">
-              <span class="text-gray-600 dark:text-gray-400">{{ rechargeForm.delivered }} colis livré × 150 mill</span>
-              <span class="font-medium text-gray-900 dark:text-white">{{ (rechargeForm.delivered * 0.150).toFixed(3) }} TND</span>
+              <span class="text-gray-600 dark:text-gray-400">{{ rechargeForm.delivered }} colis livré × {{ CREDIT_PRICE_DELIVERED_MILLIMES }} mill</span>
+              <span class="font-medium text-gray-900 dark:text-white">{{ (rechargeForm.delivered * CREDIT_PRICE_DELIVERED).toFixed(3) }} TND</span>
             </div>
             <div class="flex items-center justify-between text-sm">
-              <span class="text-gray-600 dark:text-gray-400">{{ rechargeForm.returned }} colis retour × 50 mill</span>
-              <span class="font-medium text-gray-900 dark:text-white">{{ (rechargeForm.returned * 0.050).toFixed(3) }} TND</span>
+              <span class="text-gray-600 dark:text-gray-400">{{ rechargeForm.returned }} colis retour × {{ CREDIT_PRICE_RETURNED_MILLIMES }} mill</span>
+              <span class="font-medium text-gray-900 dark:text-white">{{ (rechargeForm.returned * CREDIT_PRICE_RETURNED).toFixed(3) }} TND</span>
             </div>
             <div class="pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
               <span class="text-base font-semibold text-gray-900 dark:text-white">Total</span>
@@ -194,6 +194,14 @@ import {
   Smartphone,
   Wallet
 } from 'lucide-vue-next'
+import {
+  CREDIT_PRICE_DELIVERED,
+  CREDIT_PRICE_RETURNED,
+  CREDIT_PRICE_DELIVERED_MILLIMES,
+  CREDIT_PRICE_RETURNED_MILLIMES,
+  RECHARGE_DEFAULT_DELIVERED,
+  RECHARGE_DEFAULT_RETURNED,
+} from '@/data/pricing'
 
 const props = defineProps<{
   show: boolean
@@ -206,13 +214,13 @@ const emit = defineEmits<{
 }>()
 
 const rechargeForm = ref({
-  delivered: 500,
-  returned: 100,
+  delivered: RECHARGE_DEFAULT_DELIVERED,
+  returned: RECHARGE_DEFAULT_RETURNED,
   paymentMethod: 'card' as 'card' | 'bank' | 'd17'
 })
 
 const rechargeTotalPrice = computed(() => {
-  return (rechargeForm.value.delivered * 0.150) + (rechargeForm.value.returned * 0.050)
+  return (rechargeForm.value.delivered * CREDIT_PRICE_DELIVERED) + (rechargeForm.value.returned * CREDIT_PRICE_RETURNED)
 })
 
 function processRecharge() {
@@ -221,6 +229,6 @@ function processRecharge() {
     returned: rechargeForm.value.returned,
     paymentMethod: rechargeForm.value.paymentMethod
   })
-  rechargeForm.value = { delivered: 500, returned: 100, paymentMethod: 'card' }
+  rechargeForm.value = { delivered: RECHARGE_DEFAULT_DELIVERED, returned: RECHARGE_DEFAULT_RETURNED, paymentMethod: 'card' }
 }
 </script>

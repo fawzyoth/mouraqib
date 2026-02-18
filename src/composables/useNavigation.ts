@@ -1,5 +1,5 @@
 import { ref, computed, markRaw, type Ref, type Component } from 'vue'
-import { useLocalStorageRef } from './useLocalStorage'
+import { useRouter, useRoute } from 'vue-router'
 import {
   LayoutDashboard,
   Users,
@@ -52,6 +52,81 @@ export interface NavItem {
   badgeClass?: string
 }
 
+// Route map: subSection ID → { path, mainSection }
+export const subSectionRoutes: Record<string, { path: string; mainSection: string }> = {
+  // Dashboard
+  'overview': { path: '/dashboard', mainSection: 'dashboard' },
+  'today-shipments': { path: '/dashboard/today', mainSection: 'dashboard' },
+  'delayed-shipments': { path: '/dashboard/delayed', mainSection: 'dashboard' },
+  'returns-alerts': { path: '/dashboard/return-alerts', mainSection: 'dashboard' },
+  'financial-snapshot': { path: '/dashboard/financial-snapshot', mainSection: 'dashboard' },
+  'activity-log': { path: '/dashboard/activity-log', mainSection: 'dashboard' },
+
+  // Clients
+  'all-clients': { path: '/clients', mainSection: 'clients' },
+  'add-client': { path: '/clients/add', mainSection: 'clients' },
+  'vip-clients': { path: '/clients/vip', mainSection: 'clients' },
+  'blocked-clients': { path: '/clients/blocked', mainSection: 'clients' },
+  'client-stats': { path: '/clients/statistics', mainSection: 'clients' },
+
+  // Shipments
+  'all-shipments': { path: '/shipments', mainSection: 'shipments' },
+  'create-shipment': { path: '/shipments/create', mainSection: 'shipments' },
+  'labels': { path: '/shipments/labels', mainSection: 'shipments' },
+
+  // Pickups
+  'schedule-pickup': { path: '/pickups', mainSection: 'pickups' },
+  'pickup-history': { path: '/pickups/history', mainSection: 'pickups' },
+
+  // Returns
+  'active-returns': { path: '/returns', mainSection: 'returns' },
+  'recovered-returns': { path: '/returns/recovered', mainSection: 'returns' },
+  'lost-returns': { path: '/returns/lost', mainSection: 'returns' },
+  'return-value': { path: '/returns/value', mainSection: 'returns' },
+  'return-reports': { path: '/returns/reports', mainSection: 'returns' },
+
+  // Carriers
+  'connected-carriers': { path: '/carriers', mainSection: 'carriers' },
+  'add-carrier': { path: '/carriers/add', mainSection: 'carriers' },
+
+  // Tracking Page
+  'page-templates': { path: '/tracking', mainSection: 'tracking-page' },
+  'my-tracking-page': { path: '/tracking/my-page', mainSection: 'tracking-page' },
+  'page-branding': { path: '/tracking/branding', mainSection: 'tracking-page' },
+  'page-analytics': { path: '/tracking/analytics', mainSection: 'tracking-page' },
+  'failed-searches': { path: '/tracking/failed-searches', mainSection: 'tracking-page' },
+
+  // Finance
+  'expected-payments': { path: '/finance', mainSection: 'finance' },
+  'received-payments': { path: '/finance/received', mainSection: 'finance' },
+  'payment-discrepancies': { path: '/finance/discrepancies', mainSection: 'finance' },
+  'revenue': { path: '/finance/revenue', mainSection: 'finance' },
+  'return-losses': { path: '/finance/return-losses', mainSection: 'finance' },
+  'invoices': { path: '/finance/invoices', mainSection: 'finance' },
+  'exports': { path: '/finance/exports', mainSection: 'finance' },
+
+  // Analytics
+  'global-kpis': { path: '/analytics', mainSection: 'analytics' },
+  'delivery-performance': { path: '/analytics/performance', mainSection: 'analytics' },
+  'return-intelligence': { path: '/analytics/returns', mainSection: 'analytics' },
+  'risk-zones': { path: '/analytics/risk-zones', mainSection: 'analytics' },
+  'anomaly-detection': { path: '/analytics/anomalies', mainSection: 'analytics' },
+  'trends': { path: '/analytics/trends', mainSection: 'analytics' },
+  'reports': { path: '/analytics/reports', mainSection: 'analytics' },
+
+  // Settings
+  'company-profile': { path: '/settings', mainSection: 'settings' },
+  'users-roles': { path: '/settings/users', mainSection: 'settings' },
+  'notifications': { path: '/settings/notifications', mainSection: 'settings' },
+  'security': { path: '/settings/security', mainSection: 'settings' },
+  'payment-history': { path: '/settings/payment-history', mainSection: 'settings' },
+
+  // Administration
+  'admin-users': { path: '/admin', mainSection: 'administration' },
+  'admin-billing': { path: '/admin/billing', mainSection: 'administration' },
+  'admin-transactions': { path: '/admin/transactions', mainSection: 'administration' },
+}
+
 export const mainNavigation: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: markRaw(LayoutDashboard) },
   { id: 'clients', label: 'Clients', icon: markRaw(Users) },
@@ -69,8 +144,8 @@ export const subNavigation: Record<string, NavItem[]> = {
   dashboard: [
     { id: 'overview', label: 'Vue d\'ensemble', icon: markRaw(LayoutDashboard) },
     { id: 'today-shipments', label: 'Tâches du jour', icon: markRaw(CalendarClock) },
-    { id: 'delayed-shipments', label: 'Colis en retard', icon: markRaw(AlertTriangle), badge: '3', badgeClass: 'bg-red-100 text-red-600' },
-    { id: 'returns-alerts', label: 'Alertes retours', icon: markRaw(AlertCircle), badge: '2', badgeClass: 'bg-yellow-100 text-yellow-600' },
+    { id: 'delayed-shipments', label: 'Colis en retard', icon: markRaw(AlertTriangle) },
+    { id: 'returns-alerts', label: 'Alertes retours', icon: markRaw(AlertCircle) },
     { id: 'financial-snapshot', label: 'Aperçu financier', icon: markRaw(DollarSign) },
     { id: 'activity-log', label: 'Journal d\'activité', icon: markRaw(Activity) },
   ],
@@ -106,7 +181,7 @@ export const subNavigation: Record<string, NavItem[]> = {
     { id: 'my-tracking-page', label: 'Ma page de suivi', icon: markRaw(Globe) },
     { id: 'page-branding', label: 'Personnalisation', icon: markRaw(Palette) },
     { id: 'page-analytics', label: 'Analytiques', icon: markRaw(BarChart3) },
-    { id: 'failed-searches', label: 'Recherches échouées', icon: markRaw(SearchX), badge: '5', badgeClass: 'bg-red-100 text-red-600' },
+    { id: 'failed-searches', label: 'Recherches échouées', icon: markRaw(SearchX) },
   ],
   finance: [
     { id: 'expected-payments', label: 'Paiements attendus', icon: markRaw(Clock) },
@@ -141,8 +216,11 @@ export const subNavigation: Record<string, NavItem[]> = {
 }
 
 export function useNavigation(isAdmin: Ref<boolean>) {
-  const mainSection = useLocalStorageRef('deliveryTracker_mainSection', 'dashboard')
-  const activeSection = useLocalStorageRef('deliveryTracker_activeSection', 'overview')
+  const router = useRouter()
+  const route = useRoute()
+
+  const mainSection = computed(() => (route.meta.mainSection as string) || 'dashboard')
+  const activeSection = computed(() => (route.meta.subSection as string) || 'overview')
   const showSearchResultsPage = ref(false)
 
   const filteredMainNavigation = computed(() => {
@@ -170,10 +248,17 @@ export function useNavigation(isAdmin: Ref<boolean>) {
   }
 
   function selectMainSection(section: string) {
-    mainSection.value = section
     const firstSubItem = subNavigation[section]?.[0]
     if (firstSubItem) {
-      activeSection.value = firstSubItem.id
+      navigateTo(firstSubItem.id)
+    }
+    showSearchResultsPage.value = false
+  }
+
+  function navigateTo(subSection: string) {
+    const routeInfo = subSectionRoutes[subSection]
+    if (routeInfo) {
+      router.push(routeInfo.path)
     }
     showSearchResultsPage.value = false
   }
@@ -187,5 +272,6 @@ export function useNavigation(isAdmin: Ref<boolean>) {
     getMainSectionLabel,
     getSectionTitle,
     selectMainSection,
+    navigateTo,
   }
 }

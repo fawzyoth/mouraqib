@@ -128,37 +128,33 @@
         <div class="bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-200 dark:border-gray-800">
           <div class="flex items-center justify-between mb-3">
             <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg"><Eye class="w-5 h-5 text-blue-600" /></div>
-            <span class="flex items-center text-xs font-medium text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full"><TrendingUp class="w-3 h-3 mr-1" />+18%</span>
           </div>
-          <p class="text-2xl font-bold text-gray-900 dark:text-white">1,234</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ pageMetrics.visits.toLocaleString('fr-FR') }}</p>
           <p class="text-sm text-gray-500">Visites ce mois</p>
-          <div class="mt-3 h-1 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden"><div class="h-full bg-blue-500 rounded-full" style="width: 75%"></div></div>
+          <div class="mt-3 h-1 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden"><div class="h-full bg-blue-500 rounded-full" :style="{ width: (pageMetrics.visits > 0 ? Math.min(100, Math.round(pageMetrics.successfulSearches / pageMetrics.visits * 100)) : 0) + '%' }"></div></div>
         </div>
         <div class="bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-200 dark:border-gray-800">
           <div class="flex items-center justify-between mb-3">
             <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg"><Search class="w-5 h-5 text-green-600" /></div>
-            <span class="flex items-center text-xs font-medium text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full"><TrendingUp class="w-3 h-3 mr-1" />+12%</span>
           </div>
-          <p class="text-2xl font-bold text-gray-900 dark:text-white">892</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ pageMetrics.successfulSearches.toLocaleString('fr-FR') }}</p>
           <p class="text-sm text-gray-500">Recherches r&eacute;ussies</p>
-          <p class="text-xs text-gray-400 mt-2">72.3% taux de r&eacute;ussite</p>
+          <p class="text-xs text-gray-400 mt-2">{{ pageMetrics.successRate }}% taux de r&eacute;ussite</p>
         </div>
         <div class="bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-200 dark:border-gray-800">
           <div class="flex items-center justify-between mb-3">
             <div class="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg"><SearchX class="w-5 h-5 text-red-600" /></div>
-            <span class="flex items-center text-xs font-medium text-red-600 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-full"><TrendingUp class="w-3 h-3 mr-1" />+5</span>
           </div>
-          <p class="text-2xl font-bold text-gray-900 dark:text-white">45</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ pageMetrics.failedSearchCount }}</p>
           <p class="text-sm text-gray-500">Recherches &eacute;chou&eacute;es</p>
-          <p class="text-xs text-red-500 mt-2">&Agrave; traiter rapidement</p>
+          <p v-if="pageMetrics.failedSearchCount > 0" class="text-xs text-red-500 mt-2">&Agrave; traiter rapidement</p>
         </div>
         <div class="bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-200 dark:border-gray-800">
           <div class="flex items-center justify-between mb-3">
             <div class="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg"><Clock class="w-5 h-5 text-purple-600" /></div>
           </div>
-          <p class="text-2xl font-bold text-gray-900 dark:text-white">2m 34s</p>
+          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ pageMetrics.avgTime }}</p>
           <p class="text-sm text-gray-500">Temps moyen sur page</p>
-          <p class="text-xs text-green-500 mt-2">+15s vs mois dernier</p>
         </div>
       </div>
 
@@ -432,18 +428,21 @@ const sectionSubtitle = computed(() => {
   return subtitles[props.activeSection] || ''
 })
 
-const trafficSources = [
-  { label: 'Lien direct (WhatsApp)', percent: 58, color: 'bg-blue-500' },
-  { label: 'WhatsApp', percent: 25, color: 'bg-green-500' },
-  { label: 'Email', percent: 12, color: 'bg-orange-500' },
-  { label: 'Recherche directe', percent: 5, color: 'bg-purple-500' }
-]
+// Analytics metrics derived from available data
+const pageMetrics = computed(() => {
+  const failedCount = props.failedSearches.length
+  // Without a real analytics backend, we can only show what we know
+  const totalSearches = failedCount // Only failed searches are tracked for now
+  return {
+    visits: 0,
+    successfulSearches: 0,
+    failedSearchCount: failedCount,
+    successRate: 0,
+    avgTime: '--',
+  }
+})
 
-const activeRegions = [
-  { name: 'Tunis', count: 342, percent: 85, barColor: 'bg-blue-500' },
-  { name: 'Sousse', count: 245, percent: 60, barColor: 'bg-blue-500' },
-  { name: 'Sfax', count: 198, percent: 45, barColor: 'bg-blue-500' },
-  { name: 'Nabeul', count: 156, percent: 35, barColor: 'bg-blue-500' },
-  { name: 'Autres', count: 293, percent: 25, barColor: 'bg-gray-400' }
-]
+const trafficSources: { label: string; percent: number; color: string }[] = []
+
+const activeRegions: { name: string; count: number; percent: number; barColor: string }[] = []
 </script>

@@ -257,6 +257,7 @@ import {
   DollarSign,
   MapPinned
 } from 'lucide-vue-next'
+import { DEFAULT_CARRIER_FEES } from '@/data/pricing'
 
 const props = defineProps<{
   show: boolean
@@ -277,14 +278,7 @@ const newCarrier = reactive({
   name: '',
   apiId: '',
   apiKey: '',
-  fraisColisLivres: 7.00,
-  fraisColisRetour: 5.00,
-  fraisColisEchange: 8.00,
-  fraisColisBig: 12.00,
-  fraisColisPickup: 3.00,
-  totalFraisLivraison: 7.00,
-  fraisPaiement: 1.5,
-  retenuPassage: 0.00,
+  ...DEFAULT_CARRIER_FEES,
   allRegions: true,
   regions: [] as string[]
 })
@@ -329,14 +323,7 @@ function resetForm() {
   newCarrier.name = ''
   newCarrier.apiId = ''
   newCarrier.apiKey = ''
-  newCarrier.fraisColisLivres = 7.00
-  newCarrier.fraisColisRetour = 5.00
-  newCarrier.fraisColisEchange = 8.00
-  newCarrier.fraisColisBig = 12.00
-  newCarrier.fraisColisPickup = 3.00
-  newCarrier.totalFraisLivraison = 7.00
-  newCarrier.fraisPaiement = 1.5
-  newCarrier.retenuPassage = 0.00
+  Object.assign(newCarrier, DEFAULT_CARRIER_FEES)
   newCarrier.allRegions = true
   newCarrier.regions = []
   modalCarrierSearchQuery.value = ''
@@ -361,14 +348,14 @@ watch(() => props.editingCarrier, (carrier) => {
     newCarrier.name = carrier.name || ''
     newCarrier.apiId = carrier.apiId || ''
     newCarrier.apiKey = carrier.apiKey || ''
-    newCarrier.fraisColisLivres = carrier.fraisColisLivres ?? 7.00
-    newCarrier.fraisColisRetour = carrier.fraisColisRetour ?? 5.00
-    newCarrier.fraisColisEchange = carrier.fraisColisEchange ?? 8.00
-    newCarrier.fraisColisBig = carrier.fraisColisBig ?? 12.00
-    newCarrier.fraisColisPickup = carrier.fraisColisPickup ?? 3.00
-    newCarrier.totalFraisLivraison = carrier.totalFraisLivraison ?? 7.00
-    newCarrier.fraisPaiement = carrier.fraisPaiement ?? 1.5
-    newCarrier.retenuPassage = carrier.retenuPassage ?? 0.00
+    newCarrier.fraisColisLivres = carrier.fraisColisLivres ?? DEFAULT_CARRIER_FEES.fraisColisLivres
+    newCarrier.fraisColisRetour = carrier.fraisColisRetour ?? DEFAULT_CARRIER_FEES.fraisColisRetour
+    newCarrier.fraisColisEchange = carrier.fraisColisEchange ?? DEFAULT_CARRIER_FEES.fraisColisEchange
+    newCarrier.fraisColisBig = carrier.fraisColisBig ?? DEFAULT_CARRIER_FEES.fraisColisBig
+    newCarrier.fraisColisPickup = carrier.fraisColisPickup ?? DEFAULT_CARRIER_FEES.fraisColisPickup
+    newCarrier.totalFraisLivraison = carrier.totalFraisLivraison ?? DEFAULT_CARRIER_FEES.totalFraisLivraison
+    newCarrier.fraisPaiement = carrier.fraisPaiement ?? DEFAULT_CARRIER_FEES.fraisPaiement
+    newCarrier.retenuPassage = carrier.retenuPassage ?? DEFAULT_CARRIER_FEES.retenuPassage
     newCarrier.allRegions = carrier.allRegions ?? true
     newCarrier.regions = carrier.regions ? [...carrier.regions] : []
   }

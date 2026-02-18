@@ -899,7 +899,7 @@
             </div>
             <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Colis Livré</h3>
             <div class="mb-4">
-              <span class="text-4xl font-bold text-gray-900 dark:text-white">150</span>
+              <span class="text-4xl font-bold text-gray-900 dark:text-white">{{ CREDIT_PRICE_DELIVERED_MILLIMES }}</span>
               <span class="text-lg text-gray-500"> millimes</span>
             </div>
             <p class="text-sm text-gray-500 dark:text-gray-400">par colis livré avec succès</p>
@@ -912,7 +912,7 @@
             </div>
             <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Colis Retour</h3>
             <div class="mb-4">
-              <span class="text-4xl font-bold text-gray-900 dark:text-white">50</span>
+              <span class="text-4xl font-bold text-gray-900 dark:text-white">{{ CREDIT_PRICE_RETURNED_MILLIMES }}</span>
               <span class="text-lg text-gray-500"> millimes</span>
             </div>
             <p class="text-sm text-gray-500 dark:text-gray-400">par colis retourné</p>
@@ -1383,6 +1383,13 @@ import {
   ScanLine,
   Shield
 } from 'lucide-vue-next'
+import {
+  CREDIT_PRICE_DELIVERED,
+  CREDIT_PRICE_RETURNED,
+  CREDIT_PRICE_DELIVERED_MILLIMES,
+  CREDIT_PRICE_RETURNED_MILLIMES,
+  FREE_TIER_PACKAGES,
+} from '@/data/pricing'
 
 const themeStore = useThemeStore()
 
@@ -1429,17 +1436,11 @@ const calculatedPrice = computed(() => {
   const delivered = deliveredCount.value
   const returned = returnedCount.value
 
-  // First 500 packages are free
-  const freePackages = 500
-  const billableDelivered = Math.max(0, delivered - Math.min(freePackages, delivered))
-  const remainingFree = Math.max(0, freePackages - delivered)
+  const billableDelivered = Math.max(0, delivered - Math.min(FREE_TIER_PACKAGES, delivered))
+  const remainingFree = Math.max(0, FREE_TIER_PACKAGES - delivered)
   const billableReturned = Math.max(0, returned - remainingFree)
 
-  // Fixed prices: 150 millimes per delivered, 50 millimes per returned
-  const deliveredPrice = 0.150
-  const returnedPrice = 0.050
-
-  return (billableDelivered * deliveredPrice) + (billableReturned * returnedPrice)
+  return (billableDelivered * CREDIT_PRICE_DELIVERED) + (billableReturned * CREDIT_PRICE_RETURNED)
 })
 
 // Solutions modal

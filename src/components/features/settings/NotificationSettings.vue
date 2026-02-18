@@ -124,7 +124,7 @@ const emit = defineEmits<{
 }>()
 
 const notificationFlows = ref<NotificationFlow[]>([
-  { name: 'When shipment updates to info received', enabled: false, disabledAt: 'Jan 26, 2026 at 11:37 PM', emailsSent: 0, smsSent: 0 },
+  { name: 'When shipment updates to info received', enabled: false, disabledAt: null, emailsSent: 0, smsSent: 0 },
   { name: 'When shipment updates to in transit', enabled: false, disabledAt: null, emailsSent: '-', smsSent: '-' },
   { name: 'When shipment updates to out for delivery', enabled: false, disabledAt: null, emailsSent: '-', smsSent: '-' },
   { name: 'When shipment updates to available for pickup', enabled: false, disabledAt: null, emailsSent: '-', smsSent: '-' },

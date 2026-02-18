@@ -14,7 +14,7 @@
     :shipments-count="shipments.length"
     :delivered-count="deliveredCount"
     @select-main="selectMainSection"
-    @select-sub="(id) => { activeSection = id; showSearchResultsPage = false }"
+    @select-sub="navigateTo"
     @toggle-menu="sidebarOpen = true"
     @close-menu="sidebarOpen = false"
     @close-submenu="subMenuOpen = false"
@@ -43,7 +43,7 @@
       :status-tabs="statusTabs"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
       @open-bulk-import="openBulkImport"
-      @open-add-shipment="showAddShipmentModal = true"
+      @open-add-shipment="navigateTo('create-shipment')"
       @select-shipment="(s) => { selectedShipment = s; showShipmentDetail = true }"
     />
 
@@ -53,7 +53,7 @@
       :clients="clients"
       :client-stats="clientStats"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
-      @open-add-client="activeSection = 'add-client'"
+      @open-add-client="navigateTo('add-client')"
       @view-client="(c) => { selectedClient = c; showClientDetail = true }"
       @edit-client="(c) => { selectedClient = c }"
       @toggle-vip="toggleClientVip"
@@ -65,7 +65,7 @@
       v-else-if="activeSection === 'add-client'"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
       @submit="addClient"
-      @cancel="activeSection = 'all-clients'"
+      @cancel="navigateTo('all-clients')"
     />
 
     <!-- Clients: VIP -->
@@ -104,14 +104,14 @@
       :delayed-shipments-count="delayedShipmentsCount"
       :return-alerts-count="returnAlertsCount"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
-      @navigate="(section) => { activeSection = section }"
+      @navigate="navigateTo"
     />
 
     <!-- Dashboard: Today's Tasks -->
     <DashboardTodayTasks
       v-else-if="activeSection === 'today-shipments'"
-      :categories="dailyTaskCategories"
-      :summary-stats="tasksSummaryStats"
+      :categories="filteredTaskCategories"
+      :stats="dailyTasksStats"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
       @toggle-task="toggleDailyTask"
       @complete-all-in-category="completeAllInCategory"
@@ -122,7 +122,7 @@
     <DashboardDelayed
       v-else-if="activeSection === 'delayed-shipments'"
       :shipments="delayedShipments"
-      :stats="delayedStats"
+      :delayed-patterns="delayedPatterns"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
     />
 
@@ -168,8 +168,8 @@
       :analytics-date-range="analyticsDateRange"
       :analytics-kpis="analyticsKpis"
       :analytics-kpi-comparison="analyticsKpiComparison"
-      :chart-data="analyticsChartData"
-      :chart-labels="analyticsChartLabels"
+      :chart-data="chartData"
+      :chart-labels="chartLabels"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
       @update:analytics-date-range="analyticsDateRange = $event"
     />
@@ -178,7 +178,7 @@
     <DeliveryPerformance
       v-else-if="activeSection === 'delivery-performance'"
       :analytics-date-range="analyticsDateRange"
-      :delivery-performance="deliveryPerformanceData"
+      :delivery-performance="deliveryPerformance"
       :carriers="configuredCarriers"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
       @update:analytics-date-range="analyticsDateRange = $event"
@@ -188,7 +188,7 @@
     <ReturnIntelligence
       v-else-if="activeSection === 'return-intelligence'"
       :analytics-date-range="analyticsDateRange"
-      :return-intelligence="returnIntelligenceData"
+      :return-intelligence="returnIntelligence"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
       @update:analytics-date-range="analyticsDateRange = $event"
     />
@@ -196,14 +196,14 @@
     <!-- Analytics: Risk Zones -->
     <RiskZones
       v-else-if="activeSection === 'risk-zones'"
-      :risk-zones="riskZonesData"
+      :risk-zones="riskZones"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
     />
 
     <!-- Analytics: Anomaly Detection -->
     <AnomalyDetection
       v-else-if="activeSection === 'anomaly-detection'"
-      :anomaly-detection="anomalyDetectionData"
+      :anomaly-detection="anomalyDetection"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
     />
 
@@ -211,7 +211,7 @@
     <Trends
       v-else-if="activeSection === 'trends'"
       :trends-period="trendsPeriod"
-      :trends="trendsData"
+      :trends="trends"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
       @update:trends-period="trendsPeriod = $event"
     />
@@ -219,7 +219,7 @@
     <!-- Analytics: Reports -->
     <AnalyticsReports
       v-else-if="activeSection === 'reports'"
-      :reports="analyticsReports"
+      :reports="reports"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
     />
 
@@ -243,7 +243,7 @@
     <!-- Pickups: History -->
     <PickupHistory
       v-else-if="activeSection === 'pickup-history'"
-      :pickup-history="pickupHistoryData"
+      :pickup-history="pickupHistory"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
     />
 
@@ -271,7 +271,7 @@
     <!-- Returns: Value -->
     <ReturnValue
       v-else-if="activeSection === 'return-value'"
-      :returns-data="returnsValueData"
+      :returns-data="returnsData"
       :carriers-return-stats="carriersReturnStats"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
     />
@@ -279,10 +279,10 @@
     <!-- Returns: Reports -->
     <ReturnReports
       v-else-if="activeSection === 'return-reports'"
-      :report-period="returnReportPeriod"
-      :report-analytics="returnReportAnalytics"
+      :report-period="reportPeriod"
+      :report-analytics="reportAnalytics"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
-      @update:report-period="returnReportPeriod = $event"
+      @update:report-period="reportPeriod = $event"
     />
 
     <!-- Carriers: Connected -->
@@ -291,7 +291,7 @@
       :carriers="configuredCarriers"
       :carrier-stats="carrierStats"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
-      @navigate="(section) => { activeSection = section }"
+      @navigate="navigateTo"
       @select-carrier="selectCarrier"
       @edit-carrier="editCarrier"
       @delete-carrier="deleteCarrier"
@@ -300,27 +300,33 @@
     <!-- Carriers: Add Carrier -->
     <AddCarrier
       v-else-if="activeSection === 'add-carrier'"
-      :carriers="deliveryCarriers"
-      :carrier-wizard-step="carrierWizardStep"
-      :modal-carrier-search-query="modalCarrierSearchQuery"
-      :selected-carrier-for-modal="selectedCarrierForModal"
-      :show-api-key="showApiKey"
+      :editing-carrier="editingCarrier"
       :new-carrier="newCarrier"
-      :governorates="governorates"
-      :is-testing-connection="isTestingConnection"
-      :test-connection-result="testConnectionResult"
+      :carrier-wizard-step="carrierWizardStep"
+      :show-api-key="showApiKey"
+      :modal-carrier-search-query="modalCarrierSearchQuery"
+      :selected-modal-carrier="selectedModalCarrier"
+      :filtered-modal-carriers="filteredModalCarriers"
+      :gouvernorats="gouvernorats"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
-      @close="activeSection = 'connected-carriers'"
-      @save="saveNewCarrier"
+      @update:carrierWizardStep="carrierWizardStep = $event"
+      @update:modalCarrierSearchQuery="modalCarrierSearchQuery = $event"
+      @update:showApiKey="showApiKey = $event"
+      @update:newCarrierField="(field, value) => ((newCarrier as any)[field] = value)"
+      @select-carrier-from-list="selectCarrierFromList"
+      @toggle-all-regions="newCarrier.allRegions = !newCarrier.allRegions; handleAllRegionsToggle()"
+      @select-all-regions="selectAllRegions"
+      @clear-all-regions="clearAllRegions"
+      @toggle-region="(region) => { const i = newCarrier.regions.indexOf(region); if (i >= 0) newCarrier.regions.splice(i, 1); else newCarrier.regions.push(region) }"
+      @close="navigateTo('connected-carriers')"
+      @save="saveCarrierFromPage"
     />
 
     <!-- Tracking Pages -->
     <TrackingPages
       v-else-if="activeSection === 'page-templates' || activeSection === 'my-tracking-page' || activeSection === 'page-branding' || activeSection === 'page-analytics' || activeSection === 'failed-searches'"
       :active-section="activeSection"
-      :tracking-page="trackingPage"
-      :page-templates="pageTemplates"
-      :page-analytics="pageAnalyticsData"
+      :tracking-page-templates="trackingPageTemplates"
       :failed-searches="failedSearches"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
     />
@@ -328,48 +334,67 @@
     <!-- Finance: Expected Payments -->
     <ExpectedPayments
       v-else-if="activeSection === 'expected-payments'"
-      :payments="expectedPayments"
-      :stats="expectedPaymentsStats"
-      :carrier-filter="expectedCarrierFilter"
-      :status-filter="expectedStatusFilter"
-      :reconciliation="reconciliationData"
-      :show-reconciliation="showReconciliation"
+      :carrier-filter="expectedPaymentsCarrierFilter"
+      :status-filter="expectedPaymentsStatusFilter"
+      :carriers-list="carriersList"
+      :manifest-stats="manifestStats"
+      :filtered-manifest-by-carrier="filteredManifestByCarrier"
+      :manifest-by-carrier="manifestByCarrier"
+      :show-reconciliation-modal="showReconciliationModal"
+      :reconciliation-active-tab="reconciliationActiveTab"
+      :bank-transactions-file="bankTransactionsFile"
+      :bank-transactions="bankTransactions"
+      :manual-payment-data="manualPaymentData"
+      :matching-results="matchingResults"
+      :matching-stats="matchingStats"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
-      @update:carrier-filter="expectedCarrierFilter = $event"
-      @update:status-filter="expectedStatusFilter = $event"
-      @show-reconciliation="showReconciliation = true"
-      @close-reconciliation="showReconciliation = false"
+      @update:carrierFilter="expectedPaymentsCarrierFilter = $event"
+      @update:statusFilter="expectedPaymentsStatusFilter = $event"
+      @show-reconciliation="showReconciliationModal = true"
+      @close-reconciliation="closeReconciliationModal"
+      @update:reconciliationTab="reconciliationActiveTab = $event"
+      @bank-file-upload="handleBankFileUpload"
+      @run-auto-matching="runAutoMatching"
+      @update:manualPaymentField="(field, value) => ((manualPaymentData as any)[field] = value)"
+      @submit-manual-payment="submitManualPayment"
+      @confirm-matched="confirmMatchedPayment"
     />
 
     <!-- Finance: Received Payments -->
     <ReceivedPayments
       v-else-if="activeSection === 'received-payments'"
-      :payments="receivedPayments"
+      :filtered-payments="filteredReceivedPayments"
+      :carriers-list="carriersList"
       :stats="receivedPaymentsStats"
       :month="receivedPaymentsMonth"
-      :carrier-filter="receivedCarrierFilter"
+      :carrier-filter="receivedPaymentsCarrierFilter"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
       @update:month="receivedPaymentsMonth = $event"
-      @update:carrier-filter="receivedCarrierFilter = $event"
+      @update:carrierFilter="receivedPaymentsCarrierFilter = $event"
+      @toggle-expanded="(paymentId) => { const i = receivedPaymentsData.findIndex((p) => p.id === paymentId); if (i !== -1) receivedPaymentsData[i].expanded = !receivedPaymentsData[i].expanded }"
     />
 
     <!-- Finance: Payment Discrepancies -->
     <PaymentDiscrepancies
       v-else-if="activeSection === 'payment-discrepancies'"
-      :discrepancies="paymentDiscrepancies"
       :stats="discrepancyStats"
       :carrier-filter="discrepancyCarrierFilter"
-      :discrepancy-filter="discrepancyTypeFilter"
+      :discrepancy-filter="discrepancyFilter"
+      :carriers-list="carriersList"
+      :reconciliation-by-carrier="reconciliationByCarrier"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
-      @update:carrier-filter="discrepancyCarrierFilter = $event"
-      @update:discrepancy-filter="discrepancyTypeFilter = $event"
+      @update:carrierFilter="discrepancyCarrierFilter = $event"
+      @update:discrepancyFilter="discrepancyFilter = $event"
     />
 
     <!-- Finance: Revenue -->
     <Revenue
       v-else-if="activeSection === 'revenue'"
-      :revenue-data="revenueData"
       :period="revenuePeriod"
+      :stats="revenueStats"
+      :by-category="revenueByCategory"
+      :by-region="revenueByRegion"
+      :chart-data="revenueChartData"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
       @update:period="revenuePeriod = $event"
     />
@@ -377,8 +402,11 @@
     <!-- Finance: Return Losses -->
     <ReturnLosses
       v-else-if="activeSection === 'return-losses'"
-      :losses-data="returnLossesData"
       :month="returnLossesMonth"
+      :stats="returnLossesStats"
+      :by-reason="returnLossesByReason"
+      :by-carrier="returnLossesByCarrier"
+      :details="returnLossesDetails"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
       @update:month="returnLossesMonth = $event"
     />
@@ -386,32 +414,30 @@
     <!-- Finance: Invoices -->
     <Invoices
       v-else-if="activeSection === 'invoices'"
-      :invoices="invoices"
-      :invoice-stats="invoiceStats"
       :invoices-tab="invoicesTab"
+      :stats="invoicesStats"
+      :filtered-invoices="filteredInvoices"
       :search="invoiceSearch"
       :status-filter="invoiceStatusFilter"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
       @update:invoices-tab="invoicesTab = $event"
       @update:search="invoiceSearch = $event"
-      @update:status-filter="invoiceStatusFilter = $event"
+      @update:statusFilter="invoiceStatusFilter = $event"
     />
 
     <!-- Finance: Exports -->
     <Exports
       v-else-if="activeSection === 'exports'"
-      :export-config="exportConfig"
+      :config="exportConfig"
       :recent-exports="recentExports"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
-      @update:config-field="(field, value) => { exportConfig[field] = value }"
+      @update:configField="(field, value) => { exportConfig[field] = value }"
     />
 
     <!-- Settings: Users & Roles -->
     <UsersRoles
       v-else-if="activeSection === 'users-roles'"
-      :members="teamMembers"
-      :roles="teamRoles"
-      :boutiques="boutiques"
+      :team-members="teamMembers"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
       @update-members="teamMembers = $event"
     />
@@ -547,15 +573,6 @@
       @confirm="confirmScanPickup"
     />
 
-    <AddShipmentModal
-      :show="showAddShipmentModal"
-      :clients="clients"
-      :carriers="deliveryCarriers"
-      @close="closeAddShipmentModal"
-      @submit="addShipment"
-      @open-new-client="openNewClientFromShipment"
-    />
-
     <AddCarrierModal
       :show="showAddCarrierModal"
       :editing-carrier="editingCarrier"
@@ -593,7 +610,7 @@
     :clients="clients"
     @close="closeGlobalSearch"
     @select-result="(result) => { selectedShipment = result; showShipmentDetail = true; closeGlobalSearch() }"
-    @navigate="(section) => { activeSection = section; closeGlobalSearch() }"
+    @navigate="(section) => { navigateTo(section); closeGlobalSearch() }"
   />
 
   <BulkImportModal
@@ -753,7 +770,6 @@ import { deliveryCarriers, standardConfigFields, carrierDeliveryFees } from '@/d
 import { governorates as governoratesData, boutiqueColors, tunisiaLocations, type DelegationData, type GouvernoratData } from '@/data/tunisia-locations'
 import { useModal } from '@/composables/useModal'
 import { toggleInArray } from '@/composables/useArrayToggle'
-import { useLocalStorageRef } from '@/composables/useLocalStorage'
 import { getStatusLabel, getStatusTextClass, getStatusDotClass, getRoleClass, getRoleLabel } from '@/composables/useStatusFormatting'
 import { useNavigation, mainNavigation, subNavigation } from '@/composables/useNavigation'
 import AppShell from '@/components/layout/AppShell.vue'
@@ -807,7 +823,6 @@ import AdminTransactions from '@/components/features/admin/AdminTransactions.vue
 
 // Modal components
 import PickupConfirmModal from '@/components/modals/PickupConfirmModal.vue'
-import AddShipmentModal from '@/components/modals/AddShipmentModal.vue'
 import AddCarrierModal from '@/components/modals/AddCarrierModal.vue'
 import PrintLabelModal from '@/components/modals/PrintLabelModal.vue'
 import OrganizationModal from '@/components/modals/OrganizationModal.vue'
@@ -816,6 +831,15 @@ import GlobalSearchModal from '@/components/modals/GlobalSearchModal.vue'
 import BulkImportModal from '@/components/modals/BulkImportModal.vue'
 import AddBoutiqueModal from '@/components/modals/AddBoutiqueModal.vue'
 import ChargeAccountModal from '@/components/modals/ChargeAccountModal.vue'
+import {
+  CREDIT_PRICE_DELIVERED,
+  CREDIT_PRICE_RETURNED,
+  RECHARGE_DEFAULT_DELIVERED,
+  RECHARGE_DEFAULT_RETURNED,
+  ADMIN_FEE_DELIVERED,
+  ADMIN_FEE_RETURNED,
+  DEFAULT_CARRIER_FEES,
+} from '@/data/pricing'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -841,6 +865,7 @@ const {
   getMainSectionLabel,
   getSectionTitle,
   selectMainSection,
+  navigateTo,
 } = useNavigation(isAdmin)
 
 // Mobile menu state
@@ -859,13 +884,13 @@ const userBalance = ref({
 // Recharge modal
 const showRechargeModal = ref(false)
 const rechargeForm = ref({
-  delivered: 500,
-  returned: 100,
+  delivered: RECHARGE_DEFAULT_DELIVERED,
+  returned: RECHARGE_DEFAULT_RETURNED,
   paymentMethod: 'card' as 'card' | 'bank' | 'd17'
 })
 
 const rechargeTotalPrice = computed(() => {
-  return (rechargeForm.value.delivered * 0.150) + (rechargeForm.value.returned * 0.050)
+  return (rechargeForm.value.delivered * CREDIT_PRICE_DELIVERED) + (rechargeForm.value.returned * CREDIT_PRICE_RETURNED)
 })
 
 function processRecharge() {
@@ -878,7 +903,7 @@ function processRecharge() {
 
   // Close modal and reset form
   showRechargeModal.value = false
-  rechargeForm.value = { delivered: 500, returned: 100, paymentMethod: 'card' }
+  rechargeForm.value = { delivered: RECHARGE_DEFAULT_DELIVERED, returned: RECHARGE_DEFAULT_RETURNED, paymentMethod: 'card' }
 }
 
 const savedBoutiqueId = localStorage.getItem('deliveryTracker_currentBoutique')
@@ -1472,7 +1497,7 @@ function submitNewClient() {
   }
   clientsList.value.push(newClient)
   resetNewClientForm()
-  activeSection.value = 'all-clients'
+  navigateTo('all-clients')
 }
 
 function submitNewClientFromModal() {
@@ -1544,7 +1569,6 @@ function getClientColis(clientId: number) {
 // Other state variables
 const activeStatusTab = ref('all')
 const searchQuery = ref('')
-const showAddShipmentModal = ref(false)
 const selectedShipment = ref<any>(null)
 const showShipmentDetail = ref(false)
 const showClientDetail = ref(false)
@@ -2107,13 +2131,13 @@ function exportMembers() {
 
 // Company Profile
 const companyProfile = ref({
-  name: 'Ma Société SARL',
-  taxId: '1234567ABC',
-  email: 'contact@masociete.tn',
-  phone: '+216 71 234 567',
-  address: '123 Rue de la Liberté',
-  city: 'Tunis',
-  postalCode: '1000',
+  name: '',
+  taxId: '',
+  email: '',
+  phone: '',
+  address: '',
+  city: '',
+  postalCode: '',
   currency: 'TND',
   timezone: 'Africa/Tunis'
 })
@@ -2413,7 +2437,7 @@ function processFile(file: File) {
 function downloadImportTemplate() {
   // Create a simple CSV template
   const headers = ['Destinataire', 'Téléphone', 'Adresse', 'Ville', 'Montant', 'Notes']
-  const exampleRow = ['Ahmed Ben Ali', '+216 22 333 444', '15 Rue de la Liberté', 'Tunis', '45.00', 'Livraison express']
+  const exampleRow = ['Nom Destinataire', '+216 XX XXX XXX', 'Adresse complète', 'Ville', '0.00', 'Notes optionnelles']
 
   const csvContent = [
     headers.join(','),
@@ -2637,17 +2661,6 @@ function handleExchangeImageUpload(event: Event) {
   }
 }
 
-function closeAddShipmentModal() {
-  showAddShipmentModal.value = false
-  clearSelectedClient()
-  // Reset form
-  newShipment.trackingNumber = ''
-  newShipment.carrier = ''
-  newShipment.description = ''
-  newShipment.amount = 0
-  newShipment.gouvernorat = ''
-}
-
 function openNewClientFromShipment() {
   // Pre-fill new client form with searched name
   newClientForm.name = shipmentClientSearch.value
@@ -2734,14 +2747,7 @@ const newCarrier = reactive({
   name: '',
   apiId: '',
   apiKey: '',
-  fraisColisLivres: 7.00,
-  fraisColisRetour: 5.00,
-  fraisColisEchange: 8.00,
-  fraisColisBig: 12.00,
-  fraisColisPickup: 3.00,
-  totalFraisLivraison: 7.00,
-  fraisPaiement: 1.5,
-  retenuPassage: 0.00,
+  ...DEFAULT_CARRIER_FEES,
   allRegions: true,
   regions: [] as string[]
 })
@@ -3068,8 +3074,8 @@ const carrierPerformance = ref<any[]>([])
 // Administration - Users Management
 // Fee configuration per shipment type (in TND)
 const deliveryFees = ref({
-  delivered: 3.00,  // Fee per delivered shipment
-  returned: 2.00    // Fee per returned shipment
+  delivered: ADMIN_FEE_DELIVERED,
+  returned: ADMIN_FEE_RETURNED
 })
 
 // Admin users - empty by default, loaded from Supabase (only visible to platform admins)
@@ -3338,9 +3344,9 @@ function addShipment() {
     weight: 1.0,
     dimensions: '20x15x10',
     cod: totalPrice.value,
-    senderName: 'Ma Boutique',
-    senderAddress: 'Tunisie',
-    senderPhone: '+216 00 000 000',
+    senderName: companyProfile.value.name || '',
+    senderAddress: companyProfile.value.address ? `${companyProfile.value.address}, ${companyProfile.value.city}` : '',
+    senderPhone: companyProfile.value.phone || '',
     recipientPhone: `+216 ${newShipment.phone}`,
     recipientPhoneSecondary: newShipment.phoneSecondary ? `+216 ${newShipment.phoneSecondary}` : '',
     recipientAddress: `${newShipment.address}, ${newShipment.postalCode} ${fullDestination}`,
@@ -3356,7 +3362,6 @@ function addShipment() {
   })
 
   resetShipmentForm()
-  showAddShipmentModal.value = false
 }
 
 // Carrier functions
@@ -3383,7 +3388,7 @@ function editCarrier(carrier: typeof carriers.value[0]) {
   newCarrier.retenuPassage = carrier.retenuPassage
   newCarrier.allRegions = carrier.allRegions
   newCarrier.regions = [...carrier.regions]
-  activeSection.value = 'add-carrier'
+  navigateTo('add-carrier')
 }
 
 function closeCarrierModal() {
@@ -3398,14 +3403,7 @@ function resetCarrierForm() {
   newCarrier.name = ''
   newCarrier.apiId = ''
   newCarrier.apiKey = ''
-  newCarrier.fraisColisLivres = 7.00
-  newCarrier.fraisColisRetour = 5.00
-  newCarrier.fraisColisEchange = 8.00
-  newCarrier.fraisColisBig = 12.00
-  newCarrier.fraisColisPickup = 3.00
-  newCarrier.totalFraisLivraison = 7.00
-  newCarrier.fraisPaiement = 1.5
-  newCarrier.retenuPassage = 0.00
+  Object.assign(newCarrier, DEFAULT_CARRIER_FEES)
   newCarrier.allRegions = true
   newCarrier.regions = []
   carrierWizardStep.value = 1
@@ -3557,7 +3555,7 @@ function saveCarrierFromPage() {
   resetCarrierForm()
   modalCarrierSearchQuery.value = ''
   selectedModalCarrier.value = null
-  activeSection.value = 'connected-carriers'
+  navigateTo('connected-carriers')
 }
 
 function deleteCarrier(carrierId: number) {

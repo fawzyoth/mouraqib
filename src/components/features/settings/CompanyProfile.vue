@@ -122,13 +122,13 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   initialProfile: () => ({
-    name: 'Ma Société SARL',
-    taxId: '1234567ABC',
-    email: 'contact@masociete.tn',
-    phone: '+216 71 234 567',
-    address: '123 Rue de la Liberté',
-    city: 'Tunis',
-    postalCode: '1000',
+    name: '',
+    taxId: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    postalCode: '',
     currency: 'TND',
     timezone: 'Africa/Tunis'
   })

@@ -1,5 +1,21 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { subSectionRoutes } from '@/composables/useNavigation'
+
+// Single lazy-import reference so Vue Router reuses the same component instance
+const DeliveryTrackerView = () => import('@/views/DeliveryTrackerView.vue')
+
+// Generate app routes from the subSectionRoutes map
+const appRoutes = Object.entries(subSectionRoutes).map(([subSection, { path, mainSection }]) => ({
+  path,
+  component: DeliveryTrackerView,
+  meta: {
+    requiresAuth: true,
+    mainSection,
+    subSection,
+    ...(mainSection === 'administration' ? { requiresAdmin: true } : {}),
+  },
+}))
 
 const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
@@ -46,15 +62,11 @@ const router = createRouter({
       component: () => import('@/views/ResetPasswordView.vue'),
       meta: { public: true }
     },
-    {
-      path: '/dashboard',
-      name: 'dashboard',
-      component: () => import('@/views/DeliveryTrackerView.vue'),
-      meta: { requiresAuth: true }
-    },
+    // All app feature routes (each renders DeliveryTrackerView)
+    ...appRoutes,
     {
       path: '/:pathMatch(.*)*',
-      redirect: '/'
+      redirect: '/dashboard'
     }
   ],
   scrollBehavior(to) {
@@ -75,7 +87,7 @@ router.beforeEach(async (to, from, next) => {
   const isDemoMode = localStorage.getItem('demoMode') === 'true'
   if (isDemoMode) {
     if (authRedirect) {
-      return next({ name: 'dashboard' })
+      return next({ path: '/dashboard' })
     }
     return next()
   }
@@ -107,7 +119,7 @@ router.beforeEach(async (to, from, next) => {
 
   // If user is authenticated and trying to access auth pages
   if (authRedirect && isAuthenticated) {
-    return next({ name: 'dashboard' })
+    return next({ path: '/dashboard' })
   }
 
   next()
