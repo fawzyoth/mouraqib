@@ -1581,7 +1581,7 @@ async function submitNewClient() {
     })
     if (result) {
       clientsList.value = clientsData.clientsList.value as any[]
-      clientStats.value = clientsData.clientStats.value
+  clientStats.value = { ...clientStats.value, ...clientsData.clientStats.value }
     }
     resetNewClientForm()
     navigateTo('all-clients')
@@ -1619,7 +1619,7 @@ async function submitNewClientFromModal() {
     })
     if (result) {
       clientsList.value = clientsData.clientsList.value as any[]
-      clientStats.value = clientsData.clientStats.value
+  clientStats.value = { ...clientStats.value, ...clientsData.clientStats.value }
     }
     resetNewClientForm()
     showAddClientModal.value = false
@@ -2626,7 +2626,7 @@ function syncComposableData() {
   boutiques.value = boutiquesData.boutiques.value
   // Clients
   clientsList.value = clientsData.clientsList.value as any[]
-  clientStats.value = clientsData.clientStats.value
+  clientStats.value = { ...clientStats.value, ...clientsData.clientStats.value }
   // Shipments
   shipments.value = shipmentsData.shipments.value as any[]
   // Pickups

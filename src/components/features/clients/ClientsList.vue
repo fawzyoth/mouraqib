@@ -60,7 +60,7 @@
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm text-gray-500">Chiffre d'affaires</p>
-              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ clientStats.totalRevenue.toLocaleString() }} TND</p>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ (clientStats.totalRevenue ?? 0).toLocaleString() }} TND</p>
             </div>
             <div class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl flex items-center justify-center">
               <Banknote class="w-6 h-6 text-yellow-600" />
@@ -137,7 +137,7 @@
                   </span>
                 </td>
                 <td class="px-4 py-4" data-label="Total">
-                  <p class="text-sm font-medium text-gray-900 dark:text-white">{{ client.totalSpent.toLocaleString() }} TND</p>
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">{{ (client.totalSpent ?? 0).toLocaleString() }} TND</p>
                 </td>
                 <td class="px-4 py-4" data-label="Statut">
                   <span :class="[

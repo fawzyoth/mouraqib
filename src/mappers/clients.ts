@@ -43,7 +43,7 @@ export function dbClientToUI(row: Client): UIClient {
     totalOrders: row.total_orders,
     deliveredOrders: row.delivered_orders,
     deliveryRate,
-    totalSpent: row.total_spent,
+    totalSpent: row.total_spent ?? 0,
     notes: row.notes || '',
     memberSince,
   }
