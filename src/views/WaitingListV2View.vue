@@ -356,10 +356,11 @@
 
             <!-- Website/Project -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">الموقع ولاّ الصفحة متاعك</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">الموقع ولاّ الصفحة متاعك <span class="text-red-500">*</span></label>
               <input
                 v-model="form.website"
                 type="text"
+                required
                 placeholder="اللينك ولاّ اسم الصفحة"
                 class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all text-base"
               />
@@ -614,7 +615,7 @@ async function fetchRegisteredCount() {
 async function submitForm() {
   errorMessage.value = ''
 
-  if (!form.firstName || !form.lastName || !form.email || !form.phone || !form.deliveryCompanies || form.problems.length === 0) {
+  if (!form.firstName || !form.lastName || !form.email || !form.phone || !form.website || !form.deliveryCompanies || form.problems.length === 0) {
     errorMessage.value = 'لازم تعبّي الخانات الكل'
     return
   }
