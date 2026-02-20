@@ -315,11 +315,13 @@
       :carriers="carriers"
       :selected-carrier="selectedCarrier"
       :delivery-carriers-count="deliveryCarriers.length - carriers.length"
+      :syncing-carrier-id="syncingCarrierId"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
       @navigate="navigateTo"
       @select-carrier="selectCarrier"
       @edit-carrier="editCarrier"
       @delete-carrier="deleteCarrier"
+      @sync-carrier="syncCarrier"
     />
 
     <!-- Carriers: Add Carrier -->
@@ -333,6 +335,7 @@
       :selected-modal-carrier="selectedModalCarrier"
       :filtered-modal-carriers="filteredModalCarriers"
       :gouvernorats="gouvernorats"
+      :sync-steps="carrierSyncSteps"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
       @update:carrierWizardStep="carrierWizardStep = $event"
       @update:modalCarrierSearchQuery="modalCarrierSearchQuery = $event"
@@ -343,7 +346,7 @@
       @select-all-regions="selectAllRegions"
       @clear-all-regions="clearAllRegions"
       @toggle-region="(region) => { const i = newCarrier.regions.indexOf(region); if (i >= 0) newCarrier.regions.splice(i, 1); else newCarrier.regions.push(region) }"
-      @close="navigateTo('connected-carriers')"
+      @close="carrierSyncSteps.length = 0; navigateTo('connected-carriers')"
       @save="saveCarrierFromPage"
     />
 
@@ -3126,14 +3129,19 @@ const showApiKey = ref(false)
 // Modal carrier selection
 const modalCarrierSearchQuery = ref('')
 const selectedModalCarrier = ref<typeof deliveryCarriers[0] | null>(null)
+const carrierSyncSteps = ref<Array<{ label: string; status: 'pending' | 'loading' | 'done' | 'error'; detail?: string }>>([])
+const syncingCarrierId = ref<number | string | null>(null)
 
 const filteredModalCarriers = computed(() => {
-  if (!modalCarrierSearchQuery.value) return deliveryCarriers
-  const search = modalCarrierSearchQuery.value.toLowerCase()
-  return deliveryCarriers.filter(carrier =>
-    carrier.name.toLowerCase().includes(search) ||
-    carrier.description.toLowerCase().includes(search)
-  )
+  let list = deliveryCarriers
+  if (modalCarrierSearchQuery.value) {
+    const search = modalCarrierSearchQuery.value.toLowerCase()
+    list = list.filter(carrier =>
+      carrier.name.toLowerCase().includes(search) ||
+      carrier.description.toLowerCase().includes(search)
+    )
+  }
+  return [...list].sort((a, b) => (b.enabled ? 1 : 0) - (a.enabled ? 1 : 0))
 })
 
 function selectCarrierFromList(carrier: typeof deliveryCarriers[0]) {
@@ -3957,7 +3965,9 @@ async function saveCarrier() {
 }
 
 async function saveCarrierFromPage() {
-  if (!newCarrier.name || !newCarrier.apiId || !newCarrier.apiKey) {
+  const needsApiId = !selectedModalCarrier.value?.configFields ||
+    selectedModalCarrier.value.configFields.some((f: any) => f.key === 'accountId')
+  if (!newCarrier.name || (needsApiId && !newCarrier.apiId) || !newCarrier.apiKey) {
     return
   }
 
@@ -3967,17 +3977,155 @@ async function saveCarrierFromPage() {
   }
 
   if (!authStore.isDemoMode) {
+    const { supabase } = await import('@/lib/supabase')
+    const { data: { session } } = await supabase.auth.getSession()
+    const fnHeaders = session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : undefined
+
     if (editingCarrier.value) {
       await carriersData.update(String(editingCarrier.value), { ...newCarrier })
-    } else {
-      await carriersData.create({ ...newCarrier })
+      // Save encrypted credentials via edge function
+      if (newCarrier.apiKey) {
+        await supabase.functions.invoke('carrier-credentials', {
+          headers: fnHeaders,
+          body: {
+            action: 'save',
+            carrierId: String(editingCarrier.value),
+            credentials: { apiKey: newCarrier.apiKey, apiId: newCarrier.apiId || undefined },
+          }
+        })
+      }
+      carriers.value = carriersData.carriers.value as any[]
+      editingCarrier.value = null
+      resetCarrierForm()
+      modalCarrierSearchQuery.value = ''
+      selectedModalCarrier.value = null
+      navigateTo('connected-carriers')
+      return
     }
+
+    // Step-by-step sync with UI feedback
+    carrierSyncSteps.value = [
+      { label: 'Enregistrement du transporteur', status: 'loading' },
+      { label: 'Sauvegarde des identifiants API', status: 'pending' },
+      { label: 'Test de connexion API', status: 'pending' },
+      { label: 'Synchronisation des colis', status: 'pending' },
+    ]
+
+    // Step 1: Save carrier (without raw credentials in the DB)
+    const carrierData = { ...newCarrier, apiKey: '', apiId: '' }
+    const uiCarrier = await carriersData.create(carrierData)
+    if (!uiCarrier) {
+      carrierSyncSteps.value[0].status = 'error'
+      carrierSyncSteps.value[0].detail = 'Échec de l\'enregistrement'
+      return
+    }
+    carrierSyncSteps.value[0].status = 'done'
+    carrierSyncSteps.value[0].detail = 'Transporteur enregistré'
     carriers.value = carriersData.carriers.value as any[]
+
+    // Step 2: Save encrypted credentials via edge function
+    carrierSyncSteps.value[1].status = 'loading'
+    try {
+      const { data: saveResult, error: saveError } = await supabase.functions.invoke('carrier-credentials', {
+        headers: fnHeaders,
+        body: {
+          action: 'save',
+          carrierId: uiCarrier.id,
+          credentials: { apiKey: newCarrier.apiKey, apiId: newCarrier.apiId || undefined },
+        }
+      })
+      if (saveError || !saveResult?.success) {
+        carrierSyncSteps.value[1].status = 'error'
+        carrierSyncSteps.value[1].detail = saveError?.message || 'Échec de la sauvegarde'
+        carrierSyncSteps.value[2].status = 'error'
+        carrierSyncSteps.value[2].detail = 'Ignoré'
+        carrierSyncSteps.value[3].status = 'error'
+        carrierSyncSteps.value[3].detail = 'Ignoré'
+        editingCarrier.value = null
+        resetCarrierForm()
+        modalCarrierSearchQuery.value = ''
+        selectedModalCarrier.value = null
+        return
+      }
+      carrierSyncSteps.value[1].status = 'done'
+      carrierSyncSteps.value[1].detail = 'Identifiants chiffrés et sauvegardés'
+    } catch (e) {
+      carrierSyncSteps.value[1].status = 'error'
+      carrierSyncSteps.value[1].detail = 'Erreur de sauvegarde'
+      carrierSyncSteps.value[2].status = 'error'
+      carrierSyncSteps.value[2].detail = 'Ignoré'
+      carrierSyncSteps.value[3].status = 'error'
+      carrierSyncSteps.value[3].detail = 'Ignoré'
+      editingCarrier.value = null
+      resetCarrierForm()
+      modalCarrierSearchQuery.value = ''
+      selectedModalCarrier.value = null
+      return
+    }
+
+    // Step 3: Test API connection
+    carrierSyncSteps.value[2].status = 'loading'
+    try {
+      const { data: testResult, error: testError } = await supabase.functions.invoke('carrier-credentials', {
+        headers: fnHeaders,
+        body: { action: 'test', carrierId: uiCarrier.id }
+      })
+      if (testError || !testResult?.success) {
+        carrierSyncSteps.value[2].status = 'error'
+        carrierSyncSteps.value[2].detail = 'Connexion échouée — vérifiez vos identifiants'
+        carrierSyncSteps.value[3].status = 'error'
+        carrierSyncSteps.value[3].detail = 'Ignoré (connexion échouée)'
+        editingCarrier.value = null
+        resetCarrierForm()
+        modalCarrierSearchQuery.value = ''
+        selectedModalCarrier.value = null
+        return
+      }
+      carrierSyncSteps.value[2].status = 'done'
+      carrierSyncSteps.value[2].detail = 'API connectée'
+    } catch (e) {
+      carrierSyncSteps.value[2].status = 'error'
+      carrierSyncSteps.value[2].detail = 'Erreur de connexion'
+      carrierSyncSteps.value[3].status = 'error'
+      carrierSyncSteps.value[3].detail = 'Ignoré (connexion échouée)'
+      editingCarrier.value = null
+      resetCarrierForm()
+      modalCarrierSearchQuery.value = ''
+      selectedModalCarrier.value = null
+      return
+    }
+
+    // Step 4: Sync shipments
+    carrierSyncSteps.value[3].status = 'loading'
+    try {
+      const { data: syncResult, error: syncError } = await supabase.functions.invoke('carrier-proxy', {
+        headers: fnHeaders,
+        body: { carrierId: uiCarrier.id, action: 'sync-shipments', payload: {} }
+      })
+      if (syncError) {
+        carrierSyncSteps.value[3].status = 'error'
+        carrierSyncSteps.value[3].detail = 'Erreur lors de la synchronisation'
+      } else {
+        const synced = syncResult?.result?.synced ?? 0
+        const total = syncResult?.result?.total ?? 0
+        carrierSyncSteps.value[3].status = 'done'
+        carrierSyncSteps.value[3].detail = synced > 0
+          ? `${synced} nouveau${synced > 1 ? 'x' : ''} colis importé${synced > 1 ? 's' : ''} (${total} total)`
+          : total > 0
+            ? `${total} colis déjà à jour`
+            : 'Aucun colis trouvé'
+      }
+    } catch (e) {
+      carrierSyncSteps.value[3].status = 'error'
+      carrierSyncSteps.value[3].detail = 'Erreur lors de la synchronisation'
+    }
+
     editingCarrier.value = null
     resetCarrierForm()
     modalCarrierSearchQuery.value = ''
     selectedModalCarrier.value = null
-    navigateTo('connected-carriers')
     return
   }
 
@@ -4055,6 +4203,51 @@ async function deleteCarrier(carrierId: number) {
     if (selectedCarrier.value?.id === carrierId) {
       selectedCarrier.value = null
     }
+  }
+}
+
+async function syncCarrier(carrier: typeof carriers.value[0]) {
+  if (authStore.isDemoMode || syncingCarrierId.value) return
+  syncingCarrierId.value = carrier.id
+  try {
+    const { supabase } = await import('@/lib/supabase')
+    const { data: { session } } = await supabase.auth.getSession()
+    const fnHeaders = session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : undefined
+
+    // Step 1: Test connection
+    const { data: testResult, error: testError } = await supabase.functions.invoke('carrier-credentials', {
+      headers: fnHeaders,
+      body: { action: 'test', carrierId: carrier.id }
+    })
+    if (testError || !testResult?.success) {
+      toast.error(`${carrier.name}: connexion API échouée`)
+      return
+    }
+
+    // Step 2: Sync shipments
+    const { data: syncResult, error: syncError } = await supabase.functions.invoke('carrier-proxy', {
+      headers: fnHeaders,
+      body: { carrierId: carrier.id, action: 'sync-shipments', payload: {} }
+    })
+    if (syncError) {
+      toast.error(`${carrier.name}: erreur de synchronisation`)
+      return
+    }
+
+    const synced = syncResult?.result?.synced ?? 0
+    const total = syncResult?.result?.total ?? 0
+    if (synced > 0) {
+      toast.success(`${carrier.name}: ${synced} nouveau${synced > 1 ? 'x' : ''} colis importé${synced > 1 ? 's' : ''} (${total} total)`)
+    } else {
+      toast.success(`${carrier.name}: ${total > 0 ? total + ' colis déjà à jour' : 'aucun colis trouvé'}`)
+    }
+  } catch (e) {
+    toast.error(`${carrier.name}: erreur de synchronisation`)
+    console.warn('Carrier sync failed:', e)
+  } finally {
+    syncingCarrierId.value = null
   }
 }
 

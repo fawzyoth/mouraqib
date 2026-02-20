@@ -49,7 +49,9 @@ export const deliveryCarriers: DeliveryCarrier[] = [
   { id: 'fasthault', name: 'FastHaul', description: 'Service rapide FastHaul', type: 'express', deliveryTime: '24h', color: '#F59E0B', bgColor: '#FEF3C7', configFields: standardConfigFields },
   { id: 'fasty', name: 'Fasty', description: 'Livraison ultra-rapide Fasty', type: 'express', deliveryTime: '24h', color: '#22C55E', bgColor: '#DCFCE7', configFields: standardConfigFields },
   { id: 'fiabilo', name: 'Fiabilo', description: 'Service fiable Fiabilo', type: 'standard', deliveryTime: '24-48h', color: '#6366F1', bgColor: '#E0E7FF', configFields: standardConfigFields },
-  { id: 'first', name: 'First', description: 'Livraison First', type: 'express', deliveryTime: '24h', color: '#1D4ED8', bgColor: '#DBEAFE', configFields: standardConfigFields },
+  { id: 'first', name: 'First', description: 'Livraison First', type: 'express', deliveryTime: '24h', color: '#1D4ED8', bgColor: '#DBEAFE', configFields: [
+    { key: 'apiKey', label: 'Clé API', type: 'password', placeholder: 'Votre clé API First Delivery', required: true },
+  ], enabled: true },
 
   // G
   { id: 'goodex', name: 'Goodex', description: 'Service Goodex', type: 'standard', deliveryTime: '24-48h', color: '#16A34A', bgColor: '#DCFCE7', configFields: standardConfigFields },

@@ -20,23 +20,7 @@
   </header>
   <main class="flex-1 overflow-y-auto p-6">
     <!-- Performance Score & Weather -->
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
-      <!-- Performance Score -->
-      <div class="lg:col-span-1 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-5 text-white">
-        <div class="flex items-center justify-between mb-3">
-          <span class="text-sm font-medium opacity-90">Score du jour</span>
-          <Target class="w-5 h-5 opacity-80" />
-        </div>
-        <div class="flex items-end space-x-2">
-          <span class="text-4xl font-bold">{{ dashboardStats.performanceScore }}</span>
-          <span class="text-lg opacity-80">/100</span>
-        </div>
-        <div class="mt-3 flex items-center space-x-2 text-sm">
-          <TrendingUp class="w-4 h-4" />
-          <span>+5 vs hier</span>
-        </div>
-      </div>
-
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
       <!-- Quick Stats -->
       <div class="bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-200 dark:border-gray-800">
         <div class="flex items-center justify-between mb-2">
@@ -113,7 +97,7 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="mb-6">
       <!-- Today vs Yesterday Comparison -->
       <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
         <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Aujourd'hui vs Hier</h3>
@@ -163,53 +147,8 @@
         </div>
       </div>
 
-      <!-- Weather Impact -->
-      <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="font-semibold text-gray-900 dark:text-white">Météo & Impact</h3>
-          <span class="text-xs text-gray-500">Tunisie</span>
-        </div>
-        <div class="grid grid-cols-3 gap-3">
-          <div v-for="region in weatherRegions" :key="region.name" class="text-center p-3 rounded-lg" :class="region.impact === 'high' ? 'bg-red-50 dark:bg-red-900/20' : region.impact === 'medium' ? 'bg-yellow-50 dark:bg-yellow-900/20' : 'bg-green-50 dark:bg-green-900/20'">
-            <span class="text-2xl">{{ region.icon }}</span>
-            <p class="text-xs font-medium text-gray-900 dark:text-white mt-1">{{ region.name }}</p>
-            <p class="text-xs text-gray-500">{{ region.temp }}°C</p>
-            <p :class="[
-              'text-xs font-medium mt-1',
-              region.impact === 'high' ? 'text-red-600' :
-              region.impact === 'medium' ? 'text-yellow-600' : 'text-green-600'
-            ]">{{ region.impact === 'high' ? 'Retards possibles' : region.impact === 'medium' ? 'Attention' : 'Normal' }}</p>
-          </div>
-        </div>
-      </div>
     </div>
 
-    <!-- Quick Actions Grid -->
-    <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
-      <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Actions rapides</h3>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <button @click="$emit('navigate', 'today-shipments')" class="p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:border-orange-200 transition-all text-center group">
-          <CalendarClock class="w-8 h-8 text-orange-500 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-          <p class="text-sm font-medium text-gray-900 dark:text-white">Colis du jour</p>
-          <p class="text-xs text-gray-500 mt-1">{{ dashboardStats.todayDeliveries }} colis</p>
-        </button>
-        <button @click="$emit('navigate', 'delayed-shipments')" class="p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/10 hover:border-red-200 transition-all text-center group">
-          <AlertTriangle class="w-8 h-8 text-red-500 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-          <p class="text-sm font-medium text-gray-900 dark:text-white">En retard</p>
-          <p class="text-xs text-red-500 mt-1">{{ delayedShipmentsCount }} colis</p>
-        </button>
-        <button @click="$emit('navigate', 'returns-alerts')" class="p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-yellow-50 dark:hover:bg-yellow-900/10 hover:border-yellow-200 transition-all text-center group">
-          <RotateCcw class="w-8 h-8 text-yellow-500 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-          <p class="text-sm font-medium text-gray-900 dark:text-white">Alertes retours</p>
-          <p class="text-xs text-yellow-500 mt-1">{{ returnAlertsCount }} alertes</p>
-        </button>
-        <button @click="$emit('navigate', 'financial-snapshot')" class="p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-green-50 dark:hover:bg-green-900/10 hover:border-green-200 transition-all text-center group">
-          <Wallet class="w-8 h-8 text-green-500 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-          <p class="text-sm font-medium text-gray-900 dark:text-white">Finances</p>
-          <p class="text-xs text-green-500 mt-1">{{ dashboardStats.expectedCOD }} TND</p>
-        </button>
-      </div>
-    </div>
   </main>
 </template>
 
@@ -217,19 +156,13 @@
 import {
   ListFilter,
   Bell,
-  Target,
-  TrendingUp,
   Package,
   CheckCircle,
   Banknote,
-  AlertTriangle,
-  CalendarClock,
-  RotateCcw,
-  Wallet
+  AlertTriangle
 } from 'lucide-vue-next'
 
 interface DashboardStats {
-  performanceScore: number
   todayDeliveries: number
   todayDelivered: number
   successRate: number
@@ -255,25 +188,14 @@ interface UrgentAction {
   actionLabel: string
 }
 
-interface WeatherRegion {
-  name: string
-  icon: string
-  temp: number
-  impact: 'high' | 'medium' | 'low'
-}
-
 interface Props {
   dashboardStats: DashboardStats
   urgentActions: UrgentAction[]
-  weatherRegions: WeatherRegion[]
-  delayedShipmentsCount: number
-  returnAlertsCount: number
 }
 
 defineProps<Props>()
 
 defineEmits<{
   (e: 'toggle-sub-menu'): void
-  (e: 'navigate', section: string): void
 }>()
 </script>

@@ -17,50 +17,6 @@
     </div>
   </header>
   <main class="flex-1 overflow-y-auto p-4 sm:p-6">
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-      <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-medium text-gray-500 uppercase">Total</span>
-          <div class="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-            <Building2 class="w-4 h-4 text-blue-600" />
-          </div>
-        </div>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ carriers.length }}</p>
-        <p class="text-xs text-gray-500 mt-1">transporteurs</p>
-      </div>
-      <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-medium text-gray-500 uppercase">Connect&eacute;s</span>
-          <div class="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-            <CheckCircle class="w-4 h-4 text-green-600" />
-          </div>
-        </div>
-        <p class="text-2xl font-bold text-green-600">{{ carriers.filter(c => c.apiStatus === 'connected').length }}</p>
-        <p class="text-xs text-gray-500 mt-1">actifs</p>
-      </div>
-      <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-medium text-gray-500 uppercase">Colis total</span>
-          <div class="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-            <Package class="w-4 h-4 text-orange-600" />
-          </div>
-        </div>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ carriers.reduce((sum, c) => sum + c.shipments, 0).toLocaleString() }}</p>
-        <p class="text-xs text-gray-500 mt-1">envoy&eacute;s</p>
-      </div>
-      <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-medium text-gray-500 uppercase">Disponibles</span>
-          <div class="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-            <Truck class="w-4 h-4 text-purple-600" />
-          </div>
-        </div>
-        <p class="text-2xl font-bold text-purple-600">{{ deliveryCarriersCount }}</p>
-        <p class="text-xs text-gray-500 mt-1">&agrave; ajouter</p>
-      </div>
-    </div>
-
     <!-- Empty State -->
     <div v-if="carriers.length === 0" class="bg-white dark:bg-gray-900 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 p-8 sm:p-12 text-center">
       <div class="w-16 h-16 rounded-2xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mx-auto mb-4">
@@ -113,6 +69,9 @@
               </div>
             </div>
             <div class="flex items-center gap-1">
+              <button @click.stop="$emit('sync-carrier', carrier)" :disabled="syncingCarrierId === carrier.id" class="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-50" title="Synchroniser">
+                <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': syncingCarrierId === carrier.id }" />
+              </button>
               <button @click.stop="$emit('edit-carrier', carrier)" class="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors" title="Modifier">
                 <FileText class="w-4 h-4" />
               </button>
@@ -321,10 +280,9 @@ import {
   Plus,
   Building2,
   CheckCircle,
-  Package,
-  Truck,
   FileText,
   Trash2,
+  RefreshCw,
   MapPin,
   MapPinned,
   Key,
@@ -357,6 +315,7 @@ interface Props {
   carriers: Carrier[]
   selectedCarrier: Carrier | null
   deliveryCarriersCount: number
+  syncingCarrierId: number | string | null
 }
 
 defineProps<Props>()
@@ -367,5 +326,6 @@ defineEmits<{
   'select-carrier': [carrier: Carrier]
   'edit-carrier': [carrier: Carrier]
   'delete-carrier': [carrierId: number]
+  'sync-carrier': [carrier: Carrier]
 }>()
 </script>

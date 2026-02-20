@@ -21,7 +21,47 @@
     </div>
   </header>
   <main class="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50 dark:bg-gray-950">
-    <div class="max-w-5xl mx-auto">
+    <!-- Sync Progress Overlay -->
+    <div v-if="syncSteps.length > 0" class="max-w-lg mx-auto mt-12">
+      <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
+        <div class="px-6 py-5 border-b border-gray-200 dark:border-gray-800">
+          <h4 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <Truck class="w-5 h-5 text-orange-500" />
+            Configuration en cours
+          </h4>
+          <p class="text-sm text-gray-500 mt-1">{{ newCarrier.name }}</p>
+        </div>
+        <div class="p-6 space-y-4">
+          <div v-for="(step, i) in syncSteps" :key="i" class="flex items-start gap-3">
+            <div class="mt-0.5">
+              <div v-if="step.status === 'loading'" class="w-6 h-6 rounded-full border-2 border-orange-500 border-t-transparent animate-spin"></div>
+              <div v-else-if="step.status === 'done'" class="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+                <CheckCircle class="w-4 h-4 text-white" />
+              </div>
+              <div v-else-if="step.status === 'error'" class="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
+                <X class="w-4 h-4 text-white" />
+              </div>
+              <div v-else class="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium" :class="{
+                'text-gray-900 dark:text-white': step.status === 'loading' || step.status === 'done',
+                'text-red-600': step.status === 'error',
+                'text-gray-400 dark:text-gray-500': step.status === 'pending'
+              }">{{ step.label }}</p>
+              <p v-if="step.detail" class="text-xs mt-0.5" :class="step.status === 'error' ? 'text-red-500' : 'text-gray-500'">{{ step.detail }}</p>
+            </div>
+          </div>
+        </div>
+        <div v-if="syncSteps.every(s => s.status === 'done' || s.status === 'error')" class="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-800 flex justify-end">
+          <button @click="$emit('close')" class="px-6 py-2.5 rounded-xl text-sm font-medium bg-[#4959b4] hover:bg-[#3a4791] text-white shadow-sm hover:shadow-md transition-all">
+            Terminer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="max-w-5xl mx-auto">
       <!-- Progress Stepper -->
       <div v-if="!editingCarrier" class="mb-8">
         <div class="flex items-center justify-between relative">
@@ -57,10 +97,10 @@
 
           <!-- Step 3 -->
           <div class="relative flex flex-col items-center z-10">
-            <button @click="newCarrier.apiId && newCarrier.apiKey && $emit('update:carrierWizardStep', 3)" :disabled="!newCarrier.apiId || !newCarrier.apiKey" :class="[
+            <button @click="((carrierNeedsField('accountId') ? newCarrier.apiId : true) && newCarrier.apiKey) && $emit('update:carrierWizardStep', 3)" :disabled="(carrierNeedsField('accountId') && !newCarrier.apiId) || !newCarrier.apiKey" :class="[
               'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all',
               carrierWizardStep >= 3 ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' : 'bg-gray-200 dark:bg-gray-700 text-gray-500',
-              (!newCarrier.apiId || !newCarrier.apiKey) && 'cursor-not-allowed opacity-50'
+              ((carrierNeedsField('accountId') && !newCarrier.apiId) || !newCarrier.apiKey) && 'cursor-not-allowed opacity-50'
             ]">
               <Receipt v-if="carrierWizardStep > 3" class="w-5 h-5" />
               <span v-else>3</span>
@@ -83,9 +123,9 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div>
         <!-- Main Form Column -->
-        <div class="lg:col-span-2 space-y-6">
+        <div class="space-y-6">
           <!-- Step 1: Carrier Selection -->
           <div v-if="!editingCarrier && carrierWizardStep === 1" class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm">
             <div class="px-6 py-5 border-b border-gray-200 dark:border-gray-800">
@@ -110,30 +150,29 @@
                 </span>
               </div>
 
-              <div class="flex flex-wrap gap-2 mb-5">
-                <button class="px-3 py-1.5 text-xs font-medium rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">Tous</button>
-                <button class="px-3 py-1.5 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200">Express</button>
-                <button class="px-3 py-1.5 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200">Standard</button>
-                <button class="px-3 py-1.5 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200">&Eacute;conomique</button>
-              </div>
-
               <div class="max-h-96 overflow-y-auto rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 p-4">
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <button
                     v-for="carrier in filteredModalCarriers"
                     :key="carrier.id"
                     type="button"
-                    @click="$emit('select-carrier-from-list', carrier)"
+                    @click="carrier.enabled ? $emit('select-carrier-from-list', carrier) : null"
+                    :disabled="!carrier.enabled"
                     :class="[
-                      'group p-4 rounded-xl border-2 text-left transition-all duration-200',
-                      selectedModalCarrier?.id === carrier.id
-                        ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20 shadow-lg shadow-orange-500/10 scale-[1.02]'
-                        : 'border-transparent bg-white dark:bg-gray-900 hover:border-orange-200 dark:hover:border-orange-800 hover:shadow-md'
+                      'group relative p-4 rounded-xl border-2 text-left transition-all duration-200',
+                      !carrier.enabled
+                        ? 'border-transparent bg-gray-50 dark:bg-gray-800/50 opacity-60 cursor-not-allowed'
+                        : selectedModalCarrier?.id === carrier.id
+                          ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20 shadow-lg shadow-orange-500/10 scale-[1.02]'
+                          : 'border-transparent bg-white dark:bg-gray-900 hover:border-orange-200 dark:hover:border-orange-800 hover:shadow-md'
                     ]"
                   >
+                    <div v-if="!carrier.enabled" class="absolute top-2 right-2 px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-[10px] font-medium rounded-full">
+                      Bient&ocirc;t
+                    </div>
                     <div class="flex flex-col items-center text-center gap-3">
                       <div class="relative">
-                        <div class="w-14 h-14 rounded-xl flex items-center justify-center text-sm font-bold transition-transform group-hover:scale-110" :style="{ backgroundColor: carrier.color + '15', color: carrier.color }">
+                        <div class="w-14 h-14 rounded-xl flex items-center justify-center text-sm font-bold transition-transform group-hover:scale-110" :style="{ backgroundColor: carrier.color + '15', color: carrier.enabled ? carrier.color : '#9ca3af' }">
                           {{ getCarrierInitials(carrier.name) }}
                         </div>
                         <div v-if="selectedModalCarrier?.id === carrier.id" class="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center">
@@ -141,11 +180,7 @@
                         </div>
                       </div>
                       <div class="min-w-0 w-full">
-                        <p class="font-semibold text-gray-900 dark:text-white text-sm truncate">{{ carrier.name }}</p>
-                        <div class="flex items-center justify-center gap-1 mt-1">
-                          <Clock class="w-3 h-3 text-gray-400" />
-                          <p class="text-xs text-gray-500">{{ carrier.deliveryTime }}</p>
-                        </div>
+                        <p class="font-semibold text-sm truncate" :class="carrier.enabled ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'">{{ carrier.name }}</p>
                       </div>
                     </div>
                   </button>
@@ -189,8 +224,8 @@
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nom du transporteur</label>
                 <input :value="newCarrier.name" @input="$emit('update:newCarrierField', 'name', ($event.target as HTMLInputElement).value)" type="text" placeholder="Ex: Aramex, DHL, etc." class="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white" :readonly="!!selectedModalCarrier" />
               </div>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+              <div :class="carrierNeedsField('accountId') ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : ''">
+                <div v-if="carrierNeedsField('accountId')">
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">API ID <span class="text-red-500">*</span></label>
                   <input :value="newCarrier.apiId" @input="$emit('update:newCarrierField', 'apiId', ($event.target as HTMLInputElement).value)" type="text" placeholder="CARRIER-API-001" class="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                 </div>
@@ -213,10 +248,10 @@
               </button>
               <button
                 @click="$emit('update:carrierWizardStep', 3)"
-                :disabled="!newCarrier.apiId || !newCarrier.apiKey"
+                :disabled="(carrierNeedsField('accountId') && !newCarrier.apiId) || !newCarrier.apiKey"
                 :class="[
                   'px-6 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2',
-                  newCarrier.apiId && newCarrier.apiKey
+                  (carrierNeedsField('accountId') ? newCarrier.apiId : true) && newCarrier.apiKey
                     ? 'bg-[#4959b4] hover:bg-[#3a4791] text-white shadow-sm hover:shadow-md'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
                 ]"
@@ -388,84 +423,6 @@
           </div>
         </div>
 
-        <!-- Preview Column -->
-        <div class="lg:col-span-1">
-          <div class="sticky top-6 space-y-4">
-            <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm">
-              <div class="px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800">
-                <h5 class="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center">
-                  <Eye class="w-4 h-4 mr-2 text-gray-400" />
-                  Aper&ccedil;u en direct
-                </h5>
-              </div>
-              <div class="p-4">
-                <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-                  <div class="h-1.5 bg-gradient-to-r from-orange-400 to-orange-500 rounded-t-xl -mt-4 -mx-4 mb-4"></div>
-                  <div class="flex items-start gap-3 mb-4">
-                    <div class="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-sm" :style="selectedModalCarrier ? { backgroundColor: selectedModalCarrier.color + '20', color: selectedModalCarrier.color } : { backgroundColor: '#f97316' + '20', color: '#f97316' }">
-                      {{ newCarrier.name ? getCarrierInitials(newCarrier.name) : '??' }}
-                    </div>
-                    <div class="flex-1 min-w-0">
-                      <p class="font-semibold text-gray-900 dark:text-white truncate">{{ newCarrier.name || 'Nom du transporteur' }}</p>
-                      <div class="flex items-center gap-1.5 mt-0.5">
-                        <span class="w-1.5 h-1.5 rounded-full" :class="newCarrier.apiId && newCarrier.apiKey ? 'bg-green-500' : 'bg-gray-300'"></span>
-                        <span class="text-xs" :class="newCarrier.apiId && newCarrier.apiKey ? 'text-green-600' : 'text-gray-400'">
-                          {{ newCarrier.apiId && newCarrier.apiKey ? 'Pr&ecirc;t' : 'API non configur&eacute;e' }}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="grid grid-cols-3 gap-2 mb-3">
-                    <div class="text-center p-2 bg-white dark:bg-gray-900 rounded-lg">
-                      <p class="text-sm font-bold text-gray-900 dark:text-white">{{ newCarrier.fraisColisLivres.toFixed(1) }}</p>
-                      <p class="text-[9px] text-gray-400 uppercase">Livr&eacute;</p>
-                    </div>
-                    <div class="text-center p-2 bg-white dark:bg-gray-900 rounded-lg">
-                      <p class="text-sm font-bold text-gray-900 dark:text-white">{{ newCarrier.fraisColisRetour.toFixed(1) }}</p>
-                      <p class="text-[9px] text-gray-400 uppercase">Retour</p>
-                    </div>
-                    <div class="text-center p-2 bg-white dark:bg-gray-900 rounded-lg">
-                      <p class="text-sm font-bold text-gray-900 dark:text-white">{{ newCarrier.fraisColisBig.toFixed(1) }}</p>
-                      <p class="text-[9px] text-gray-400 uppercase">BIG</p>
-                    </div>
-                  </div>
-                  <div class="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
-                    <span class="text-xs text-gray-500">Couverture</span>
-                    <span v-if="newCarrier.allRegions" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">
-                      <Globe class="w-3 h-3" />
-                      National
-                    </span>
-                    <span v-else class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-                      <MapPin class="w-3 h-3" />
-                      {{ newCarrier.regions.length }} r&eacute;gions
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-4">
-              <h5 class="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center mb-3">
-                <Lightbulb class="w-4 h-4 mr-2 text-orange-500" />
-                Conseils
-              </h5>
-              <ul class="space-y-2 text-xs text-gray-600 dark:text-gray-400">
-                <li class="flex items-start gap-2">
-                  <CheckCircle class="w-3 h-3 mt-0.5 flex-shrink-0 text-orange-500" />
-                  <span>Obtenez vos identifiants API depuis le portail de votre transporteur</span>
-                </li>
-                <li class="flex items-start gap-2">
-                  <CheckCircle class="w-3 h-3 mt-0.5 flex-shrink-0 text-orange-500" />
-                  <span>Les tarifs peuvent &ecirc;tre ajust&eacute;s &agrave; tout moment</span>
-                </li>
-                <li class="flex items-start gap-2">
-                  <CheckCircle class="w-3 h-3 mt-0.5 flex-shrink-0 text-orange-500" />
-                  <span>Activez la couverture nationale pour une configuration rapide</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </main>
@@ -481,15 +438,13 @@ import {
   MapPinned,
   Search,
   CheckCircle,
-  Clock,
   ArrowRight,
   ArrowLeft,
   Eye,
   EyeOff,
   DollarSign,
   Globe,
-  MapPin,
-  Lightbulb
+  MapPin
 } from 'lucide-vue-next'
 
 interface NewCarrierForm {
@@ -513,6 +468,14 @@ interface ModalCarrier {
   color: string
   deliveryTime: string
   description: string
+  enabled?: boolean
+  configFields?: Array<{ key: string; label: string; type: string; placeholder?: string; required?: boolean }>
+}
+
+interface SyncStep {
+  label: string
+  status: 'pending' | 'loading' | 'done' | 'error'
+  detail?: string
 }
 
 interface Props {
@@ -524,9 +487,10 @@ interface Props {
   selectedModalCarrier: ModalCarrier | null
   filteredModalCarriers: ModalCarrier[]
   gouvernorats: string[]
+  syncSteps: SyncStep[]
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
 defineEmits<{
   'toggle-sub-menu': []
@@ -549,5 +513,10 @@ function getCarrierInitials(name: string): string {
     return (words[0][0] + words[1][0]).toUpperCase()
   }
   return name.substring(0, 2).toUpperCase()
+}
+
+function carrierNeedsField(fieldKey: string): boolean {
+  if (!props.selectedModalCarrier?.configFields) return true
+  return props.selectedModalCarrier.configFields.some(f => f.key === fieldKey)
 }
 </script>
