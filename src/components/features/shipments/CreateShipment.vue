@@ -449,7 +449,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import {
   ListFilter,
   Package,
@@ -488,6 +488,7 @@ interface DeliveryCarrier {
 const props = defineProps<{
   clients: Client[]
   carriers: { id: number; name: string; [key: string]: any }[]
+  initialCarrier?: string
 }>()
 
 const emit = defineEmits<{
@@ -633,6 +634,16 @@ function selectShipmentCarrier(carrier: DeliveryCarrier) {
   newShipment.carrier = carrier.name
   newShipment.deliveryFee = carrierDeliveryFees[carrier.name] || 7
 }
+
+// Pre-select carrier when coming back via "Create another"
+onMounted(() => {
+  if (props.initialCarrier) {
+    const match = props.carriers.find(c => c.name === props.initialCarrier)
+    if (match) {
+      selectShipmentCarrier(match as unknown as DeliveryCarrier)
+    }
+  }
+})
 
 function handleExchangeImageUpload(event: Event) {
   const target = event.target as HTMLInputElement

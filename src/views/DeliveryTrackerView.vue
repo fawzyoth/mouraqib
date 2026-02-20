@@ -160,11 +160,21 @@
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
     />
 
-    <!-- Shipments: Create Shipment -->
+    <!-- Shipments: Create Shipment — success screen or form -->
+    <ShipmentCreatedSuccess
+      v-else-if="activeSection === 'create-shipment' && createdShipment"
+      :shipment="createdShipment"
+      @toggle-submenu="subMenuOpen = !subMenuOpen"
+      @print-label="handleSuccessPrintLabel"
+      @create-another="handleCreateAnother"
+      @view-shipments="handleViewShipments"
+    />
+
     <CreateShipment
       v-else-if="activeSection === 'create-shipment'"
       :clients="clients"
       :carriers="carriers"
+      :initial-carrier="stickyCarrier"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
       @submit="handleCreateShipment"
       @reset="resetShipmentForm"
@@ -809,6 +819,7 @@ import AppShell from '@/components/layout/AppShell.vue'
 import SearchResultsPage from '@/components/features/shipments/SearchResultsPage.vue'
 import ShipmentsList from '@/components/features/shipments/ShipmentsList.vue'
 import CreateShipment from '@/components/features/shipments/CreateShipment.vue'
+import ShipmentCreatedSuccess from '@/components/features/shipments/ShipmentCreatedSuccess.vue'
 import ShipmentLabels from '@/components/features/shipments/ShipmentLabels.vue'
 import ClientsList from '@/components/features/clients/ClientsList.vue'
 import AddClientForm from '@/components/features/clients/AddClientForm.vue'
@@ -907,6 +918,14 @@ const {
   selectMainSection,
   navigateTo,
 } = useNavigation(isAdmin)
+
+// Clear success screen state when navigating away from create-shipment
+watch(activeSection, (section) => {
+  if (section !== 'create-shipment' && createdShipment.value) {
+    createdShipment.value = null
+    stickyCarrier.value = ''
+  }
+})
 
 // Mobile menu state
 const sidebarOpen = ref(false)
@@ -1731,6 +1750,8 @@ const confirmingPickup = ref(false)
 const selectedLabels = ref<number[]>([])
 const showPrintLabelModal = ref(false)
 const labelToPrint = ref<any>(null)
+const createdShipment = ref<any>(null)
+const stickyCarrier = ref('')
 const labelSearchQuery = ref('')
 const labelFilterPrinted = ref('all')
 
@@ -3658,6 +3679,44 @@ async function addShipment(submittedData?: any) {
 
   const shipmentTotal = submittedData?.totalPrice ?? ((data.productPrice || 0) + (data.deliveryFee || 0))
 
+  // Auto-create client if no clientId but customerName is provided
+  if (!data.clientId && data.customerName?.trim()) {
+    if (!authStore.isDemoMode) {
+      const newClient = await clientsData.create({
+        name: data.customerName.trim(),
+        phone: data.phone || '',
+        address: data.address || '',
+        region: data.gouvernorat || '',
+        delegation: data.delegation || '',
+        locality: data.locality || '',
+        postalCode: data.postalCode || '',
+        status: 'active',
+      })
+      if (newClient) {
+        clientsList.value = clientsData.clientsList.value as any[]
+        clientStats.value = { ...clientStats.value, ...clientsData.clientStats.value }
+        data.clientId = newClient.id
+      }
+    } else {
+      const newClient = {
+        id: Date.now(),
+        name: data.customerName.trim(),
+        phone: data.phone || '',
+        email: '',
+        address: data.address || '',
+        region: data.gouvernorat || '',
+        totalOrders: 0,
+        deliveredOrders: 0,
+        deliveryRate: 0,
+        totalSpent: 0,
+        status: 'active',
+        memberSince: new Date().toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })
+      }
+      clientsList.value.push(newClient)
+      data.clientId = newClient.id
+    }
+  }
+
   if (!authStore.isDemoMode) {
     // Find carrier ID from name
     const carrierObj = carriersData.carriers.value.find(c => c.name === data.carrier)
@@ -3674,8 +3733,8 @@ async function addShipment(submittedData?: any) {
     )
     if (result) {
       shipments.value = shipmentsData.shipments.value as any[]
+      createdShipment.value = result
     }
-    resetShipmentForm()
     return
   }
 
@@ -3729,7 +3788,25 @@ async function addShipment(submittedData?: any) {
     ]
   })
 
+  createdShipment.value = shipments.value[0]
+}
+
+// Success screen handlers
+function handleSuccessPrintLabel() {
+  labelToPrint.value = createdShipment.value
+  showPrintLabelModal.value = true
+}
+
+function handleCreateAnother() {
+  stickyCarrier.value = createdShipment.value?.carrier || ''
+  createdShipment.value = null
   resetShipmentForm()
+}
+
+function handleViewShipments() {
+  createdShipment.value = null
+  stickyCarrier.value = ''
+  navigateTo('all-shipments')
 }
 
 // Aliases for template bindings (fixing decomposition mismatches)
