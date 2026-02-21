@@ -106,23 +106,49 @@ export class FirstDeliveryAdapter implements CarrierAdapter {
     if (payload.trackingNumber) body.barCode = payload.trackingNumber
     if (payload.createdAtFrom) body.createdAtFrom = payload.createdAtFrom
     if (payload.createdAtTo) body.createdAtTo = payload.createdAtTo
-    if (payload.state) body.state = payload.state
-    if (payload.pageNumber !== undefined) body.pageNumber = payload.pageNumber
-    if (payload.limit !== undefined) body.limit = payload.limit
+    if (payload.state !== undefined) body.state = payload.state
+
+    // First Delivery uses nested pagination: { pagination: { pageNumber, limit } }
+    body.pagination = {
+      pageNumber: payload.pageNumber ?? 1,
+      limit: payload.limit ?? 100,
+    }
 
     const data = await this.post('/filter', body)
 
-    // Normalize the response to our internal format
-    const items = Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : []
+    // First Delivery wraps response in { result: { Items: [...], TotalCount, TotalPages, CurrentPage } }
+    const result = data.result as Record<string, unknown> | undefined
+    const items = Array.isArray(result?.Items)
+      ? (result!.Items as Record<string, unknown>[])
+      : Array.isArray(data.data)
+        ? data.data
+        : Array.isArray(data)
+          ? data
+          : []
 
     return {
-      shipments: items.map((item: Record<string, unknown>) => ({
-        trackingNumber: (item.barCode as string) ?? '',
-        status: (item.state as string) ?? 'unknown',
-        ...item,
-      })),
-      total: data.total ?? items.length,
-      page: data.pageNumber ?? payload.pageNumber,
+      shipments: items.map((item: Record<string, unknown>) => {
+        const client = (item.Client ?? {}) as Record<string, string>
+        const product = (item.Product ?? {}) as Record<string, string>
+        return {
+          trackingNumber: (item.barCode as string) ?? '',
+          status: String(item.state ?? 'unknown'),
+          clientName: client.name ?? '',
+          address: client.address ?? '',
+          city: client.city ?? '',
+          governorate: client.state ?? '',
+          phone: client.telephone ?? '',
+          phone2: client.telephone2 ?? '',
+          designation: product.designation ?? '',
+          price: product.price ?? '0',
+          articleCount: product.itemNumber ?? '1',
+          createdAt: item.createdAt as string,
+          deliveredAt: item.deliveredAt as string | null,
+          exchange: item.exchange as string,
+        }
+      }),
+      total: (result?.TotalCount as number) ?? items.length,
+      page: (result?.CurrentPage as number) ?? payload.pageNumber ?? 1,
     }
   }
 
@@ -193,6 +219,8 @@ export class FirstDeliveryAdapter implements CarrierAdapter {
   private async post(endpoint: string, body: unknown): Promise<Record<string, any>> {
     const url = `${BASE_URL}${endpoint}`
 
+    console.log(`[FirstDelivery] POST ${endpoint}`, JSON.stringify(body))
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -210,6 +238,8 @@ export class FirstDeliveryAdapter implements CarrierAdapter {
     } else {
       responseData = await response.text()
     }
+
+    console.log(`[FirstDelivery] ${endpoint} → ${response.status}`, JSON.stringify(responseData).slice(0, 2000))
 
     if (!response.ok) {
       throw new CarrierApiError(

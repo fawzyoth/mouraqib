@@ -320,7 +320,7 @@ async function handleCheckStatus(
     await supabase
       .from('shipments')
       .update({
-        carrier_status_raw: carrierResult.status,
+        status: mapCarrierStatus(carrierResult.status),
       })
       .eq('id', shipmentId)
   }
@@ -349,30 +349,87 @@ async function handleSyncShipments(
     return { synced: 0, message: 'Carrier does not support shipment filtering' }
   }
 
-  const allShipments = await adapter.filterShipments({})
+  // Paginate through all carrier shipments
   let synced = 0
+  let totalFetched = 0
+  let page = 1
+  const PAGE_SIZE = 100
 
-  for (const shipment of allShipments.shipments) {
-    // Upsert: check if we already have this tracking number
-    const { data: existing } = await supabase
-      .from('shipments')
-      .select('id')
-      .eq('carrier_tracking_number', shipment.trackingNumber)
-      .eq('organization_id', user.organizationId)
-      .maybeSingle()
+  while (true) {
+    const result = await adapter.filterShipments({
+      pageNumber: page,
+      limit: PAGE_SIZE,
+    })
 
-    if (!existing) {
-      // Insert as a new shipment imported from carrier
-      await supabase.from('shipments').insert({
-        organization_id: user.organizationId,
-        carrier_id: carrier.id,
-        carrier_tracking_number: shipment.trackingNumber,
-        status: shipment.status || 'in_transit',
-        carrier_status_raw: shipment.status,
-      })
-      synced++
+    const shipments = result.shipments
+    if (shipments.length === 0) break
+
+    totalFetched += shipments.length
+
+    for (const shipment of shipments) {
+      if (!shipment.trackingNumber) continue
+
+      // Upsert: check if we already have this tracking number
+      const { data: existing } = await supabase
+        .from('shipments')
+        .select('id')
+        .eq('carrier_tracking_number', shipment.trackingNumber)
+        .eq('organization_id', user.organizationId)
+        .maybeSingle()
+
+      if (!existing) {
+        // Map carrier status to our DB enum
+        const mappedStatus = mapCarrierStatus(shipment.status)
+
+        const { error: insertError } = await supabase.from('shipments').insert({
+          organization_id: user.organizationId,
+          carrier_id: carrier.id,
+          tracking_number: shipment.trackingNumber,
+          carrier_tracking_number: shipment.trackingNumber,
+          status: mappedStatus,
+          recipient_name: shipment.clientName || 'Inconnu',
+          recipient_phone: shipment.phone || '00000000',
+          recipient_address: shipment.address || '-',
+          governorate: shipment.governorate || '-',
+          delegation: shipment.city || null,
+          product_description: shipment.designation || null,
+          cod_amount: shipment.price ? Number(shipment.price) : 0,
+          exchange_allowed: shipment.exchange === '1',
+          carrier_raw: shipment,
+        })
+
+        if (insertError) {
+          console.error(`[sync] Insert failed for ${shipment.trackingNumber}:`, insertError.message)
+        } else {
+          synced++
+        }
+      }
     }
+
+    // If we got fewer than PAGE_SIZE, we've reached the last page
+    if (shipments.length < PAGE_SIZE) break
+    page++
   }
 
-  return { synced, total: allShipments.shipments.length }
+  return { synced, total: totalFetched }
+}
+
+// ─── Helpers ─────────────────────────────────────────────────
+
+/**
+ * Map carrier-specific status strings to our DB status enum.
+ * DB allows: pending, pickup_scheduled, picked_up, in_transit, out_for_delivery, delivered, returned, cancelled
+ */
+function mapCarrierStatus(carrierStatus: string): string {
+  const s = (carrierStatus || '').toLowerCase().trim()
+
+  if (s.includes('livr')) return 'delivered'
+  if (s.includes('rtn') || s.includes('retour')) return 'returned'
+  if (s.includes('supprim') || s.includes('annul')) return 'cancelled'
+  if (s.includes('pickup') || s.includes('enlev') || s.includes('ramass')) return 'picked_up'
+  if (s.includes('transit') || s.includes('transfert') || s.includes('hub')) return 'in_transit'
+  if (s.includes('distribution') || s.includes('livraison en cours')) return 'out_for_delivery'
+  if (s.includes('créé') || s.includes('cree') || s.includes('nouveau')) return 'pending'
+
+  return 'in_transit'
 }

@@ -4188,19 +4188,19 @@ async function saveCarrierFromPage() {
   navigateTo('connected-carriers')
 }
 
-async function deleteCarrier(carrierId: number) {
+async function deleteCarrier(carrierId: string) {
   if (!authStore.isDemoMode) {
-    await carriersData.remove(String(carrierId))
+    await carriersData.remove(carrierId)
     carriers.value = carriersData.carriers.value as any[]
-    if (selectedCarrier.value?.id === carrierId) {
+    if (String(selectedCarrier.value?.id) === carrierId) {
       selectedCarrier.value = null
     }
     return
   }
-  const index = carriers.value.findIndex(c => c.id === carrierId)
+  const index = carriers.value.findIndex(c => String(c.id) === carrierId)
   if (index !== -1) {
     carriers.value.splice(index, 1)
-    if (selectedCarrier.value?.id === carrierId) {
+    if (String(selectedCarrier.value?.id) === carrierId) {
       selectedCarrier.value = null
     }
   }

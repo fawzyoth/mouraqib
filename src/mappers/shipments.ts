@@ -21,7 +21,7 @@ export interface UIShipment {
   trackingNumber: string
   carrier: string
   carrierId: string | null
-  service: string
+  client: string
   status: string
   latestEvent: string
   originFlag: string
@@ -61,8 +61,9 @@ interface OrgContext {
   phone: string
 }
 
-export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | null }, org: OrgContext): UIShipment {
+export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | null; client?: { name: string } | null }, org: OrgContext): UIShipment {
   const carrierName = row.carrier?.name || 'Non assigné'
+  const clientName = row.client?.name || '-'
   const uiStatus = STATUS_DB_TO_UI[row.status] || row.status
   const createdDate = new Date(row.created_at)
   const latestEvent = `${createdDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} : Colis créé`
@@ -72,7 +73,7 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
     trackingNumber: row.tracking_number,
     carrier: carrierName,
     carrierId: row.carrier_id,
-    service: '-',
+    client: clientName,
     status: uiStatus,
     latestEvent,
     originFlag: '🇹🇳',

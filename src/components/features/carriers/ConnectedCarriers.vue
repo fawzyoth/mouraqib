@@ -325,7 +325,7 @@ defineEmits<{
   'navigate': [section: string]
   'select-carrier': [carrier: Carrier]
   'edit-carrier': [carrier: Carrier]
-  'delete-carrier': [carrierId: number]
+  'delete-carrier': [carrierId: string]
   'sync-carrier': [carrier: Carrier]
 }>()
 </script>
