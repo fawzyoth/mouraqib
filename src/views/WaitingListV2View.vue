@@ -694,7 +694,7 @@ async function submitForm() {
     if (!hasTrackedRegistration) {
       hasTrackedRegistration = true
       const eventId = crypto.randomUUID()
-      const registrationValue = 0
+      const registrationValue = 1
       const customData = { value: registrationValue, currency: 'TND' }
 
       // Browser Pixel with eventID for deduplication
