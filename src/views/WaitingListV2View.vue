@@ -248,7 +248,7 @@
       <div class="max-w-3xl mx-auto">
         <div class="grid grid-cols-2 gap-4">
           <div class="bg-white dark:bg-gray-800/50 rounded-xl p-4 border border-gray-100 dark:border-gray-800 text-center">
-            <div class="text-2xl sm:text-3xl font-bold text-orange-500">{{ registeredCount }}/100</div>
+            <div class="text-2xl sm:text-3xl font-bold text-orange-500">{{ registeredCount }}/150</div>
             <div class="text-xs sm:text-sm text-gray-500">مسجّل</div>
           </div>
           <div class="bg-white dark:bg-gray-800/50 rounded-xl p-4 border border-gray-100 dark:border-gray-800 text-center">
@@ -274,7 +274,7 @@
           <div class="bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl p-8 mb-8">
             <p class="text-white/80 text-lg mb-2">رقمك في الليست</p>
             <div class="text-6xl sm:text-7xl font-bold text-white mb-2">#{{ userPosition }}</div>
-            <p class="text-white/70 text-sm">من أصل 100 بلاصة</p>
+            <p class="text-white/70 text-sm">من أصل 150 بلاصة</p>
           </div>
 
           <!-- What's Next -->
@@ -422,12 +422,12 @@
             <!-- Submit Button -->
             <button
               type="submit"
-              :disabled="isSubmitting || registeredCount >= 100"
+              :disabled="isSubmitting || registeredCount >= 150"
               class="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-lg"
             >
               <Loader2 v-if="isSubmitting" class="w-5 h-5 animate-spin" />
               <span v-if="isSubmitting">راهو يسجّل...</span>
-              <span v-else-if="registeredCount >= 100">كمل العدد</span>
+              <span v-else-if="registeredCount >= 150">كمل العدد</span>
               <template v-else>
                 <span>سجّل توّا</span>
                 <ArrowLeft class="w-5 h-5" />
@@ -589,7 +589,7 @@ const errorMessage = ref('')
 const registeredCount = ref(5)
 const userPosition = ref(0)
 
-const spotsLeft = computed(() => 100 - registeredCount.value)
+const spotsLeft = computed(() => 150 - registeredCount.value)
 
 const commonProblems = [
   { id: 'tracking', title: 'صعيب نتابع الكوليات' },
@@ -608,7 +608,7 @@ async function fetchRegisteredCount() {
 
     if (!error && count !== null) {
       // Start from 5 and add real count
-      registeredCount.value = Math.min(5 + count, 100)
+      registeredCount.value = Math.min(5 + count, 150)
     }
   } catch (e) {
     console.error('Error fetching count:', e)
@@ -654,7 +654,7 @@ async function submitForm() {
     return
   }
 
-  if (registeredCount.value >= 100) {
+  if (registeredCount.value >= 150) {
     errorMessage.value = 'معذرة، كمل العدد'
     return
   }
@@ -687,7 +687,7 @@ async function submitForm() {
 
     // Set user position before incrementing
     userPosition.value = registeredCount.value + 1
-    registeredCount.value = Math.min(registeredCount.value + 1, 100)
+    registeredCount.value = Math.min(registeredCount.value + 1, 150)
     showSuccess.value = true
 
     // Track CompleteRegistration — fire once per submission only
