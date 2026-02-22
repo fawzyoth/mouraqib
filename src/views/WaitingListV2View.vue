@@ -478,6 +478,10 @@ import { useThemeStore } from '@/stores/theme'
 import { Moon, Sun, UserPlus, ArrowLeft, Loader2, CheckCircle, ChevronDown, Check, X } from 'lucide-vue-next'
 import { supabase } from '@/lib/supabase'
 
+declare global {
+  interface Window { fbq: (...args: any[]) => void }
+}
+
 const themeStore = useThemeStore()
 
 // Typewriter animation
@@ -612,6 +616,36 @@ async function fetchRegisteredCount() {
   }
 }
 
+let hasTrackedRegistration = false
+
+function sendCAPIEvent(payload: {
+  event_name: string
+  event_id: string
+  user_data: { email: string; phone: string; first_name: string; last_name: string }
+  custom_data: { value: number; currency: string }
+}) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  if (!supabaseUrl) return
+
+  fetch(`${supabaseUrl}/functions/v1/facebook-capi`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify({
+      event_name: payload.event_name,
+      event_id: payload.event_id,
+      user_data: payload.user_data,
+      custom_data: payload.custom_data,
+      client_user_agent: navigator.userAgent,
+      event_source_url: window.location.href,
+    }),
+  }).catch(e => {
+    console.warn('CAPI event failed:', e)
+  })
+}
+
 async function submitForm() {
   errorMessage.value = ''
 
@@ -655,6 +689,32 @@ async function submitForm() {
     userPosition.value = registeredCount.value + 1
     registeredCount.value = Math.min(registeredCount.value + 1, 100)
     showSuccess.value = true
+
+    // Track CompleteRegistration — fire once per submission only
+    if (!hasTrackedRegistration) {
+      hasTrackedRegistration = true
+      const eventId = crypto.randomUUID()
+      const registrationValue = 0
+      const customData = { value: registrationValue, currency: 'TND' }
+
+      // Browser Pixel with eventID for deduplication
+      if (typeof window.fbq === 'function') {
+        window.fbq('track', 'CompleteRegistration', customData, { eventID: eventId })
+      }
+
+      // Server CAPI with matching event_id
+      sendCAPIEvent({
+        event_name: 'CompleteRegistration',
+        event_id: eventId,
+        user_data: {
+          email: form.email,
+          phone: form.phone,
+          first_name: form.firstName,
+          last_name: form.lastName,
+        },
+        custom_data: customData,
+      })
+    }
 
     // Reset form
     form.firstName = ''

@@ -34,7 +34,7 @@ serve(async (req) => {
     }
 
     const body = await req.json()
-    const { event_name, user_data, event_source_url } = body
+    const { event_name, user_data, event_source_url, event_id, custom_data, client_user_agent } = body
 
     if (!event_name || !user_data) {
       return new Response(
@@ -61,16 +61,38 @@ serve(async (req) => {
       hashedUserData.ln = await sha256Hash(user_data.last_name)
     }
 
+    // Extract client IP from request headers (Supabase/Deno forwards these)
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || req.headers.get('cf-connecting-ip')
+      || req.headers.get('x-real-ip')
+
+    if (clientIp) {
+      hashedUserData.client_ip_address = clientIp
+    }
+    if (client_user_agent) {
+      hashedUserData.client_user_agent = client_user_agent
+    }
+
+    const eventPayload: Record<string, unknown> = {
+      event_name,
+      event_time: Math.floor(Date.now() / 1000),
+      action_source: 'website',
+      event_source_url: event_source_url || 'https://mouraqib.com',
+      user_data: hashedUserData,
+    }
+
+    // event_id for deduplication with browser Pixel
+    if (event_id) {
+      eventPayload.event_id = event_id
+    }
+
+    // custom_data for value/currency
+    if (custom_data) {
+      eventPayload.custom_data = custom_data
+    }
+
     const eventData = {
-      data: [
-        {
-          event_name,
-          event_time: Math.floor(Date.now() / 1000),
-          action_source: 'website',
-          event_source_url: event_source_url || 'https://mouraqib.com',
-          user_data: hashedUserData,
-        },
-      ],
+      data: [eventPayload],
       access_token: accessToken,
     }
 

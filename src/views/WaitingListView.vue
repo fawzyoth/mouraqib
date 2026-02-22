@@ -680,27 +680,34 @@ async function fetchRegisteredCount() {
   }
 }
 
-async function sendCAPIEvent(eventName: string, userData: { email: string; phone: string; first_name: string; last_name: string }) {
-  try {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-    if (!supabaseUrl) return
+let hasTrackedRegistration = false
 
-    await fetch(`${supabaseUrl}/functions/v1/facebook-capi`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({
-        event_name: eventName,
-        user_data: userData,
-        event_source_url: window.location.href,
-      }),
-    })
-  } catch (e) {
-    // Silent fail - CAPI is supplementary to browser pixel
+function sendCAPIEvent(payload: {
+  event_name: string
+  event_id: string
+  user_data: { email: string; phone: string; first_name: string; last_name: string }
+  custom_data: { value: number; currency: string }
+}) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  if (!supabaseUrl) return
+
+  fetch(`${supabaseUrl}/functions/v1/facebook-capi`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify({
+      event_name: payload.event_name,
+      event_id: payload.event_id,
+      user_data: payload.user_data,
+      custom_data: payload.custom_data,
+      client_user_agent: navigator.userAgent,
+      event_source_url: window.location.href,
+    }),
+  }).catch(e => {
     console.warn('CAPI event failed:', e)
-  }
+  })
 }
 
 async function submitForm() {
@@ -747,20 +754,31 @@ async function submitForm() {
     registeredCount.value = Math.min(registeredCount.value + 1, 100)
     showSuccess.value = true
 
-    // Facebook Pixel - CompleteRegistration event (browser-side)
-    if (typeof window.fbq === 'function') {
-      window.fbq('track', 'CompleteRegistration')
-    }
+    // Track CompleteRegistration — fire once per submission only
+    if (!hasTrackedRegistration) {
+      hasTrackedRegistration = true
+      const eventId = crypto.randomUUID()
+      const registrationValue = 0
+      const customData = { value: registrationValue, currency: 'TND' }
 
-    // Facebook CAPI - CompleteRegistration event (server-side)
-    // Fire-and-forget: don't block UX on CAPI response
-    const capiUserData = {
-      email: form.email,
-      phone: form.phone,
-      first_name: form.firstName,
-      last_name: form.lastName,
+      // Browser Pixel with eventID for deduplication
+      if (typeof window.fbq === 'function') {
+        window.fbq('track', 'CompleteRegistration', customData, { eventID: eventId })
+      }
+
+      // Server CAPI with matching event_id
+      sendCAPIEvent({
+        event_name: 'CompleteRegistration',
+        event_id: eventId,
+        user_data: {
+          email: form.email,
+          phone: form.phone,
+          first_name: form.firstName,
+          last_name: form.lastName,
+        },
+        custom_data: customData,
+      })
     }
-    sendCAPIEvent('CompleteRegistration', capiUserData)
 
     // Reset form
     form.firstName = ''
