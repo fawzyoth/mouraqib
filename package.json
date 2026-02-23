@@ -11,9 +11,12 @@
     "typecheck": "vue-tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
+    "@remotion/cli": "^4.0.422",
+    "@remotion/player": "^4.0.422",
     "@supabase/supabase-js": "^2.93.3",
     "lucide-vue-next": "^0.547.0",
     "pinia": "^2.1.7",
+    "remotion": "^4.0.422",
     "vue": "^3.5.13",
     "vue-i18n": "^9.14.5",
     "vue-router": "^4.4.5"
