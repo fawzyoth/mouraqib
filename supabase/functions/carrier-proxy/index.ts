@@ -381,9 +381,13 @@ async function handleSyncShipments(
         // Map carrier status to our DB enum
         const mappedStatus = mapCarrierStatus(shipment.status)
 
+        // Find or create client by phone number
+        const clientId = await findOrCreateClient(supabase, user.organizationId, shipment)
+
         const { error: insertError } = await supabase.from('shipments').insert({
           organization_id: user.organizationId,
           carrier_id: carrier.id,
+          client_id: clientId,
           tracking_number: shipment.trackingNumber,
           carrier_tracking_number: shipment.trackingNumber,
           status: mappedStatus,
@@ -412,6 +416,55 @@ async function handleSyncShipments(
   }
 
   return { synced, total: totalFetched }
+}
+
+// ─── Client Helpers ──────────────────────────────────────────
+
+/**
+ * Find an existing client by phone number, or create a new one from shipment data.
+ * Returns the client UUID, or null if the shipment has no usable client info.
+ */
+async function findOrCreateClient(
+  supabase: ReturnType<typeof createServiceClient>,
+  organizationId: string,
+  shipment: Record<string, unknown>,
+): Promise<string | null> {
+  const phone = String(shipment.phone || '').trim()
+  const name = String(shipment.clientName || '').trim()
+
+  if (!phone || !name) return null
+
+  // Check if client already exists by phone within this org
+  const { data: existing } = await supabase
+    .from('clients')
+    .select('id')
+    .eq('organization_id', organizationId)
+    .eq('phone', phone)
+    .maybeSingle()
+
+  if (existing) return existing.id
+
+  // Create new client
+  const { data: created, error } = await supabase
+    .from('clients')
+    .insert({
+      organization_id: organizationId,
+      name,
+      phone,
+      phone_secondary: String(shipment.phone2 || '') || null,
+      address: String(shipment.address || '') || null,
+      governorate: String(shipment.governorate || '') || null,
+      delegation: String(shipment.city || '') || null,
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    console.error(`[sync] Client create failed for ${phone}:`, error.message)
+    return null
+  }
+
+  return created.id
 }
 
 // ─── Helpers ─────────────────────────────────────────────────

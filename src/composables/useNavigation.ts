@@ -197,23 +197,42 @@ export const subNavigation: Record<string, NavItem[]> = {
   ],
 }
 
-export function useNavigation(isAdmin: Ref<boolean>) {
+export interface UseNavigationOptions {
+  isAdmin: Ref<boolean>
+  isFeatureEnabled?: (feature: string) => boolean
+}
+
+export function useNavigation(isAdminOrOptions: Ref<boolean> | UseNavigationOptions) {
   const router = useRouter()
   const route = useRoute()
+
+  // Support both old signature (Ref<boolean>) and new options object
+  const options: UseNavigationOptions = 'value' in isAdminOrOptions
+    ? { isAdmin: isAdminOrOptions }
+    : isAdminOrOptions
+  const { isAdmin, isFeatureEnabled } = options
 
   const mainSection = computed(() => (route.meta.mainSection as string) || 'dashboard')
   const activeSection = computed(() => (route.meta.subSection as string) || 'overview')
   const showSearchResultsPage = ref(false)
 
   const filteredMainNavigation = computed(() => {
-    if (isAdmin.value) {
-      return mainNavigation
+    let items = mainNavigation
+    // Hide administration for non-admins
+    if (!isAdmin.value) {
+      items = items.filter(item => item.id !== 'administration')
     }
-    return mainNavigation.filter(item => item.id !== 'administration')
+    // Filter by feature flags
+    if (isFeatureEnabled) {
+      items = items.filter(item => isFeatureEnabled(item.id))
+    }
+    return items
   })
 
   const currentSubNavigation = computed(() => {
-    return subNavigation[mainSection.value] || []
+    const items = subNavigation[mainSection.value] || []
+    if (!isFeatureEnabled) return items
+    return items.filter(item => isFeatureEnabled(`${mainSection.value}.${item.id}`))
   })
 
   function getMainSectionLabel(section: string): string {

@@ -816,6 +816,7 @@ import { useModal } from '@/composables/useModal'
 import { toggleInArray } from '@/composables/useArrayToggle'
 import { getStatusLabel, getStatusTextClass, getStatusDotClass, getRoleClass, getRoleLabel } from '@/composables/useStatusFormatting'
 import { useNavigation, mainNavigation, subNavigation } from '@/composables/useNavigation'
+import { useFeatureFlags } from '@/composables/useFeatureFlags'
 import AppShell from '@/components/layout/AppShell.vue'
 
 // Feature components
@@ -909,6 +910,9 @@ function handleLogout() {
 // Admin role check - uses auth store's isPlatformAdmin
 const isAdmin = computed(() => authStore.isPlatformAdmin)
 
+// Feature flags
+const { isFeatureEnabled, loadFlags: loadFeatureFlags } = useFeatureFlags(orgId)
+
 // Navigation state (from composable - includes localStorage persistence)
 const {
   mainSection,
@@ -920,7 +924,7 @@ const {
   getSectionTitle,
   selectMainSection,
   navigateTo,
-} = useNavigation(isAdmin)
+} = useNavigation({ isAdmin, isFeatureEnabled })
 
 // Clear success screen state when navigating away from create-shipment
 watch(activeSection, (section) => {
@@ -2564,6 +2568,7 @@ async function loadAppData() {
       pickupsData.load(),
       orgData.load(),
       financeData.load(),
+      loadFeatureFlags(),
     ])
 
     // Sync composable data to DTV refs
@@ -4504,18 +4509,88 @@ const carriersList = ref<{ id: string; name: string }[]>([])
 const expectedPaymentsCarrierFilter = ref('all')
 const expectedPaymentsStatusFilter = ref('all')
 
-// Manifest stats
-const manifestStats = reactive({
-  totalCOD: 0,
-  totalDeliveryFees: 0,
-  totalOtherFees: 0,
-  netToReceive: 0,
-  overdueAmount: 0,
-  overdueCount: 0
+// Build manifest from delivered shipments grouped by carrier
+const manifestByCarrier = computed(() => {
+  // Only delivered shipments are "owed" by carriers
+  const delivered = shipments.value.filter(s => s.status === 'Delivered')
+  if (delivered.length === 0) return []
+
+  // Group by carrier
+  const byCarrier: Record<string, typeof delivered> = {}
+  delivered.forEach(s => {
+    const key = s.carrierId || 'unknown'
+    if (!byCarrier[key]) byCarrier[key] = []
+    byCarrier[key].push(s)
+  })
+
+  const sevenDaysAgo = Date.now() - 7 * 86400000
+
+  return Object.entries(byCarrier).map(([carrierId, carrierShipments]) => {
+    const totalCOD = carrierShipments.reduce((sum, s) => sum + s.cod, 0)
+    const totalDeliveryFees = carrierShipments.reduce((sum, s) => sum + s.deliveryFee, 0)
+    const totalOtherFees = 0
+    const netAmount = totalCOD - totalDeliveryFees - totalOtherFees
+
+    // Oldest delivery date as due date reference
+    const oldestDelivery = carrierShipments
+      .filter(s => s.deliveryDate)
+      .sort((a, b) => new Date(a.deliveryDate!).getTime() - new Date(b.deliveryDate!).getTime())[0]
+
+    const dueDate = oldestDelivery?.deliveryDate
+      ? new Date(new Date(oldestDelivery.deliveryDate).getTime() + 7 * 86400000).toLocaleDateString('fr-FR')
+      : '-'
+
+    const isOverdue = oldestDelivery?.deliveryDate
+      ? new Date(oldestDelivery.deliveryDate).getTime() < sevenDaysAgo
+      : false
+
+    const overdueShipments = carrierShipments.filter(s =>
+      s.deliveryDate && new Date(s.deliveryDate).getTime() < sevenDaysAgo
+    )
+
+    return {
+      id: carrierId,
+      name: carrierShipments[0]?.carrier || 'Inconnu',
+      totalCOD,
+      totalDeliveryFees,
+      totalOtherFees,
+      netAmount,
+      dueDate,
+      isOverdue,
+      overdueAmount: overdueShipments.reduce((sum, s) => sum + s.cod - s.deliveryFee, 0),
+      overdueCount: overdueShipments.length,
+      shipments: carrierShipments.map(s => ({
+        id: s.id,
+        tracking: s.trackingNumber,
+        client: s.client,
+        destination: s.destination,
+        deliveryDate: s.deliveryDate
+          ? new Date(s.deliveryDate).toLocaleDateString('fr-FR')
+          : '-',
+        cod: s.cod,
+        deliveryFee: s.deliveryFee,
+        otherFees: 0,
+        net: s.cod - s.deliveryFee,
+        paymentStatus: s.deliveryDate && new Date(s.deliveryDate).getTime() < sevenDaysAgo
+          ? 'overdue'
+          : 'pending',
+      })),
+    }
+  })
 })
 
-// Manifest by carrier with detailed shipments
-const manifestByCarrier = ref<any[]>([])
+// Manifest stats (aggregated from manifestByCarrier)
+const manifestStats = computed(() => {
+  const all = manifestByCarrier.value
+  return {
+    totalCOD: all.reduce((sum, c) => sum + c.totalCOD, 0),
+    totalDeliveryFees: all.reduce((sum, c) => sum + c.totalDeliveryFees, 0),
+    totalOtherFees: all.reduce((sum, c) => sum + c.totalOtherFees, 0),
+    netToReceive: all.reduce((sum, c) => sum + c.netAmount, 0),
+    overdueAmount: all.reduce((sum, c) => sum + c.overdueAmount, 0),
+    overdueCount: all.reduce((sum, c) => sum + c.overdueCount, 0),
+  }
+})
 
 // Filtered manifest by carrier
 const filteredManifestByCarrier = computed(() => {

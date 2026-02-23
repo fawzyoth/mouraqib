@@ -971,6 +971,32 @@ export interface Database {
           created_at?: string
         }
       }
+      feature_flags: {
+        Row: {
+          id: string
+          organization_id: string
+          role: 'owner' | 'admin' | 'manager' | 'support' | 'user'
+          feature: string
+          enabled: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          role: 'owner' | 'admin' | 'manager' | 'support' | 'user'
+          feature: string
+          enabled?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          role?: 'owner' | 'admin' | 'manager' | 'support' | 'user'
+          feature?: string
+          enabled?: boolean
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -1014,6 +1040,7 @@ export type ServicePayment = Database['public']['Tables']['service_payments']['R
 export type TrackingPageConfig = Database['public']['Tables']['tracking_page_config']['Row']
 export type Export = Database['public']['Tables']['exports']['Row']
 export type FailedSearch = Database['public']['Tables']['failed_searches']['Row']
+export type FeatureFlag = Database['public']['Tables']['feature_flags']['Row']
 
 // Insert types
 export type OrganizationInsert = Database['public']['Tables']['organizations']['Insert']
@@ -1037,6 +1064,7 @@ export type ServicePaymentInsert = Database['public']['Tables']['service_payment
 export type TrackingPageConfigInsert = Database['public']['Tables']['tracking_page_config']['Insert']
 export type ExportInsert = Database['public']['Tables']['exports']['Insert']
 export type FailedSearchInsert = Database['public']['Tables']['failed_searches']['Insert']
+export type FeatureFlagInsert = Database['public']['Tables']['feature_flags']['Insert']
 
 // Update types
 export type OrganizationUpdate = Database['public']['Tables']['organizations']['Update']
@@ -1055,3 +1083,4 @@ export type ServicePaymentUpdate = Database['public']['Tables']['service_payment
 export type TrackingPageConfigUpdate = Database['public']['Tables']['tracking_page_config']['Update']
 export type ExportUpdate = Database['public']['Tables']['exports']['Update']
 export type FailedSearchUpdate = Database['public']['Tables']['failed_searches']['Update']
+export type FeatureFlagUpdate = Database['public']['Tables']['feature_flags']['Update']

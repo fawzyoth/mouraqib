@@ -2,6 +2,7 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { subSectionRoutes } from '@/composables/useNavigation'
 import { useAuthStore } from '@/stores/auth'
+import { featureFlagsService } from '@/services/featureFlags'
 
 // Single lazy-import reference so Vue Router reuses the same component instance
 const DeliveryTrackerView = () => import('@/views/DeliveryTrackerView.vue')
@@ -14,6 +15,7 @@ const appRoutes = Object.entries(subSectionRoutes).map(([subSection, { path, mai
     requiresAuth: true,
     mainSection,
     subSection,
+    feature: `${mainSection}.${subSection}`,
     ...(mainSection === 'administration' ? { requiresAdmin: true } : {}),
   },
 }))
@@ -124,6 +126,41 @@ router.beforeEach(async (to, from, next) => {
     const authStore = useAuthStore()
     if (!authStore.isPlatformAdmin) {
       return next({ path: '/dashboard' })
+    }
+  }
+
+  // Feature flag check — skip for demo mode (already handled above)
+  if (isAuthenticated && to.meta.feature && to.meta.mainSection) {
+    const authStore = useAuthStore()
+    const orgId = authStore.user?.organizationId
+    const role = authStore.user?.role || 'user'
+
+    if (orgId) {
+      try {
+        const flags = await featureFlagsService.getForOrg(orgId)
+        const flagMap = new Map<string, boolean>()
+        for (const f of flags) {
+          flagMap.set(`${f.role}.${f.feature}`, f.enabled)
+        }
+
+        const feature = to.meta.feature as string
+        const mainSection = to.meta.mainSection as string
+
+        // Check parent section
+        const parentKey = `${role}.${mainSection}`
+        if (flagMap.has(parentKey) && !flagMap.get(parentKey)) {
+          return next({ path: '/dashboard' })
+        }
+
+        // Check specific feature
+        const featureKey = `${role}.${feature}`
+        if (flagMap.has(featureKey) && !flagMap.get(featureKey)) {
+          return next({ path: '/dashboard' })
+        }
+      } catch (err) {
+        // On error, allow navigation (fail-open)
+        console.error('Feature flag check failed:', err)
+      }
     }
   }
 
