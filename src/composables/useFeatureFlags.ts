@@ -43,6 +43,9 @@ export function useFeatureFlags(orgId: Ref<string>) {
     // Demo mode: everything enabled
     if (authStore.isDemoMode) return true
 
+    // Superadmin bypass: all features enabled
+    if (authStore.user?.role === 'superadmin') return true
+
     const role = userRole.value
 
     // Check parent section first (e.g. "shipments" for "shipments.create-shipment")

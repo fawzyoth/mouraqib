@@ -262,6 +262,7 @@
       @update:scan-input="scanInput = $event"
       @handle-scan="handleScan"
       @open-pickup-confirmation="showPickupConfirmModal = true"
+      @navigate-to-labels="navigateTo('labels')"
     />
 
     <!-- Pickups: History -->
@@ -494,6 +495,12 @@
       @toggle-submenu="subMenuOpen = !subMenuOpen"
     />
 
+    <!-- Admin: Feature Flags (superadmin only) -->
+    <AdminFeatureFlags
+      v-else-if="activeSection === 'admin-features'"
+      @toggle-submenu="subMenuOpen = !subMenuOpen"
+    />
+
     <!-- Settings: Company Profile -->
     <CompanyProfile
       v-else-if="activeSection === 'company-profile'"
@@ -520,6 +527,7 @@
       v-if="showShipmentDetail && selectedShipment"
       class="fixed right-0 top-0 bottom-0 w-full max-w-sm bg-white dark:bg-gray-900 shadow-xl z-50 overflow-y-auto"
     >
+      <!-- Sticky header -->
       <div class="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 z-10">
         <div class="flex items-center justify-between">
           <h3 class="font-semibold text-gray-900 dark:text-white">Détails du colis</h3>
@@ -528,30 +536,178 @@
           </button>
         </div>
       </div>
-      <div class="p-4 space-y-4">
+
+      <div class="p-4 space-y-5">
+        <!-- Top section: Tracking number, status, label -->
         <div class="text-center py-4">
           <p class="text-lg font-mono font-bold text-gray-900 dark:text-white">{{ selectedShipment.trackingNumber }}</p>
           <span :class="[
             'mt-2 inline-block px-3 py-1 text-xs rounded-full font-medium',
             getStatusTextClass(selectedShipment.status)
           ]">{{ getStatusLabel(selectedShipment.status) }}</span>
+          <div v-if="selectedShipment.labelNumber" class="mt-2">
+            <p class="text-xs text-gray-500 dark:text-gray-400">Bordereau: <span class="font-mono font-medium text-gray-700 dark:text-gray-300">{{ selectedShipment.labelNumber }}</span></p>
+            <span v-if="selectedShipment.labelPrinted" class="inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Imprimé</span>
+            <span v-else class="inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">Non imprimé</span>
+          </div>
         </div>
-        <div class="space-y-3">
-          <div class="flex justify-between text-sm">
-            <span class="text-gray-500">Destinataire</span>
-            <span class="font-medium text-gray-900 dark:text-white">{{ selectedShipment.recipient }}</span>
+
+        <div class="border-t border-gray-200 dark:border-gray-800"></div>
+
+        <!-- Destinataire (Recipient) -->
+        <div>
+          <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Destinataire</p>
+          <div class="space-y-3">
+            <div class="flex items-start gap-3">
+              <User class="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0" />
+              <div class="min-w-0">
+                <p class="text-xs text-gray-500 dark:text-gray-400">Nom</p>
+                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedShipment.recipient }}</p>
+              </div>
+            </div>
+            <div v-if="selectedShipment.recipientPhone" class="flex items-start gap-3">
+              <PhoneIcon class="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0" />
+              <div class="min-w-0">
+                <p class="text-xs text-gray-500 dark:text-gray-400">Téléphone</p>
+                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedShipment.recipientPhone }}</p>
+              </div>
+            </div>
+            <div v-if="selectedShipment.recipientPhoneSecondary" class="flex items-start gap-3">
+              <PhoneIcon class="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0" />
+              <div class="min-w-0">
+                <p class="text-xs text-gray-500 dark:text-gray-400">Téléphone secondaire</p>
+                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedShipment.recipientPhoneSecondary }}</p>
+              </div>
+            </div>
+            <div v-if="selectedShipment.recipientAddress" class="flex items-start gap-3">
+              <MapPin class="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0" />
+              <div class="min-w-0">
+                <p class="text-xs text-gray-500 dark:text-gray-400">Adresse</p>
+                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedShipment.recipientAddress }}</p>
+              </div>
+            </div>
+            <div v-if="selectedShipment.destination" class="flex items-start gap-3">
+              <Globe class="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0" />
+              <div class="min-w-0">
+                <p class="text-xs text-gray-500 dark:text-gray-400">Destination</p>
+                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedShipment.destination }}</p>
+              </div>
+            </div>
           </div>
-          <div class="flex justify-between text-sm">
-            <span class="text-gray-500">Transporteur</span>
-            <span class="font-medium text-gray-900 dark:text-white">{{ selectedShipment.carrier }}</span>
+        </div>
+
+        <div class="border-t border-gray-200 dark:border-gray-800"></div>
+
+        <!-- Expéditeur (Sender) -->
+        <div>
+          <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Expéditeur</p>
+          <div class="space-y-3">
+            <div v-if="selectedShipment.senderName" class="flex items-start gap-3">
+              <User class="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0" />
+              <div class="min-w-0">
+                <p class="text-xs text-gray-500 dark:text-gray-400">Nom</p>
+                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedShipment.senderName }}</p>
+              </div>
+            </div>
+            <div v-if="selectedShipment.senderPhone" class="flex items-start gap-3">
+              <PhoneIcon class="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0" />
+              <div class="min-w-0">
+                <p class="text-xs text-gray-500 dark:text-gray-400">Téléphone</p>
+                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedShipment.senderPhone }}</p>
+              </div>
+            </div>
+            <div v-if="selectedShipment.senderAddress" class="flex items-start gap-3">
+              <MapPin class="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0" />
+              <div class="min-w-0">
+                <p class="text-xs text-gray-500 dark:text-gray-400">Adresse</p>
+                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedShipment.senderAddress }}</p>
+              </div>
+            </div>
           </div>
-          <div class="flex justify-between text-sm">
-            <span class="text-gray-500">Montant</span>
-            <span class="font-medium text-gray-900 dark:text-white">{{ selectedShipment.amount }} TND</span>
+        </div>
+
+        <div class="border-t border-gray-200 dark:border-gray-800"></div>
+
+        <!-- Colis (Package) -->
+        <div>
+          <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Colis</p>
+          <div class="space-y-2.5">
+            <div v-if="selectedShipment.productDescription" class="flex justify-between text-sm">
+              <span class="text-gray-500 dark:text-gray-400">Description</span>
+              <span class="font-semibold text-gray-900 dark:text-white text-right max-w-[60%]">{{ selectedShipment.productDescription }}</span>
+            </div>
+            <div v-if="selectedShipment.reference" class="flex justify-between text-sm">
+              <span class="text-gray-500 dark:text-gray-400">Référence</span>
+              <span class="font-semibold text-gray-900 dark:text-white">{{ selectedShipment.reference }}</span>
+            </div>
+            <div v-if="selectedShipment.weight" class="flex justify-between text-sm">
+              <span class="text-gray-500 dark:text-gray-400">Poids</span>
+              <span class="font-semibold text-gray-900 dark:text-white">{{ selectedShipment.weight }} kg</span>
+            </div>
+            <div v-if="selectedShipment.dimensions" class="flex justify-between text-sm">
+              <span class="text-gray-500 dark:text-gray-400">Dimensions</span>
+              <span class="font-semibold text-gray-900 dark:text-white">{{ selectedShipment.dimensions }}</span>
+            </div>
+            <div v-if="selectedShipment.fragile" class="flex justify-between text-sm items-center">
+              <span class="text-gray-500 dark:text-gray-400">Fragile</span>
+              <span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                <AlertTriangle class="w-3 h-3 inline-block mr-0.5 -mt-0.5" /> Fragile
+              </span>
+            </div>
           </div>
-          <div class="flex justify-between text-sm">
-            <span class="text-gray-500">Date</span>
-            <span class="font-medium text-gray-900 dark:text-white">{{ new Date(selectedShipment.createdAt).toLocaleDateString('fr-FR') }}</span>
+        </div>
+
+        <div class="border-t border-gray-200 dark:border-gray-800"></div>
+
+        <!-- Financier (Financial) -->
+        <div>
+          <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Financier</p>
+          <div class="space-y-2.5">
+            <div v-if="selectedShipment.productPrice" class="flex justify-between text-sm">
+              <span class="text-gray-500 dark:text-gray-400">Prix produit</span>
+              <span class="font-semibold text-gray-900 dark:text-white">{{ selectedShipment.productPrice }} TND</span>
+            </div>
+            <div v-if="selectedShipment.deliveryFee" class="flex justify-between text-sm">
+              <span class="text-gray-500 dark:text-gray-400">Frais de livraison</span>
+              <span class="font-semibold text-gray-900 dark:text-white">{{ selectedShipment.deliveryFee }} TND</span>
+            </div>
+            <div v-if="selectedShipment.cod" class="flex justify-between text-sm">
+              <span class="text-gray-500 dark:text-gray-400">COD</span>
+              <span class="font-semibold text-gray-900 dark:text-white">{{ selectedShipment.cod }} TND</span>
+            </div>
+            <div class="flex justify-between text-sm pt-2 border-t border-gray-100 dark:border-gray-800">
+              <span class="text-gray-500 dark:text-gray-400 font-medium">Montant total</span>
+              <span class="font-bold text-primary-blue dark:text-blue-400 text-base">{{ selectedShipment.totalPrice || selectedShipment.amount }} TND</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-gray-200 dark:border-gray-800"></div>
+
+        <!-- Suivi (Tracking) -->
+        <div>
+          <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Suivi</p>
+          <div class="space-y-2.5">
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-500 dark:text-gray-400">Transporteur</span>
+              <span class="font-semibold text-gray-900 dark:text-white">{{ selectedShipment.carrier }}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-500 dark:text-gray-400">Date de création</span>
+              <span class="font-semibold text-gray-900 dark:text-white">{{ new Date(selectedShipment.createdAt).toLocaleDateString('fr-FR') }}</span>
+            </div>
+            <div v-if="selectedShipment.deliveryDate" class="flex justify-between text-sm">
+              <span class="text-gray-500 dark:text-gray-400">Date de livraison</span>
+              <span class="font-semibold text-gray-900 dark:text-white">{{ new Date(selectedShipment.deliveryDate).toLocaleDateString('fr-FR') }}</span>
+            </div>
+            <div v-if="selectedShipment.transitDays" class="flex justify-between text-sm">
+              <span class="text-gray-500 dark:text-gray-400">Jours en transit</span>
+              <span class="font-semibold text-gray-900 dark:text-white">{{ selectedShipment.transitDays }} jours</span>
+            </div>
+            <div v-if="selectedShipment.client" class="flex justify-between text-sm">
+              <span class="text-gray-500 dark:text-gray-400">Client</span>
+              <span class="font-semibold text-gray-900 dark:text-white">{{ selectedShipment.client }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -562,26 +718,251 @@
       v-if="showClientDetail && selectedClient"
       class="fixed right-0 top-0 bottom-0 w-full max-w-sm bg-white dark:bg-gray-900 shadow-xl z-50 overflow-y-auto"
     >
+      <!-- Sticky header -->
       <div class="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 z-10">
         <div class="flex items-center justify-between">
-          <h3 class="font-semibold text-gray-900 dark:text-white">Détails du client</h3>
-          <button @click="selectedClient = null; showClientDetail = false" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-            <X class="w-4 h-4 text-gray-500" />
-          </button>
+          <h3 class="font-semibold text-gray-900 dark:text-white">{{ isEditingClient ? 'Modifier le client' : 'Détails du client' }}</h3>
+          <div class="flex items-center gap-1">
+            <template v-if="!isEditingClient">
+              <button @click="enterClientEditMode()" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg" title="Modifier">
+                <Pencil class="w-4 h-4 text-gray-500" />
+              </button>
+            </template>
+            <template v-else>
+              <button @click="isEditingClient = false" class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+                Annuler
+              </button>
+              <button @click="saveClientEdit()" :disabled="isSavingClient" class="px-3 py-1.5 text-sm text-white bg-primary-blue hover:bg-blue-700 rounded-lg flex items-center gap-1.5 disabled:opacity-50">
+                <Loader2 v-if="isSavingClient" class="w-3.5 h-3.5 animate-spin" />
+                Enregistrer
+              </button>
+            </template>
+            <button @click="selectedClient = null; showClientDetail = false; isEditingClient = false" class="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+              <X class="w-4 h-4 text-gray-500" />
+            </button>
+          </div>
         </div>
       </div>
-      <div class="p-4 space-y-4">
-        <div class="text-center py-4">
-          <div class="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-2" :class="selectedClient.status === 'vip' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'">
-            {{ selectedClient.name.charAt(0) }}
+
+      <div class="p-4 space-y-5">
+        <!-- ===== VIEW MODE ===== -->
+        <template v-if="!isEditingClient">
+          <!-- Header: Avatar, Name, Status -->
+          <div class="text-center py-4">
+            <div class="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-3" :class="selectedClient.status === 'vip' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-400' : selectedClient.status === 'blocked' ? 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400'">
+              {{ selectedClient.name.charAt(0) }}
+            </div>
+            <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ selectedClient.name }}</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{{ selectedClient.phone }}</p>
+            <span class="inline-block mt-2 px-2.5 py-0.5 text-xs font-medium rounded-full"
+              :class="{
+                'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400': selectedClient.status === 'vip',
+                'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400': selectedClient.status === 'active',
+                'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400': selectedClient.status === 'inactive',
+                'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400': selectedClient.status === 'blocked'
+              }"
+            >
+              {{ selectedClient.status === 'vip' ? 'VIP' : selectedClient.status === 'active' ? 'Actif' : selectedClient.status === 'blocked' ? 'Bloqué' : 'Inactif' }}
+            </span>
           </div>
-          <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ selectedClient.name }}</p>
-          <p class="text-sm text-gray-500">{{ selectedClient.phone }}</p>
-        </div>
+
+          <!-- Contact Info -->
+          <div>
+            <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Contact</p>
+            <div class="space-y-3">
+              <div class="flex items-start gap-3">
+                <PhoneIcon class="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0" />
+                <div class="min-w-0">
+                  <p class="text-xs text-gray-500 dark:text-gray-400">Téléphone</p>
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedClient.phone }}</p>
+                </div>
+              </div>
+              <div v-if="selectedClient.phoneSecondary" class="flex items-start gap-3">
+                <PhoneIcon class="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0" />
+                <div class="min-w-0">
+                  <p class="text-xs text-gray-500 dark:text-gray-400">Téléphone secondaire</p>
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedClient.phoneSecondary }}</p>
+                </div>
+              </div>
+              <div v-if="selectedClient.email" class="flex items-start gap-3">
+                <Mail class="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0" />
+                <div class="min-w-0">
+                  <p class="text-xs text-gray-500 dark:text-gray-400">Email</p>
+                  <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ selectedClient.email }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="border-t border-gray-200 dark:border-gray-800"></div>
+
+          <!-- Address -->
+          <div>
+            <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Adresse</p>
+            <div class="space-y-3">
+              <div v-if="selectedClient.address" class="flex items-start gap-3">
+                <MapPin class="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0" />
+                <div class="min-w-0">
+                  <p class="text-xs text-gray-500 dark:text-gray-400">Adresse</p>
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedClient.address }}</p>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div v-if="selectedClient.region">
+                  <p class="text-xs text-gray-500 dark:text-gray-400">Gouvernorat</p>
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedClient.region }}</p>
+                </div>
+                <div v-if="selectedClient.delegation">
+                  <p class="text-xs text-gray-500 dark:text-gray-400">Délégation</p>
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedClient.delegation }}</p>
+                </div>
+                <div v-if="selectedClient.locality">
+                  <p class="text-xs text-gray-500 dark:text-gray-400">Localité</p>
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedClient.locality }}</p>
+                </div>
+                <div v-if="selectedClient.postalCode">
+                  <p class="text-xs text-gray-500 dark:text-gray-400">Code postal</p>
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">{{ selectedClient.postalCode }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="border-t border-gray-200 dark:border-gray-800"></div>
+
+          <!-- Statistics -->
+          <div>
+            <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Statistiques</p>
+            <div class="space-y-2.5">
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Total commandes</span>
+                <span class="font-semibold text-gray-900 dark:text-white">{{ selectedClient.totalOrders }}</span>
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Livrées</span>
+                <span class="font-semibold text-gray-900 dark:text-white">{{ selectedClient.deliveredOrders }}</span>
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Taux de livraison</span>
+                <span class="font-semibold" :class="selectedClient.deliveryRate >= 80 ? 'text-green-600 dark:text-green-400' : selectedClient.deliveryRate >= 50 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'">
+                  {{ selectedClient.deliveryRate }}%
+                </span>
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Total dépensé</span>
+                <span class="font-semibold text-gray-900 dark:text-white">{{ selectedClient.totalSpent.toLocaleString('fr-FR') }} TND</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="border-t border-gray-200 dark:border-gray-800"></div>
+
+          <!-- Other Info -->
+          <div>
+            <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Autres</p>
+            <div class="space-y-2.5">
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-500 dark:text-gray-400">Membre depuis</span>
+                <span class="font-medium text-gray-900 dark:text-white">{{ selectedClient.memberSince }}</span>
+              </div>
+              <div v-if="selectedClient.notes" class="mt-2">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Notes</p>
+                <p class="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 rounded-lg p-3">{{ selectedClient.notes }}</p>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- ===== EDIT MODE ===== -->
+        <template v-else>
+          <div class="space-y-4">
+            <!-- Name -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Nom</label>
+              <input v-model="editClientForm.name" type="text" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent" />
+            </div>
+
+            <!-- Phone -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Téléphone</label>
+              <input v-model="editClientForm.phone" type="text" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent" />
+            </div>
+
+            <!-- Phone Secondary -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Téléphone secondaire</label>
+              <input v-model="editClientForm.phoneSecondary" type="text" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent" placeholder="Optionnel" />
+            </div>
+
+            <!-- Email -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Email</label>
+              <input v-model="editClientForm.email" type="email" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent" placeholder="Optionnel" />
+            </div>
+
+            <div class="border-t border-gray-200 dark:border-gray-800"></div>
+
+            <!-- Address -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Adresse</label>
+              <input v-model="editClientForm.address" type="text" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent" placeholder="Optionnel" />
+            </div>
+
+            <!-- Region / Delegation row -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Gouvernorat</label>
+                <input v-model="editClientForm.region" type="text" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent" placeholder="Optionnel" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Délégation</label>
+                <input v-model="editClientForm.delegation" type="text" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent" placeholder="Optionnel" />
+              </div>
+            </div>
+
+            <!-- Locality / Postal Code row -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Localité</label>
+                <input v-model="editClientForm.locality" type="text" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent" placeholder="Optionnel" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Code postal</label>
+                <input v-model="editClientForm.postalCode" type="text" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent" placeholder="Optionnel" />
+              </div>
+            </div>
+
+            <div class="border-t border-gray-200 dark:border-gray-800"></div>
+
+            <!-- Status -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Statut</label>
+              <select v-model="editClientForm.status" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent">
+                <option value="active">Actif</option>
+                <option value="inactive">Inactif</option>
+                <option value="vip">VIP</option>
+                <option value="blocked">Bloqué</option>
+              </select>
+            </div>
+
+            <!-- Notes -->
+            <div>
+              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Notes</label>
+              <textarea v-model="editClientForm.notes" rows="3" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent resize-none" placeholder="Notes sur le client..."></textarea>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
 
-    <!-- Overlay for detail panel -->
+    <!-- Overlay for client detail panel -->
+    <div
+      v-if="showClientDetail && selectedClient"
+      @click="selectedClient = null; showClientDetail = false; isEditingClient = false"
+      class="fixed inset-0 bg-black/30 z-40"
+    ></div>
+
+    <!-- Overlay for shipment detail panel -->
     <div
       v-if="selectedShipment"
       @click="selectedShipment = null"
@@ -781,7 +1162,8 @@ import {
   Save,
   Monitor,
   ScanBarcode,
-  Loader2
+  Loader2,
+  Pencil
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -866,6 +1248,7 @@ import PaymentHistory from '@/components/features/settings/PaymentHistory.vue'
 import AdminUsers from '@/components/features/admin/AdminUsers.vue'
 import AdminBilling from '@/components/features/admin/AdminBilling.vue'
 import AdminTransactions from '@/components/features/admin/AdminTransactions.vue'
+import AdminFeatureFlags from '@/components/features/admin/AdminFeatureFlags.vue'
 
 // Modal components
 import PickupConfirmModal from '@/components/modals/PickupConfirmModal.vue'
@@ -909,6 +1292,7 @@ function handleLogout() {
 
 // Admin role check - uses auth store's isPlatformAdmin
 const isAdmin = computed(() => authStore.isPlatformAdmin)
+const isSuperAdmin = computed(() => authStore.isSuperAdmin)
 
 // Feature flags
 const { isFeatureEnabled, loadFlags: loadFeatureFlags } = useFeatureFlags(orgId)
@@ -924,7 +1308,7 @@ const {
   getSectionTitle,
   selectMainSection,
   navigateTo,
-} = useNavigation({ isAdmin, isFeatureEnabled })
+} = useNavigation({ isAdmin, isFeatureEnabled, isSuperAdmin })
 
 // Clear success screen state when navigating away from create-shipment
 watch(activeSection, (section) => {
@@ -1477,6 +1861,55 @@ function editClientData(client: any) {
   console.log('Edit client:', client)
 }
 
+function enterClientEditMode() {
+  if (!selectedClient.value) return
+  editClientForm.value = {
+    name: selectedClient.value.name,
+    phone: selectedClient.value.phone,
+    phoneSecondary: selectedClient.value.phoneSecondary || '',
+    email: selectedClient.value.email || '',
+    address: selectedClient.value.address || '',
+    region: selectedClient.value.region || '',
+    delegation: selectedClient.value.delegation || '',
+    locality: selectedClient.value.locality || '',
+    postalCode: selectedClient.value.postalCode || '',
+    notes: selectedClient.value.notes || '',
+    status: selectedClient.value.status || 'active',
+  }
+  isEditingClient.value = true
+}
+
+async function saveClientEdit() {
+  if (!selectedClient.value) return
+  isSavingClient.value = true
+  try {
+    await clientsService.update(selectedClient.value.id, {
+      name: editClientForm.value.name,
+      phone: editClientForm.value.phone,
+      phone_secondary: editClientForm.value.phoneSecondary || null,
+      email: editClientForm.value.email || null,
+      address: editClientForm.value.address || null,
+      governorate: editClientForm.value.region || null,
+      delegation: editClientForm.value.delegation || null,
+      locality: editClientForm.value.locality || null,
+      postal_code: editClientForm.value.postalCode || null,
+      notes: editClientForm.value.notes || null,
+      status: editClientForm.value.status,
+    })
+    // Update local state
+    const idx = clientsList.value.findIndex(c => c.id === selectedClient.value.id)
+    if (idx !== -1) {
+      clientsList.value[idx] = { ...clientsList.value[idx], ...editClientForm.value }
+    }
+    selectedClient.value = { ...selectedClient.value, ...editClientForm.value }
+    isEditingClient.value = false
+  } catch (e: any) {
+    console.error('Error updating client:', e)
+  } finally {
+    isSavingClient.value = false
+  }
+}
+
 // New Client Form
 const newClientForm = reactive({
   name: '',
@@ -1746,6 +2179,9 @@ const selectedShipment = ref<any>(null)
 const showShipmentDetail = ref(false)
 const showClientDetail = ref(false)
 const selectedClient = ref<any>(null)
+const isEditingClient = ref(false)
+const editClientForm = ref<Record<string, any>>({})
+const isSavingClient = ref(false)
 // Scan-based pickup workflow
 const scanInput = ref('')
 const scanLoading = ref(false)
@@ -3099,12 +3535,12 @@ function generateReference() {
 // Status tabs - counts computed from actual shipments
 const statusTabs = computed(() => [
   { id: 'all', label: 'Tous', count: shipments.value.length },
-  { id: 'exception', label: 'Exception', count: shipments.value.filter(s => s.status === 'exception').length },
-  { id: 'failed', label: 'Tentative échouée', count: shipments.value.filter(s => s.status === 'failed').length },
-  { id: 'expired', label: 'Expiré', count: shipments.value.filter(s => s.status === 'expired').length },
-  { id: 'out-for-delivery', label: 'En livraison', count: shipments.value.filter(s => s.status === 'out_for_delivery').length },
-  { id: 'delivered', label: 'Livré', count: shipments.value.filter(s => s.status === 'delivered').length },
-  { id: 'pending', label: 'En attente', count: shipments.value.filter(s => s.status === 'pending').length },
+  { id: 'exception', label: 'Exception', count: shipments.value.filter(s => s.status === 'Exception').length },
+  { id: 'failed', label: 'Tentative échouée', count: shipments.value.filter(s => s.status === 'Failed attempt').length },
+  { id: 'expired', label: 'Expiré', count: shipments.value.filter(s => s.status === 'Expired').length },
+  { id: 'out-for-delivery', label: 'En livraison', count: shipments.value.filter(s => s.status === 'Out for delivery').length },
+  { id: 'delivered', label: 'Livré', count: shipments.value.filter(s => s.status === 'Delivered').length },
+  { id: 'pending', label: 'En attente', count: shipments.value.filter(s => s.status === 'Pending').length },
 ])
 
 // Shipments - empty by default, loaded from Supabase or seeded in demo mode
@@ -4318,17 +4754,45 @@ function printSelectedLabels() {
   }
 }
 
-function printLabel() {
+async function printLabel() {
   if (labelToPrint.value) {
-    // Mark label as printed
+    const now = new Date()
+    const printedAt = now.toISOString()
+    const printedAtDisplay = now.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) + ' à ' + now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+
+    // Mark label as printed locally
     const shipment = shipments.value.find(s => s.id === labelToPrint.value.id)
     if (shipment) {
       shipment.labelPrinted = true
-      shipment.labelPrintedAt = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) + ' à ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+      shipment.labelPrintedAt = printedAtDisplay
     }
 
-    // Trigger browser print
-    window.print()
+    // Update in database
+    if (!authStore.isDemoMode) {
+      try {
+        await shipmentsService.update(labelToPrint.value.id, {
+          label_printed: true,
+          label_printed_at: printedAt,
+        })
+      } catch (e: any) {
+        console.error('Error updating label print status:', e)
+      }
+    }
+
+    // Generate mock PDF and trigger download
+    const labelEl = document.getElementById('printable-label')
+    if (labelEl) {
+      const printWindow = window.open('', '_blank', 'width=450,height=700')
+      if (printWindow) {
+        printWindow.document.write(`
+          <html><head><title>Bordereau ${labelToPrint.value.labelNumber || labelToPrint.value.trackingNumber}</title>
+          <style>body{margin:0;padding:20px;font-family:Arial,sans-serif}*{box-sizing:border-box}</style>
+          </head><body>${labelEl.innerHTML}</body></html>
+        `)
+        printWindow.document.close()
+        printWindow.print()
+      }
+    }
 
     // Remove from selection if it was selected
     const index = selectedLabels.value.indexOf(labelToPrint.value.id)

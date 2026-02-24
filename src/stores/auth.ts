@@ -25,7 +25,8 @@ export const useAuthStore = defineStore('auth', () => {
   const isDemoMode = ref(false)
 
   const isAuthenticated = computed(() => isDemoMode.value || (!!session.value && !!user.value))
-  const isPlatformAdmin = computed(() => user.value?.isAdmin ?? false)
+  const isSuperAdmin = computed(() => user.value?.role === 'superadmin')
+  const isPlatformAdmin = computed(() => user.value?.isAdmin || user.value?.role === 'superadmin')
 
   async function initialize() {
     if (isInitialized.value) return
@@ -370,6 +371,7 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading,
     isInitialized,
     isAuthenticated,
+    isSuperAdmin,
     isPlatformAdmin,
     isDemoMode,
     initialize,

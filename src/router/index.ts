@@ -135,6 +135,9 @@ router.beforeEach(async (to, from, next) => {
     const orgId = authStore.user?.organizationId
     const role = authStore.user?.role || 'user'
 
+    // Superadmin bypasses all feature flag checks
+    if (role === 'superadmin') return next()
+
     if (orgId) {
       try {
         const flags = await featureFlagsService.getForOrg(orgId)

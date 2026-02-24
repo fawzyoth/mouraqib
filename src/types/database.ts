@@ -66,7 +66,7 @@ export interface Database {
           name: string
           email: string
           phone: string | null
-          role: 'owner' | 'admin' | 'manager' | 'support' | 'user'
+          role: 'owner' | 'admin' | 'manager' | 'support' | 'user' | 'superadmin'
           avatar_url: string | null
           is_admin: boolean
           created_at: string
@@ -78,7 +78,7 @@ export interface Database {
           name: string
           email: string
           phone?: string | null
-          role?: 'owner' | 'admin' | 'manager' | 'support' | 'user'
+          role?: 'owner' | 'admin' | 'manager' | 'support' | 'user' | 'superadmin'
           avatar_url?: string | null
           is_admin?: boolean
           created_at?: string
@@ -90,7 +90,7 @@ export interface Database {
           name?: string
           email?: string
           phone?: string | null
-          role?: 'owner' | 'admin' | 'manager' | 'support' | 'user'
+          role?: 'owner' | 'admin' | 'manager' | 'support' | 'user' | 'superadmin'
           avatar_url?: string | null
           is_admin?: boolean
           created_at?: string

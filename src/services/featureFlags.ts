@@ -12,6 +12,18 @@ export const featureFlagsService = {
     return data ?? []
   },
 
+  async getForOrgAdmin(organizationId: string): Promise<FeatureFlag[]> {
+    const { data, error } = await supabase
+      .from('feature_flags')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .order('role')
+      .order('feature')
+
+    if (error) throw error
+    return data ?? []
+  },
+
   async upsert(organizationId: string, role: string, feature: string, enabled: boolean) {
     const { data, error } = await supabase
       .from('feature_flags')

@@ -38,6 +38,7 @@ import {
   Bell,
   Lock,
   CreditCard,
+  ToggleLeft,
 } from 'lucide-vue-next'
 
 export interface NavItem {
@@ -114,6 +115,7 @@ export const subSectionRoutes: Record<string, { path: string; mainSection: strin
   'admin-users': { path: '/admin', mainSection: 'administration' },
   'admin-billing': { path: '/admin/billing', mainSection: 'administration' },
   'admin-transactions': { path: '/admin/transactions', mainSection: 'administration' },
+  'admin-features': { path: '/admin/features', mainSection: 'administration' },
 }
 
 export const mainNavigation: NavItem[] = [
@@ -194,12 +196,14 @@ export const subNavigation: Record<string, NavItem[]> = {
     { id: 'admin-users', label: 'Liste des utilisateurs', icon: markRaw(Users) },
     { id: 'admin-billing', label: 'Facturation comptes', icon: markRaw(Wallet) },
     { id: 'admin-transactions', label: 'Transactions', icon: markRaw(Receipt) },
+    { id: 'admin-features', label: 'Feature Flags', icon: markRaw(ToggleLeft) },
   ],
 }
 
 export interface UseNavigationOptions {
   isAdmin: Ref<boolean>
   isFeatureEnabled?: (feature: string) => boolean
+  isSuperAdmin?: Ref<boolean>
 }
 
 export function useNavigation(isAdminOrOptions: Ref<boolean> | UseNavigationOptions) {
@@ -210,7 +214,7 @@ export function useNavigation(isAdminOrOptions: Ref<boolean> | UseNavigationOpti
   const options: UseNavigationOptions = 'value' in isAdminOrOptions
     ? { isAdmin: isAdminOrOptions }
     : isAdminOrOptions
-  const { isAdmin, isFeatureEnabled } = options
+  const { isAdmin, isFeatureEnabled, isSuperAdmin } = options
 
   const mainSection = computed(() => (route.meta.mainSection as string) || 'dashboard')
   const activeSection = computed(() => (route.meta.subSection as string) || 'overview')
@@ -230,7 +234,11 @@ export function useNavigation(isAdminOrOptions: Ref<boolean> | UseNavigationOpti
   })
 
   const currentSubNavigation = computed(() => {
-    const items = subNavigation[mainSection.value] || []
+    let items = subNavigation[mainSection.value] || []
+    // Hide Feature Flags sub-nav item for non-superadmins
+    if (!isSuperAdmin?.value) {
+      items = items.filter(item => item.id !== 'admin-features')
+    }
     if (!isFeatureEnabled) return items
     return items.filter(item => isFeatureEnabled(`${mainSection.value}.${item.id}`))
   })
