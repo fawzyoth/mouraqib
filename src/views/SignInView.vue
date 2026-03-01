@@ -62,9 +62,13 @@
               <input type="checkbox" v-model="rememberMe" class="w-4 h-4 rounded" />
               <span class="text-sm text-gray-600 dark:text-gray-400">Se souvenir de moi</span>
             </label>
-            <router-link to="/forgot-password" class="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400">
+            <a
+              :href="`https://wa.me/${WHATSAPP_ORDER_NUMBER}?text=${encodeURIComponent('Bonjour, j\'ai oublié mon mot de passe Mouraqib. Mon email: ')}`"
+              target="_blank"
+              class="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400"
+            >
               Mot de passe oublié ?
-            </router-link>
+            </a>
           </div>
 
           <button
@@ -150,6 +154,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { Eye, EyeOff, Loader2, Moon, Sun } from 'lucide-vue-next'
 import DeliveryAnimation from '@/components/DeliveryAnimation.vue'
+import { WHATSAPP_ORDER_NUMBER } from '@/data/pricing'
 
 const router = useRouter()
 const authStore = useAuthStore()

@@ -25,7 +25,8 @@ export const useAuthStore = defineStore('auth', () => {
   const isDemoMode = ref(false)
 
   const isAuthenticated = computed(() => isDemoMode.value || (!!session.value && !!user.value))
-  const isPlatformAdmin = computed(() => user.value?.isAdmin ?? false)
+  const isSuperAdmin = computed(() => user.value?.role === 'superadmin')
+  const isPlatformAdmin = computed(() => user.value?.isAdmin || user.value?.role === 'superadmin')
 
   async function initialize() {
     if (isInitialized.value) return
@@ -77,15 +78,30 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function loadUserProfile(supabaseUser: SupabaseUser) {
     try {
-      // Load profile
+      // Load profile (maybeSingle: returns null if no profile row exists yet)
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', supabaseUser.id)
-        .single()
+        .maybeSingle()
 
       if (profileError) {
         console.error('Error loading profile:', profileError)
+        return
+      }
+
+      if (!profileData) {
+        // Profile row doesn't exist yet — use auth metadata as fallback
+        user.value = {
+          id: supabaseUser.id,
+          name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || '',
+          email: supabaseUser.email || '',
+          organization: '',
+          organizationId: null,
+          role: 'user',
+          isAdmin: false,
+          avatarUrl: null
+        }
         return
       }
 
@@ -97,7 +113,7 @@ export const useAuthStore = defineStore('auth', () => {
           .from('organizations')
           .select('*')
           .eq('id', profileData.organization_id)
-          .single()
+          .maybeSingle()
 
         if (!orgError && orgData) {
           organization.value = orgData
@@ -219,7 +235,9 @@ export const useAuthStore = defineStore('auth', () => {
         return { success: false, error: 'Les mots de passe ne correspondent pas' }
       }
 
-      // Sign up with Supabase
+      // Sign up with Supabase Auth
+      // The handle_new_user() DB trigger automatically creates
+      // the organization + profile + credits + default roles
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -239,38 +257,6 @@ export const useAuthStore = defineStore('auth', () => {
 
       if (!data.user) {
         return { success: false, error: 'Erreur lors de la création du compte' }
-      }
-
-      // Create organization for new user
-      const { data: orgData, error: orgError } = await supabase
-        .from('organizations')
-        .insert({
-          name: `${name}'s Organization`,
-          email: email
-        })
-        .select()
-        .single()
-
-      if (orgError) {
-        console.error('Error creating organization:', orgError)
-        // Continue without org - admin can assign later
-      }
-
-      // Create profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          name: name,
-          email: email,
-          organization_id: orgData?.id ?? null,
-          role: 'owner',
-          is_admin: false
-        })
-
-      if (profileError) {
-        console.error('Error creating profile:', profileError)
-        return { success: false, error: 'Erreur lors de la création du profil' }
       }
 
       // If email confirmation is required, session will be null
@@ -385,6 +371,7 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading,
     isInitialized,
     isAuthenticated,
+    isSuperAdmin,
     isPlatformAdmin,
     isDemoMode,
     initialize,
