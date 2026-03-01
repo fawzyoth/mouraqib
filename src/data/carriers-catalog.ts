@@ -10,12 +10,14 @@ export const deliveryCarriers: DeliveryCarrier[] = [
   // A
   { id: 'abm', name: 'ABM', description: 'Service de livraison ABM', type: 'standard', deliveryTime: '24-48h', color: '#1E40AF', bgColor: '#DBEAFE', configFields: standardConfigFields },
   { id: 'afex', name: 'Afex', description: 'Livraison express Afex', type: 'express', deliveryTime: '24h', color: '#DC2626', bgColor: '#FEE2E2', configFields: standardConfigFields },
-  { id: 'aramex', name: 'Aramex', description: 'Livraison express internationale', type: 'express', deliveryTime: '24-48h', color: '#E31837', bgColor: '#FEE2E2', configFields: [
-    { key: 'accountNumber', label: 'Numéro de compte', type: 'text', placeholder: 'Votre numéro de compte Aramex', required: true },
-    { key: 'username', label: 'Nom d\'utilisateur API', type: 'text', placeholder: 'Username', required: true },
-    { key: 'password', label: 'Mot de passe API', type: 'password', placeholder: '••••••••', required: true },
-    { key: 'accountPin', label: 'Code PIN', type: 'password', placeholder: 'PIN à 4 chiffres', required: true },
-  ]},
+  {
+    id: 'aramex', name: 'Aramex', description: 'Livraison express internationale', type: 'express', deliveryTime: '24-48h', color: '#E31837', bgColor: '#FEE2E2', configFields: [
+      { key: 'accountNumber', label: 'Numéro de compte', type: 'text', placeholder: 'Votre numéro de compte Aramex', required: true },
+      { key: 'username', label: 'Nom d\'utilisateur API', type: 'text', placeholder: 'Username', required: true },
+      { key: 'password', label: 'Mot de passe API', type: 'password', placeholder: '••••••••', required: true },
+      { key: 'accountPin', label: 'Code PIN', type: 'password', placeholder: 'PIN à 4 chiffres', required: true },
+    ]
+  },
   { id: 'aurex', name: 'Aurex', description: 'Livraison Aurex Tunisie', type: 'express', deliveryTime: '24-48h', color: '#F59E0B', bgColor: '#FEF3C7', configFields: standardConfigFields },
   { id: 'axess-logistique', name: 'Axess Logistique', description: 'Solutions logistiques Axess', type: 'standard', deliveryTime: '48-72h', color: '#0891B2', bgColor: '#CFFAFE', configFields: standardConfigFields },
 
@@ -49,9 +51,11 @@ export const deliveryCarriers: DeliveryCarrier[] = [
   { id: 'fasthault', name: 'FastHaul', description: 'Service rapide FastHaul', type: 'express', deliveryTime: '24h', color: '#F59E0B', bgColor: '#FEF3C7', configFields: standardConfigFields },
   { id: 'fasty', name: 'Fasty', description: 'Livraison ultra-rapide Fasty', type: 'express', deliveryTime: '24h', color: '#22C55E', bgColor: '#DCFCE7', configFields: standardConfigFields },
   { id: 'fiabilo', name: 'Fiabilo', description: 'Service fiable Fiabilo', type: 'standard', deliveryTime: '24-48h', color: '#6366F1', bgColor: '#E0E7FF', configFields: standardConfigFields },
-  { id: 'first', name: 'First', description: 'Livraison First', type: 'express', deliveryTime: '24h', color: '#1D4ED8', bgColor: '#DBEAFE', configFields: [
-    { key: 'apiKey', label: 'Clé API', type: 'password', placeholder: 'Votre clé API First Delivery', required: true },
-  ], enabled: true },
+  {
+    id: 'first', name: 'First', description: 'Livraison First', type: 'express', deliveryTime: '24h', color: '#1D4ED8', bgColor: '#DBEAFE', configFields: [
+      { key: 'apiKey', label: 'Clé API', type: 'password', placeholder: 'Votre clé API First Delivery', required: true },
+    ], enabled: true
+  },
 
   // G
   { id: 'goodex', name: 'Goodex', description: 'Service Goodex', type: 'standard', deliveryTime: '24-48h', color: '#16A34A', bgColor: '#DCFCE7', configFields: standardConfigFields },
@@ -88,7 +92,13 @@ export const deliveryCarriers: DeliveryCarrier[] = [
   { id: 'mz-logistic', name: 'MZ Logistic', description: 'Solutions logistiques MZ', type: 'standard', deliveryTime: '48-72h', color: '#0EA5E9', bgColor: '#E0F2FE', configFields: standardConfigFields },
 
   // N
-  { id: 'navex', name: 'Navex', description: 'Livraison Navex', type: 'express', deliveryTime: '24h', color: '#14B8A6', bgColor: '#CCFBF1', configFields: standardConfigFields },
+  {
+    id: 'navex', name: 'Navex', description: 'Livraison Navex', type: 'express', deliveryTime: '24h', color: '#14B8A6', bgColor: '#CCFBF1', configFields: [
+      { key: 'tokenAdd', label: "TOKEN d'ajout", type: 'password', placeholder: 'acc-...', required: true },
+      { key: 'tokenRetrieve', label: 'TOKEN de récupération', type: 'password', placeholder: 'acc-etat-...', required: true },
+      { key: 'tokenDelete', label: 'TOKEN de suppression', type: 'password', placeholder: 'acc-delete-...', required: true },
+    ], enabled: true
+  },
 
   // O
   { id: 'oclock-delivery', name: 'Oclock Delivery', description: 'Livraison ponctuelle Oclock', type: 'express', deliveryTime: '24h', color: '#1D4ED8', bgColor: '#DBEAFE', configFields: standardConfigFields },

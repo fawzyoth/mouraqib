@@ -98,10 +98,10 @@
 
           <!-- Step 3 -->
           <div class="relative flex flex-col items-center z-10">
-            <button @click="((carrierNeedsField('accountId') ? newCarrier.apiId : true) && newCarrier.apiKey) && $emit('update:carrierWizardStep', 3)" :disabled="(carrierNeedsField('accountId') && !newCarrier.apiId) || !newCarrier.apiKey" :class="[
+            <button @click="canProceedFromStep2() && $emit('update:carrierWizardStep', 3)" :disabled="!canProceedFromStep2()" :class="[
               'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all',
               carrierWizardStep >= 3 ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' : 'bg-gray-200 dark:bg-gray-700 text-gray-500',
-              ((carrierNeedsField('accountId') && !newCarrier.apiId) || !newCarrier.apiKey) && 'cursor-not-allowed opacity-50'
+              !canProceedFromStep2() && 'cursor-not-allowed opacity-50'
             ]">
               <Receipt v-if="carrierWizardStep > 3" class="w-5 h-5" />
               <span v-else>3</span>
@@ -225,7 +225,29 @@
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nom du transporteur</label>
                 <input :value="newCarrier.name" @input="$emit('update:newCarrierField', 'name', ($event.target as HTMLInputElement).value)" type="text" placeholder="Ex: Aramex, DHL, etc." class="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white" :readonly="!!selectedModalCarrier" />
               </div>
-              <div :class="carrierNeedsField('accountId') ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : ''">
+              <!-- Custom config fields (e.g. Navex tokens) -->
+              <div v-if="hasCustomConfig()" class="space-y-4">
+                <div v-for="field in selectedModalCarrier!.configFields" :key="field.key">
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {{ field.label }} <span v-if="field.required" class="text-red-500">*</span>
+                  </label>
+                  <div class="relative">
+                    <input
+                      :value="(newCarrier as any)[field.key] || ''"
+                      @input="$emit('update:newCarrierField', field.key, ($event.target as HTMLInputElement).value)"
+                      :type="field.type === 'password' && !showApiKey ? 'password' : 'text'"
+                      :placeholder="field.placeholder || ''"
+                      class="w-full px-4 py-3 pr-12 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    />
+                    <button v-if="field.type === 'password'" type="button" @click="$emit('update:showApiKey', !showApiKey)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      <Eye v-if="!showApiKey" class="w-5 h-5" />
+                      <EyeOff v-else class="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <!-- Standard apiId/apiKey fields -->
+              <div v-else :class="carrierNeedsField('accountId') ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : ''">
                 <div v-if="carrierNeedsField('accountId')">
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">API ID <span class="text-red-500">*</span></label>
                   <input :value="newCarrier.apiId" @input="$emit('update:newCarrierField', 'apiId', ($event.target as HTMLInputElement).value)" type="text" placeholder="CARRIER-API-001" class="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
@@ -249,10 +271,10 @@
               </button>
               <button
                 @click="$emit('update:carrierWizardStep', 3)"
-                :disabled="(carrierNeedsField('accountId') && !newCarrier.apiId) || !newCarrier.apiKey"
+                :disabled="!canProceedFromStep2()"
                 :class="[
                   'px-6 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2',
-                  (carrierNeedsField('accountId') ? newCarrier.apiId : true) && newCarrier.apiKey
+                  canProceedFromStep2()
                     ? 'bg-[#4959b4] hover:bg-[#3a4791] text-white shadow-sm hover:shadow-md'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
                 ]"
@@ -515,6 +537,22 @@ function getCarrierInitials(name: string): string {
     return (words[0][0] + words[1][0]).toUpperCase()
   }
   return name.substring(0, 2).toUpperCase()
+}
+
+const STANDARD_CONFIG_KEYS = new Set(['apiKey', 'accountId', 'secretKey'])
+
+function hasCustomConfig(): boolean {
+  if (!props.selectedModalCarrier?.configFields) return false
+  return props.selectedModalCarrier.configFields.some(f => !STANDARD_CONFIG_KEYS.has(f.key))
+}
+
+function canProceedFromStep2(): boolean {
+  if (hasCustomConfig()) {
+    return props.selectedModalCarrier!.configFields!
+      .filter(f => f.required)
+      .every(f => !!(props.newCarrier as any)[f.key])
+  }
+  return (!carrierNeedsField('accountId') || !!props.newCarrier.apiId) && !!props.newCarrier.apiKey
 }
 
 function carrierNeedsField(fieldKey: string): boolean {
