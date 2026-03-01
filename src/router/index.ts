@@ -129,8 +129,8 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
-  // Feature flag check — skip for demo mode (already handled above)
-  if (isAuthenticated && to.meta.feature && to.meta.mainSection) {
+  // Feature flag check — skip for demo mode (already handled above) and dashboard (fallback route)
+  if (isAuthenticated && to.meta.feature && to.meta.mainSection && to.meta.mainSection !== 'dashboard') {
     const authStore = useAuthStore()
     const orgId = authStore.user?.organizationId
     const role = authStore.user?.role || 'user'
