@@ -68,7 +68,7 @@
       @toggle-submenu="subMenuOpen = !subMenuOpen"
       @open-add-client="navigateTo('add-client')"
       @view-client="(c) => { selectedClient = c; showClientDetail = true }"
-      @edit-client="(c) => { selectedClient = c }"
+      @edit-client="(c) => { selectedClient = c; showClientDetail = true; enterClientEditMode() }"
       @toggle-vip="toggleClientVip"
       @toggle-blocked="toggleClientBlocked"
     />
@@ -2028,15 +2028,21 @@ const clientRegionDistribution = computed(() => {
 })
 
 // Client management functions
-async function submitNewClient() {
+async function submitNewClient(formData?: Record<string, any>) {
+  const data = formData || newClientForm
   if (!authStore.isDemoMode) {
     const result = await clientsData.create({
-      name: newClientForm.name,
-      phone: newClientForm.phone,
-      email: newClientForm.email,
-      address: newClientForm.address,
-      region: newClientForm.region,
-      status: newClientForm.status,
+      name: data.name,
+      phone: data.phone,
+      phoneSecondary: data.phoneSecondary,
+      email: data.email,
+      address: data.address,
+      region: data.region,
+      delegation: data.delegation,
+      locality: data.locality,
+      postalCode: data.postalCode,
+      notes: data.notes,
+      status: data.status,
     })
     if (result) {
       clientsList.value = clientsData.clientsList.value as any[]
@@ -2049,16 +2055,16 @@ async function submitNewClient() {
 
   const newClient = {
     id: Date.now(),
-    name: newClientForm.name,
-    phone: newClientForm.phone,
-    email: newClientForm.email,
-    address: newClientForm.address,
-    region: newClientForm.region,
+    name: data.name,
+    phone: data.phone,
+    email: data.email,
+    address: data.address,
+    region: data.region,
     totalOrders: 0,
     deliveredOrders: 0,
     deliveryRate: 0,
     totalSpent: 0,
-    status: newClientForm.status,
+    status: data.status,
     memberSince: new Date().toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })
   }
   clientsList.value.push(newClient)

@@ -1,5 +1,6 @@
 <template>
-  <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
+  <div class="flex flex-col h-full">
+    <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
         <button @click="$emit('toggle-sub-menu')" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
@@ -167,6 +168,7 @@
       </div>
     </div>
   </main>
+  </div>
 </template>
 
 <script setup lang="ts">

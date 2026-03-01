@@ -1,5 +1,6 @@
 <template>
-  <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
+  <div class="flex flex-col h-full">
+    <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
         <button @click="$emit('toggle-submenu')" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
@@ -100,7 +101,10 @@
       </div>
       <p class="text-gray-500 dark:text-gray-400 font-medium">Aucun colis pret pour l'enlevement</p>
       <p class="text-sm text-gray-400 mt-1">Les colis avec bordereaux imprimes apparaitront ici automatiquement</p>
-      <p v-if="pendingPickupsCount > 0" class="text-sm text-orange-500 mt-3">{{ pendingPickupsCount }} colis en attente -- imprimez les bordereaux d'abord</p>
+      <p v-if="pendingPickupsCount > 0" class="text-sm text-orange-500 mt-3">
+        {{ pendingPickupsCount }} colis en attente --
+        <a href="#/shipments/labels?filter=unprinted" @click.prevent="$emit('navigate-to-labels')" class="underline hover:text-orange-600 cursor-pointer font-medium">imprimez les bordereaux d'abord</a>
+      </p>
     </div>
 
     <!-- Shipments Grouped by Carrier -->
@@ -211,6 +215,7 @@
       </div>
     </div>
   </main>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -265,5 +270,6 @@ defineEmits<{
   'unconfirm-shipment': [trackingNumber: string]
   'confirm-shipment-manual': [trackingNumber: string]
   'clear-scan-session': []
+  'navigate-to-labels': []
 }>()
 </script>

@@ -25,7 +25,7 @@
         >
           <option value="">-- Sélectionner une organisation --</option>
           <option v-for="org in organizations" :key="org.id" :value="org.id">
-            {{ org.name }}
+            {{ org.name }}{{ org.email ? ` — ${org.email}` : '' }}
           </option>
         </select>
       </div>
@@ -67,6 +67,7 @@
                 <th v-for="role in ROLES" :key="role" class="text-center px-3 py-3 font-medium text-gray-600 dark:text-gray-400 capitalize w-24">
                   {{ role }}
                 </th>
+                <th class="text-center px-3 py-3 font-medium text-gray-600 dark:text-gray-400 w-32">Tous</th>
               </tr>
             </thead>
             <tbody>
@@ -87,6 +88,20 @@
                         :class="getFlagValue(section.id, role) ? 'translate-x-4' : 'translate-x-0.5'"
                       />
                     </button>
+                  </td>
+                  <td class="text-center px-3 py-2">
+                    <div class="flex items-center justify-center gap-1">
+                      <button
+                        @click="bulkSetFeature(section.id, true)"
+                        class="px-1.5 py-0.5 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded hover:bg-green-200 dark:hover:bg-green-900/50"
+                        title="Activer pour tous les rôles"
+                      >On</button>
+                      <button
+                        @click="bulkSetFeature(section.id, false)"
+                        class="px-1.5 py-0.5 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50"
+                        title="Désactiver pour tous les rôles"
+                      >Off</button>
+                    </div>
                   </td>
                 </tr>
                 <!-- Children rows -->
@@ -112,6 +127,20 @@
                         :class="getFlagValue(child.id, role) ? 'translate-x-4' : 'translate-x-0.5'"
                       />
                     </button>
+                  </td>
+                  <td class="text-center px-3 py-2">
+                    <div class="flex items-center justify-center gap-1">
+                      <button
+                        @click="bulkSetFeature(child.id, true)"
+                        class="px-1.5 py-0.5 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded hover:bg-green-200 dark:hover:bg-green-900/50"
+                        title="Activer pour tous les rôles"
+                      >On</button>
+                      <button
+                        @click="bulkSetFeature(child.id, false)"
+                        class="px-1.5 py-0.5 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded hover:bg-red-200 dark:hover:bg-red-900/50"
+                        title="Désactiver pour tous les rôles"
+                      >Off</button>
+                    </div>
                   </td>
                 </tr>
               </template>
@@ -255,7 +284,7 @@ const FEATURE_TREE: FeatureNode[] = [
   },
 ]
 
-const organizations = ref<{ id: string; name: string }[]>([])
+const organizations = ref<{ id: string; name: string; email: string | null }[]>([])
 const selectedOrgId = ref('')
 const isLoading = ref(false)
 
@@ -268,7 +297,7 @@ loadOrganizations()
 async function loadOrganizations() {
   try {
     const data = await organizationsService.getAllOrganizations()
-    organizations.value = (data || []).map((o: any) => ({ id: o.id, name: o.name }))
+    organizations.value = (data || []).map((o: any) => ({ id: o.id, name: o.name, email: o.email }))
   } catch (err) {
     console.error('Failed to load organizations:', err)
   }
@@ -310,6 +339,27 @@ async function toggleFlag(feature: string, role: string) {
     console.error('Failed to update flag:', err)
     // Revert on error
     flagsMap.set(key, current)
+  }
+}
+
+async function bulkSetFeature(feature: string, enabled: boolean) {
+  const previousValues = new Map<string, boolean>()
+  for (const role of ROLES) {
+    const key = `${role}.${feature}`
+    previousValues.set(key, getFlagValue(feature, role))
+    flagsMap.set(key, enabled)
+  }
+
+  try {
+    await featureFlagsService.bulkUpsert(
+      selectedOrgId.value,
+      ROLES.map(role => ({ role, feature, enabled }))
+    )
+  } catch (err) {
+    console.error('Bulk update failed:', err)
+    for (const [key, value] of previousValues) {
+      flagsMap.set(key, value)
+    }
   }
 }
 

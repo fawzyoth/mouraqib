@@ -1,5 +1,6 @@
 <template>
-  <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
+  <div class="flex flex-col h-full">
+    <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-3 sm:py-4">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
         <button @click="$emit('toggle-submenu')" class="lg:hidden p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
@@ -291,36 +292,16 @@
       <!-- Return Reasons Breakdown -->
       <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
         <h4 class="font-semibold text-gray-900 dark:text-white mb-4">Raisons des retours</h4>
-        <div class="space-y-3">
-          <div class="flex items-center">
-            <div class="w-32 text-sm text-gray-600 dark:text-gray-400">Client absent</div>
+        <div v-if="returnReasonsBreakdown.length > 0" class="space-y-3">
+          <div v-for="item in returnReasonsBreakdown" :key="item.reason" class="flex items-center">
+            <div class="w-32 text-sm text-gray-600 dark:text-gray-400">{{ item.reason }}</div>
             <div class="flex-1 h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden mx-3">
-              <div class="h-full bg-orange-500 rounded-full" style="width: 45%"></div>
+              <div class="h-full rounded-full" :class="item.color" :style="{ width: item.percent + '%' }"></div>
             </div>
-            <span class="text-sm font-medium text-gray-900 dark:text-white">45%</span>
-          </div>
-          <div class="flex items-center">
-            <div class="w-32 text-sm text-gray-600 dark:text-gray-400">Refus client</div>
-            <div class="flex-1 h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden mx-3">
-              <div class="h-full bg-yellow-500 rounded-full" style="width: 30%"></div>
-            </div>
-            <span class="text-sm font-medium text-gray-900 dark:text-white">30%</span>
-          </div>
-          <div class="flex items-center">
-            <div class="w-32 text-sm text-gray-600 dark:text-gray-400">Adresse incorrecte</div>
-            <div class="flex-1 h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden mx-3">
-              <div class="h-full bg-purple-500 rounded-full" style="width: 15%"></div>
-            </div>
-            <span class="text-sm font-medium text-gray-900 dark:text-white">15%</span>
-          </div>
-          <div class="flex items-center">
-            <div class="w-32 text-sm text-gray-600 dark:text-gray-400">Injoignable</div>
-            <div class="flex-1 h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden mx-3">
-              <div class="h-full bg-gray-500 rounded-full" style="width: 10%"></div>
-            </div>
-            <span class="text-sm font-medium text-gray-900 dark:text-white">10%</span>
+            <span class="text-sm font-medium text-gray-900 dark:text-white w-10 text-right">{{ item.percent }}%</span>
           </div>
         </div>
+        <p v-else class="text-sm text-gray-400 text-center py-4">Aucune donnee de retour disponible</p>
       </div>
 
       <!-- Tips to Reduce Returns -->
@@ -350,6 +331,7 @@
       </div>
     </div>
   </main>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -416,5 +398,35 @@ const displayedReturns = computed(() => {
     return props.filteredReturns.filter(r => !r.isDelayed)
   }
   return props.filteredReturns
+})
+
+const reasonColors: Record<string, string> = {
+  'Client absent': 'bg-orange-500',
+  'Refus client': 'bg-yellow-500',
+  'Adresse incorrecte': 'bg-purple-500',
+  'Injoignable': 'bg-gray-500',
+  'Colis endommage': 'bg-red-500',
+}
+
+const returnReasonsBreakdown = computed(() => {
+  const returns = props.filteredReturns
+  if (returns.length === 0) return []
+
+  const counts: Record<string, number> = {}
+  for (const r of returns) {
+    if (r.reason) {
+      counts[r.reason] = (counts[r.reason] || 0) + 1
+    }
+  }
+
+  const total = Object.values(counts).reduce((a, b) => a + b, 0)
+  return Object.entries(counts)
+    .map(([reason, count]) => ({
+      reason,
+      count,
+      percent: total > 0 ? Math.round((count / total) * 100) : 0,
+      color: reasonColors[reason] || 'bg-blue-500',
+    }))
+    .sort((a, b) => b.count - a.count)
 })
 </script>
