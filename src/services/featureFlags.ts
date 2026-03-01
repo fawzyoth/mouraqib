@@ -1,15 +1,36 @@
 import { supabase } from '@/lib/supabase'
 import type { FeatureFlag } from '@/types/database'
 
+// Simple cache to avoid re-fetching flags on every router navigation
+let _cachedOrgId: string | null = null
+let _cachedFlags: FeatureFlag[] = []
+let _cacheTimestamp = 0
+const CACHE_TTL = 60_000 // 1 minute
+
 export const featureFlagsService = {
   async getForOrg(organizationId: string): Promise<FeatureFlag[]> {
+    const now = Date.now()
+    if (_cachedOrgId === organizationId && now - _cacheTimestamp < CACHE_TTL) {
+      return _cachedFlags
+    }
+
     const { data, error } = await supabase
       .from('feature_flags')
       .select('*')
       .eq('organization_id', organizationId)
 
     if (error) throw error
-    return data ?? []
+
+    _cachedOrgId = organizationId
+    _cachedFlags = data ?? []
+    _cacheTimestamp = now
+    return _cachedFlags
+  },
+
+  clearCache() {
+    _cachedOrgId = null
+    _cachedFlags = []
+    _cacheTimestamp = 0
   },
 
   async getForOrgAdmin(organizationId: string): Promise<FeatureFlag[]> {
