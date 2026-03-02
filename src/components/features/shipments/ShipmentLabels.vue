@@ -190,7 +190,7 @@
                 </td>
                 <!-- Label Number -->
                 <td class="px-4 py-3" data-label="N Bordereau">
-                  <span class="font-mono text-sm font-semibold text-gray-900 dark:text-white">{{ shipment.labelNumber }}</span>
+                  <span class="font-mono text-sm font-semibold text-gray-900 dark:text-white">{{ shipment.labelNumber || shipment.trackingNumber || '—' }}</span>
                 </td>
                 <!-- Carrier -->
                 <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Transporteur">

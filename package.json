@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.93.3",
+    "html5-qrcode": "^2.3.8",
     "lucide-vue-next": "^0.547.0",
     "pinia": "^2.1.7",
     "supabase": "^2.76.9",

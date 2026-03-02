@@ -80,7 +80,7 @@
                 </div>
                 <p class="text-sm text-gray-600 dark:text-gray-400">{{ shipment.customerName }} — {{ shipment.carrier }}</p>
                 <p class="text-xs text-gray-400 mt-0.5">
-                  <span v-if="shipment.scannedAt">{{ formatDateTime(shipment.scannedAt) }}</span>
+                  <span v-if="shipment.scannedAt">Enlevé le {{ formatDateTime(shipment.scannedAt) }}</span>
                   <span v-else>—</span>
                 </p>
               </div>
@@ -113,9 +113,10 @@ defineEmits<{
 
 const todayCount = computed(() => {
   const today = new Date().toDateString()
-  return props.scannedShipments.filter(s =>
-    s.scannedAt && new Date(s.scannedAt).toDateString() === today
-  ).length
+  return props.scannedShipments.filter(s => {
+    const date = s.scannedAt || s.createdAt
+    return date && new Date(date).toDateString() === today
+  }).length
 })
 
 const totalCOD = computed(() =>

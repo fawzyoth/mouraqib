@@ -21,6 +21,7 @@ export interface UIShipment {
   trackingNumber: string
   carrier: string
   carrierId: string | null
+  clientId: string | null
   client: string
   status: string
   latestEvent: string
@@ -53,6 +54,7 @@ export interface UIShipment {
   totalPrice: number
   amount: number
   createdAt: string
+  updatedAt: string
   events: any[]
 }
 
@@ -74,6 +76,7 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
     trackingNumber: row.carrier_tracking_number || row.tracking_number,
     carrier: carrierName,
     carrierId: row.carrier_id,
+    clientId: row.client_id,
     client: clientName,
     status: uiStatus,
     latestEvent,
@@ -108,6 +111,7 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
     totalPrice: row.cod_amount,
     amount: row.cod_amount,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
     events: [],
   }
 }

@@ -19,6 +19,14 @@
     @navigate-to-labels="navigateTo('labels')"
   />
 
+  <!-- Pickups: Request Pickup -->
+  <RequestPickup
+    v-else-if="activeSection === 'request-pickup'"
+    :shipments="appStore.shipments"
+    @toggle-submenu="subMenuOpen = !subMenuOpen"
+    @request-pickup="handleRequestPickup"
+  />
+
   <!-- Pickups: History -->
   <PickupHistory
     v-else-if="activeSection === 'pickup-history'"
@@ -29,10 +37,10 @@
   <!-- Pickup Confirm Modal -->
   <PickupConfirmModal
     :show="showPickupConfirmModal"
-    :confirmed-shipments="confirmedShipments"
-    :confirmed-by-carrier="confirmedByCarrier"
+    :confirmed-shipments="modalShipments"
+    :confirmed-by-carrier="modalByCarrier"
     @close="showPickupConfirmModal = false"
-    @confirm="confirmScanPickup"
+    @confirm="handleConfirmPickup"
   />
 </template>
 
@@ -44,6 +52,7 @@ import { subSectionRoutes } from '@/composables/useNavigation'
 
 // Feature components
 import ScanPickup from '@/components/features/pickups/ScanPickup.vue'
+import RequestPickup from '@/components/features/pickups/RequestPickup.vue'
 import PickupHistory from '@/components/features/pickups/PickupHistory.vue'
 
 // Modal components
@@ -70,7 +79,15 @@ const showPickupConfirmModal = ref(false)
 
 // Derived props for ScanPickup
 const confirmedShipments = computed(() => scannedShipments.value)
-const pickupCandidates = computed(() => scannedShipments.value)
+
+const pickupCandidates = computed(() => {
+  const scannedIds = new Set(scannedShipments.value.map((s: any) => s.id))
+  // Unscanned: label printed, not yet picked up, not already scanned this session
+  const unscanned = appStore.shipments.filter((s: any) =>
+    s.labelPrinted && s.status !== 'Picked up' && !scannedIds.has(s.id)
+  )
+  return [...scannedShipments.value, ...unscanned]
+})
 
 const confirmedByCarrier = computed(() => {
   const groups: Record<string, any[]> = {}
@@ -87,7 +104,10 @@ const confirmedTotalCOD = computed(() =>
 )
 
 const pickupByCarrier = computed(() => {
+  const scannedIds = new Set(scannedShipments.value.map((s: any) => s.id))
   const groups: Record<string, any> = {}
+
+  // Add scanned shipments (confirmed)
   for (const s of scannedShipments.value) {
     const carrier = s.carrier || 'Non assigné'
     if (!groups[carrier]) {
@@ -96,11 +116,22 @@ const pickupByCarrier = computed(() => {
     groups[carrier].shipments.push({ ...s, confirmed: true })
     groups[carrier].confirmedCount++
   }
+
+  // Add unscanned candidates (not confirmed)
+  for (const s of appStore.shipments) {
+    if (!s.labelPrinted || s.status === 'Picked up' || scannedIds.has(s.id)) continue
+    const carrier = s.carrier || 'Non assigné'
+    if (!groups[carrier]) {
+      groups[carrier] = { carrier, shipments: [], confirmedCount: 0 }
+    }
+    groups[carrier].shipments.push({ ...s, confirmed: false })
+  }
+
   return Object.values(groups)
 })
 
 const pendingPickupsCount = computed(() =>
-  appStore.shipments.filter((s: any) => s.status === 'Pending').length
+  appStore.shipments.filter((s: any) => !s.labelPrinted && s.status === 'Pending').length
 )
 
 // Merge session scans with DB picked-up shipments for history
@@ -108,7 +139,7 @@ const allPickedUpShipments = computed(() => {
   const sessionIds = new Set(scannedShipments.value.map((s: any) => s.id))
   const fromDb = appStore.shipments
     .filter((s: any) => s.status === 'Picked up' && !sessionIds.has(s.id))
-    .map((s: any) => ({ ...s, scannedAt: null }))
+    .map((s: any) => ({ ...s, scannedAt: s.updatedAt || s.createdAt }))
   return [...scannedShipments.value, ...fromDb]
 })
 
@@ -189,7 +220,63 @@ function clearScanSession() {
   scanFeedback.value = null
 }
 
-function confirmScanPickup() {
+// ---------------------------------------------------------------------------
+// Request pickup (from RequestPickup page)
+// ---------------------------------------------------------------------------
+const requestedShipmentIds = ref<string[]>([])
+
+// Shipments displayed in the confirm modal (works for both scan and request flows)
+const modalShipments = computed(() => {
+  if (requestedShipmentIds.value.length > 0) {
+    const idSet = new Set(requestedShipmentIds.value)
+    return appStore.shipments.filter((s: any) => idSet.has(s.id))
+  }
+  return confirmedShipments.value
+})
+
+const modalByCarrier = computed(() => {
+  const groups: Record<string, any[]> = {}
+  for (const s of modalShipments.value) {
+    const carrier = s.carrier || 'Non assigné'
+    if (!groups[carrier]) groups[carrier] = []
+    groups[carrier].push(s)
+  }
+  return Object.entries(groups).map(([carrier, shipments]) => ({ carrier, shipments }))
+})
+
+function handleRequestPickup(shipmentIds: string[]) {
+  requestedShipmentIds.value = shipmentIds
+  showPickupConfirmModal.value = true
+}
+
+async function handleConfirmPickup(data: { date: string; timeSlot: string; address: string }) {
+  // Create one pickup request per carrier
+  for (const group of modalByCarrier.value) {
+    const carrierId = group.shipments[0]?.carrierId || null
+    const pickup = await appStore.pickupsData.create({
+      date: data.date,
+      timeSlot: data.timeSlot,
+      address: data.address,
+      shipmentCount: group.shipments.length,
+    }, carrierId)
+
+    // Assign shipments to the pickup and update their status
+    if (pickup) {
+      const ids = group.shipments.map((s: any) => s.id)
+      try {
+        const { pickupsService } = await import('@/services/pickups')
+        await pickupsService.assignShipments(pickup.id, ids)
+        // Update local shipment statuses
+        for (const id of ids) {
+          await appStore.shipmentsData.updateStatus(id, 'Pickup scheduled')
+        }
+      } catch (e) {
+        console.error('Failed to assign shipments to pickup:', e)
+      }
+    }
+  }
+
   showPickupConfirmModal.value = false
+  requestedShipmentIds.value = []
 }
 </script>

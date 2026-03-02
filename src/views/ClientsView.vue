@@ -2,8 +2,8 @@
   <!-- Clients: All Clients -->
   <ClientsList
     v-if="activeSection === 'all-clients'"
-    :clients="appStore.clients"
-    :client-stats="appStore.clientStats"
+    :clients="enrichedClients"
+    :client-stats="computedClientStats"
     @toggle-submenu="subMenuOpen = !subMenuOpen"
     @open-add-client="navigateTo('add-client')"
     @view-client="(c: any) => { selectedClient = c; showClientDetail = true }"
@@ -89,6 +89,43 @@ function navigateTo(subSection: string) {
 // ---------------------------------------------------------------------------
 // Section-local state
 // ---------------------------------------------------------------------------
+
+// Compute per-client stats from actual shipments data
+const enrichedClients = computed(() => {
+  const shipments = appStore.shipments
+  // Build a map: clientId → { totalOrders, deliveredOrders, totalSpent }
+  const statsMap = new Map<string, { totalOrders: number; deliveredOrders: number; totalSpent: number }>()
+  for (const s of shipments) {
+    if (!s.clientId) continue
+    let entry = statsMap.get(s.clientId)
+    if (!entry) {
+      entry = { totalOrders: 0, deliveredOrders: 0, totalSpent: 0 }
+      statsMap.set(s.clientId, entry)
+    }
+    entry.totalOrders++
+    if (s.status === 'Delivered') {
+      entry.deliveredOrders++
+      entry.totalSpent += s.cod || 0
+    }
+  }
+  return appStore.clients.map((client: any) => {
+    const stats = statsMap.get(client.id)
+    if (!stats) return { ...client, totalOrders: 0, deliveredOrders: 0, deliveryRate: 0, totalSpent: 0 }
+    const deliveryRate = stats.totalOrders > 0 ? Math.round((stats.deliveredOrders / stats.totalOrders) * 100) : 0
+    return { ...client, totalOrders: stats.totalOrders, deliveredOrders: stats.deliveredOrders, deliveryRate, totalSpent: stats.totalSpent }
+  })
+})
+
+const computedClientStats = computed(() => {
+  const clients = enrichedClients.value
+  const totalClients = clients.length
+  const activeClients = clients.filter((c: any) => c.status === 'active').length
+  const totalDelivered = clients.reduce((sum: number, c: any) => sum + c.deliveredOrders, 0)
+  const totalOrders = clients.reduce((sum: number, c: any) => sum + c.totalOrders, 0)
+  const deliveryRate = totalOrders > 0 ? Math.round((totalDelivered / totalOrders) * 100) : 0
+  const totalRevenue = clients.reduce((sum: number, c: any) => sum + c.totalSpent, 0)
+  return { totalClients, activeClients, newThisMonth: 0, deliveryRate, totalRevenue }
+})
 
 // Client detail panel
 const selectedClient = ref<any>(null)

@@ -39,6 +39,7 @@ import {
   Lock,
   CreditCard,
   ToggleLeft,
+  ClipboardList,
 } from 'lucide-vue-next'
 
 export interface NavItem {
@@ -72,7 +73,8 @@ export const subSectionRoutes: Record<string, { path: string; mainSection: strin
   'labels': { path: '/shipments/labels', mainSection: 'shipments' },
 
   // Pickups
-  'schedule-pickup': { path: '/pickups', mainSection: 'pickups' },
+  'request-pickup': { path: '/pickups', mainSection: 'pickups' },
+  'schedule-pickup': { path: '/pickups/scan', mainSection: 'pickups' },
   'pickup-history': { path: '/pickups/history', mainSection: 'pickups' },
 
   // Returns
@@ -153,6 +155,7 @@ export const subNavigation: Record<string, NavItem[]> = {
     { id: 'labels', label: 'Bordereaux', icon: markRaw(FileCheck) },
   ],
   pickups: [
+    { id: 'request-pickup', label: "Demande d'enlèvement", icon: markRaw(ClipboardList) },
     { id: 'schedule-pickup', label: 'Scan pickup', icon: markRaw(ScanBarcode) },
     { id: 'pickup-history', label: 'Historique', icon: markRaw(History) },
   ],

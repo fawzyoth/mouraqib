@@ -11,15 +11,6 @@
           <p class="text-sm text-gray-500 mt-0.5 sm:mt-1 hidden sm:block">Scannez chaque bordereau pour confirmer les colis prets au ramassage</p>
         </div>
       </div>
-      <button
-        @click="$emit('open-pickup-confirmation')"
-        :disabled="confirmedShipments.length === 0"
-        :class="['btn-primary text-xs sm:text-sm px-3 sm:px-4 py-2', confirmedShipments.length === 0 && 'opacity-50 cursor-not-allowed']"
-      >
-        <Truck class="w-4 h-4" />
-        <span class="hidden sm:inline">Demander enlevement ({{ confirmedShipments.length }})</span>
-        <span class="sm:hidden">{{ confirmedShipments.length }}</span>
-      </button>
     </div>
   </header>
 
@@ -31,6 +22,7 @@
           <ScanBarcode class="w-5 h-5 text-orange-600" />
         </div>
         <input
+          ref="scanInputRef"
           :value="scanInput"
           @input="$emit('update:scanInput', ($event.target as HTMLInputElement).value)"
           @keydown.enter.prevent="$emit('handle-scan')"
@@ -40,7 +32,14 @@
           autofocus
         />
         <button @click="$emit('handle-scan')" class="px-5 py-3 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-xl transition-colors text-sm whitespace-nowrap">
-          Scanner
+          OK
+        </button>
+        <button
+          @click="openCamera"
+          class="px-4 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl transition-colors text-sm whitespace-nowrap flex items-center gap-2"
+        >
+          <Camera class="w-4 h-4" />
+          <span class="hidden sm:inline">Camera</span>
         </button>
       </div>
       <!-- Scan Feedback -->
@@ -164,7 +163,7 @@
                       ? 'text-green-700 dark:text-green-400'
                       : 'text-gray-900 dark:text-white'
                   ]">{{ shipment.trackingNumber }}</span>
-                  <span v-if="shipment.confirmed" class="text-xs text-green-600 dark:text-green-500 font-medium">Confirme</span>
+                  <span v-if="shipment.confirmed" class="text-xs text-green-600 dark:text-green-500 font-medium">Enleve</span>
                 </div>
                 <p class="text-xs text-gray-500 truncate">{{ shipment.customerName }} - {{ shipment.recipientPhone }}</p>
               </div>
@@ -179,49 +178,66 @@
               >
                 <X class="w-4 h-4" />
               </button>
-              <button
-                v-else
-                @click="$emit('confirm-shipment-manual', shipment.trackingNumber)"
-                class="p-1.5 text-gray-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-                title="Confirmer manuellement"
-              >
-                <CheckCircle class="w-4 h-4" />
-              </button>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Bottom Actions -->
-      <div class="flex items-center justify-between bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+      <div class="flex items-center justify-end bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
         <button @click="$emit('clear-scan-session')" class="text-sm text-gray-500 hover:text-red-500 transition-colors flex items-center gap-1.5">
           <Trash2 class="w-4 h-4" />
           Reinitialiser
         </button>
-        <button
-          @click="$emit('open-pickup-confirmation')"
-          :disabled="confirmedShipments.length === 0"
-          :class="[
-            'px-5 py-2.5 font-medium rounded-xl transition-colors text-sm flex items-center gap-2',
-            confirmedShipments.length > 0
-              ? 'bg-orange-500 hover:bg-orange-600 text-white'
-              : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
-          ]"
-        >
-          <Truck class="w-4 h-4" />
-          Demander enlevement ({{ confirmedShipments.length }} colis)
-          <ArrowRight class="w-4 h-4" />
-        </button>
       </div>
     </div>
   </main>
+
+  <!-- Camera Scanner Overlay -->
+  <teleport to="body">
+    <transition name="fade">
+      <div v-if="cameraOpen" class="fixed inset-0 z-50 flex flex-col bg-black">
+        <!-- Camera Header -->
+        <div class="flex items-center justify-between px-4 py-3 bg-black/80">
+          <div class="flex items-center gap-2 text-white">
+            <Camera class="w-5 h-5" />
+            <span class="font-medium text-sm">Scanner un code-barres</span>
+          </div>
+          <button @click="closeCamera" class="p-2 text-white hover:bg-white/10 rounded-lg transition-colors">
+            <X class="w-5 h-5" />
+          </button>
+        </div>
+        <!-- Camera Viewfinder -->
+        <div class="flex-1 relative overflow-hidden">
+          <div id="barcode-scanner" class="scanner-container"></div>
+          <!-- Camera error -->
+          <div v-if="cameraError" class="absolute inset-0 flex items-center justify-center bg-black/80">
+            <div class="text-center px-6">
+              <AlertCircle class="w-12 h-12 text-red-400 mx-auto mb-3" />
+              <p class="text-white font-medium mb-1">Camera inaccessible</p>
+              <p class="text-gray-400 text-sm">{{ cameraError }}</p>
+              <button @click="closeCamera" class="mt-4 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm transition-colors">
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+        <!-- Last scan result -->
+        <div v-if="lastCameraScan" class="px-4 py-3 bg-green-600 text-white text-center text-sm font-medium">
+          {{ lastCameraScan }}
+        </div>
+      </div>
+    </transition>
+  </teleport>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, onBeforeUnmount, nextTick } from 'vue'
+import { Html5Qrcode } from 'html5-qrcode'
 import {
   ListFilter, Truck, ScanBarcode, CheckCircle, AlertCircle,
-  Wallet, Package, X, Trash2, ArrowRight
+  Wallet, Package, X, Trash2, ArrowRight, Camera
 } from 'lucide-vue-next'
 
 interface ScanFeedback {
@@ -261,7 +277,7 @@ defineProps<{
   pendingPickupsCount: number
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   'toggle-submenu': []
   'update:scanInput': [value: string]
   'handle-scan': []
@@ -272,4 +288,101 @@ defineEmits<{
   'clear-scan-session': []
   'navigate-to-labels': []
 }>()
+
+// Camera scanner state
+const scanInputRef = ref<HTMLInputElement | null>(null)
+const cameraOpen = ref(false)
+const cameraError = ref<string | null>(null)
+const lastCameraScan = ref<string | null>(null)
+let html5Qrcode: Html5Qrcode | null = null
+
+async function openCamera() {
+  cameraOpen.value = true
+  cameraError.value = null
+  lastCameraScan.value = null
+
+  await nextTick()
+
+  try {
+    html5Qrcode = new Html5Qrcode('barcode-scanner')
+    await html5Qrcode.start(
+      { facingMode: 'environment' },
+      {
+        fps: 10,
+        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+          const w = Math.floor(viewfinderWidth * 0.8)
+          const h = Math.floor(viewfinderHeight * 0.4)
+          return { width: Math.max(w, 200), height: Math.max(h, 100) }
+        },
+      },
+      (decodedText) => {
+        lastCameraScan.value = decodedText
+        // Set the input and trigger scan
+        emit('update:scanInput', decodedText)
+        nextTick(() => emit('handle-scan'))
+        // Close camera after a short delay so user sees the result
+        setTimeout(() => closeCamera(), 600)
+      },
+      () => {
+        // Ignore scan failures (no barcode found in frame)
+      }
+    )
+  } catch (err: any) {
+    cameraError.value = err?.message || 'Veuillez autoriser l\'acces a la camera'
+  }
+}
+
+async function closeCamera() {
+  if (html5Qrcode) {
+    try {
+      const state = html5Qrcode.getState()
+      if (state === 2) { // SCANNING
+        await html5Qrcode.stop()
+      }
+    } catch {
+      // ignore stop errors
+    }
+    html5Qrcode = null
+  }
+  cameraOpen.value = false
+  cameraError.value = null
+  lastCameraScan.value = null
+  // Re-focus the text input
+  nextTick(() => scanInputRef.value?.focus())
+}
+
+onBeforeUnmount(() => {
+  if (html5Qrcode) {
+    try {
+      html5Qrcode.stop()
+    } catch {
+      // ignore
+    }
+  }
+})
 </script>
+
+<style scoped>
+.scanner-container {
+  width: 100%;
+  height: 100%;
+}
+.scanner-container :deep(video) {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  min-height: 100% !important;
+}
+.scanner-container :deep(#barcode-scanner__scan_region) {
+  min-height: 100% !important;
+}
+.scanner-container :deep(#barcode-scanner__scan_region > img) {
+  display: none !important;
+}
+.scanner-container :deep(#barcode-scanner__dashboard_section) {
+  display: none !important;
+}
+.scanner-container :deep(#barcode-scanner__header_message) {
+  display: none !important;
+}
+</style>
