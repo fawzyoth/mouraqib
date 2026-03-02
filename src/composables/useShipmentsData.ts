@@ -122,6 +122,23 @@ export function useShipmentsData(orgId: Ref<string>) {
     }
   }
 
+  async function markAsPrinted(ids: string[]): Promise<boolean> {
+    try {
+      const now = new Date().toISOString()
+      for (const id of ids) {
+        await shipmentsService.update(id, { label_printed: true, label_printed_at: now })
+        const index = shipments.value.findIndex(s => s.id === id)
+        if (index !== -1) {
+          shipments.value[index] = { ...shipments.value[index], labelPrinted: true, labelPrintedAt: now }
+        }
+      }
+      return true
+    } catch (e: any) {
+      toast.error('Erreur mise à jour impression: ' + (e.message || e))
+      return false
+    }
+  }
+
   async function updateStatus(id: string, newUiStatus: string): Promise<boolean> {
     const dbStatus = STATUS_UI_TO_DB[newUiStatus] || newUiStatus
     try {
@@ -167,5 +184,5 @@ export function useShipmentsData(orgId: Ref<string>) {
     }
   }
 
-  return { shipments, isLoading, load, create, updateStatus, subscribe, unsubscribe }
+  return { shipments, isLoading, load, create, markAsPrinted, updateStatus, subscribe, unsubscribe }
 }

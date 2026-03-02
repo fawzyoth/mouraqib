@@ -36,6 +36,7 @@
     :shipments="appStore.shipments"
     @toggle-submenu="subMenuOpen = !subMenuOpen"
     @print-selected="printSelectedLabels"
+    @open-label-preview="openLabelPreview"
   />
 
   <!-- Shipment Detail Panel (always rendered, toggled via :show) -->
@@ -138,10 +139,29 @@ function handleViewShipments() {
   navigateTo('all-shipments')
 }
 
-// Labels
-function printSelectedLabels(_ids: any[]) { /* stub */ }
+// Labels — open the real carrier label URL (same as sidebar) and mark as printed
+function openLabelPreview(shipment: any) {
+  if (shipment.labelUrl) {
+    window.open(shipment.labelUrl, '_blank')
+    appStore.shipmentsData.markAsPrinted([shipment.id])
+  }
+}
 
-// Print label modal
+function printSelectedLabels(ids: any[]) {
+  const shipments = appStore.shipments.filter((s: any) => ids.includes(s.id))
+  const printedIds: string[] = []
+  for (const s of shipments) {
+    if (s.labelUrl) {
+      window.open(s.labelUrl, '_blank')
+      printedIds.push(s.id)
+    }
+  }
+  if (printedIds.length > 0) {
+    appStore.shipmentsData.markAsPrinted(printedIds)
+  }
+}
+
+// Print label modal (used from shipment creation success screen)
 const showPrintLabelModal = ref(false)
 const labelToPrint = ref<any>(null)
 
@@ -149,5 +169,9 @@ function closePrintModal() {
   showPrintLabelModal.value = false
   labelToPrint.value = null
 }
-function printLabel(_shipment: any) { /* stub */ }
+function printLabel() {
+  if (labelToPrint.value?.labelUrl) {
+    window.open(labelToPrint.value.labelUrl, '_blank')
+  }
+}
 </script>

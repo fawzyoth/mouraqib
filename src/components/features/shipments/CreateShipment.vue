@@ -462,7 +462,7 @@ import {
   CheckCircle
 } from 'lucide-vue-next'
 import { carrierDeliveryFees } from '@/data/carriers-catalog'
-import { tunisiaLocations } from '@/data/tunisia-locations'
+import zonesData from '@/data/zones-first'
 
 interface Client {
   id: number
@@ -557,34 +557,42 @@ function getCarrierInitials(name: string): string {
   return name.substring(0, 2).toUpperCase()
 }
 
-// Location cascading
-const gouvernorats = computed(() => Object.keys(tunisiaLocations))
+// Location cascading (zones-first data)
+const gouvernorats = computed(() => Object.keys(zonesData).sort())
 
 const availableDelegations = computed(() => {
-  if (!newShipment.gouvernorat || !tunisiaLocations[newShipment.gouvernorat]) return []
-  return Object.keys(tunisiaLocations[newShipment.gouvernorat].delegations)
+  if (!newShipment.gouvernorat || !zonesData[newShipment.gouvernorat]) return []
+  return Object.keys(zonesData[newShipment.gouvernorat]).sort()
 })
 
 const availableLocalities = computed(() => {
-  if (!newShipment.gouvernorat || !newShipment.delegation) return []
-  const delegations = tunisiaLocations[newShipment.gouvernorat]?.delegations
-  if (!delegations || !delegations[newShipment.delegation]) return []
-  return delegations[newShipment.delegation].localities
+  if (!newShipment.gouvernorat || !newShipment.delegation || !zonesData[newShipment.gouvernorat]?.[newShipment.delegation]) return []
+  return Object.keys(zonesData[newShipment.gouvernorat][newShipment.delegation]).sort()
 })
 
+// Skip cascading resets during client prefill
+let skipReset = false
+
 watch(() => newShipment.gouvernorat, () => {
+  if (skipReset) return
   newShipment.delegation = ''
   newShipment.locality = ''
   newShipment.postalCode = ''
 })
 
 watch(() => newShipment.delegation, () => {
+  if (skipReset) return
   newShipment.locality = ''
-  if (newShipment.gouvernorat && newShipment.delegation) {
-    const delegations = tunisiaLocations[newShipment.gouvernorat]?.delegations
-    if (delegations && delegations[newShipment.delegation]) {
-      newShipment.postalCode = delegations[newShipment.delegation].postalCode
-    }
+  newShipment.postalCode = ''
+})
+
+watch(() => newShipment.locality, () => {
+  if (skipReset) return
+  if (newShipment.gouvernorat && newShipment.delegation && newShipment.locality) {
+    const loc = zonesData[newShipment.gouvernorat]?.[newShipment.delegation]?.[newShipment.locality]
+    newShipment.postalCode = loc?.codePostal || ''
+  } else {
+    newShipment.postalCode = ''
   }
 })
 
@@ -608,11 +616,20 @@ function selectClientForShipment(client: Client) {
   selectedShipmentClient.value = client
   shipmentClientSearch.value = client.name
   showClientSuggestions.value = false
+
+  // Prevent watchers from cascading-resetting the prefilled values
+  skipReset = true
   newShipment.customerName = client.name
   newShipment.phone = client.phone
+  newShipment.phoneSecondary = client.phoneSecondary || ''
   newShipment.address = client.address
-  newShipment.gouvernorat = client.region
+  newShipment.gouvernorat = client.region || ''
+  newShipment.delegation = client.delegation || ''
+  newShipment.locality = client.locality || ''
+  newShipment.postalCode = client.postalCode || ''
   newShipment.clientId = client.id
+  // Re-enable cascade resets after all values have settled
+  setTimeout(() => { skipReset = false }, 0)
 }
 
 function clearSelectedClient() {
