@@ -4,13 +4,24 @@ import { subSectionRoutes } from '@/composables/useNavigation'
 import { useAuthStore } from '@/stores/auth'
 import { featureFlagsService } from '@/services/featureFlags'
 
-// Single lazy-import reference so Vue Router reuses the same component instance
-const DeliveryTrackerView = () => import('@/views/DeliveryTrackerView.vue')
+// Section-specific view components (lazy-loaded)
+const sectionComponents: Record<string, () => Promise<any>> = {
+  dashboard:      () => import('@/views/DashboardView.vue'),
+  clients:        () => import('@/views/ClientsView.vue'),
+  shipments:      () => import('@/views/ShipmentsView.vue'),
+  pickups:        () => import('@/views/PickupsView.vue'),
+  returns:        () => import('@/views/ReturnsView.vue'),
+  carriers:       () => import('@/views/CarriersView.vue'),
+  finance:        () => import('@/views/FinanceView.vue'),
+  analytics:      () => import('@/views/AnalyticsView.vue'),
+  settings:       () => import('@/views/SettingsView.vue'),
+  administration: () => import('@/views/AdminView.vue'),
+}
 
-// Generate app routes from the subSectionRoutes map
+// Generate app routes — each section maps to its own view component
 const appRoutes = Object.entries(subSectionRoutes).map(([subSection, { path, mainSection }]) => ({
   path,
-  component: DeliveryTrackerView,
+  component: sectionComponents[mainSection] || sectionComponents.dashboard,
   meta: {
     requiresAuth: true,
     mainSection,
@@ -61,8 +72,12 @@ const router = createRouter({
       path: '/reset-password',
       redirect: '/signin'
     },
-    // All app feature routes (each renders DeliveryTrackerView)
-    ...appRoutes,
+    // All app feature routes nested under the authenticated layout
+    {
+      path: '',
+      component: () => import('@/views/AppLayoutView.vue'),
+      children: appRoutes,
+    },
     {
       path: '/:pathMatch(.*)*',
       redirect: '/dashboard'

@@ -4,7 +4,7 @@ import { createServiceClient } from '../_shared/supabase.ts'
 import { verifyUser } from '../_shared/auth.ts'
 import { getCarrierAdapter } from '../_shared/carriers/registry.ts'
 import { CarrierApiError } from '../_shared/carriers/types.ts'
-import type { CreateShipmentPayload } from '../_shared/carriers/types.ts'
+import type { CreateShipmentPayload, ApiCallLog } from '../_shared/carriers/types.ts'
 
 type ProxyAction = 'create-shipment' | 'request-pickup' | 'cancel' | 'check-status' | 'sync-shipments'
 
@@ -95,10 +95,38 @@ serve(async (req) => {
       )
     }
 
-    // 5. Resolve the carrier adapter via the registry
+    // 5. Resolve the carrier adapter via the registry (with API call logger)
+    const apiCallLogger = (log: ApiCallLog) => {
+      // Truncate large response bodies to avoid bloating the DB
+      let responseBody = log.responseBody
+      try {
+        const serialized = JSON.stringify(responseBody)
+        if (serialized && serialized.length > 50_000) {
+          responseBody = { _truncated: true, preview: serialized.slice(0, 5000) }
+        }
+      } catch { /* keep original */ }
+
+      supabase.from('carrier_api_logs').insert({
+        organization_id: carrier.organization_id,
+        carrier_id: carrierId,
+        action,
+        method: log.method,
+        url: log.url,
+        request_headers: log.requestHeaders,
+        request_body: log.requestBody,
+        http_status: log.httpStatus,
+        response_body: responseBody,
+        response_time_ms: log.responseTimeMs,
+        success: log.success,
+        error_message: log.errorMessage,
+      }).then(({ error: logError }) => {
+        if (logError) console.error('[carrier-proxy] Failed to log API call:', logError.message)
+      })
+    }
+
     let adapter
     try {
-      adapter = getCarrierAdapter(carrier.name, credentials)
+      adapter = getCarrierAdapter(carrier.name, credentials, apiCallLogger)
     } catch (err) {
       return new Response(
         JSON.stringify({ error: (err as Error).message }),
@@ -206,19 +234,29 @@ async function handleCreateShipment(
 
   const carrierResult = await adapter.createShipment(createPayload)
 
-  // Persist the real carrier tracking number and advance status
+  // Get the real status from the carrier right after creation
+  let status = 'pending'
+  try {
+    const statusResult = await adapter.checkStatus(carrierResult.trackingNumber)
+    status = mapCarrierStatus(statusResult.status)
+  } catch {
+    // If check-status fails, keep pending
+    console.error(`[carrier-proxy] check-status failed after create for ${carrierResult.trackingNumber}`)
+  }
+
+  // Persist the real carrier tracking number and actual status
   await supabase
     .from('shipments')
     .update({
       carrier_tracking_number: carrierResult.trackingNumber,
-      status: 'pickup_scheduled',
+      status,
     })
     .eq('id', shipmentId)
 
   return {
     carrierTrackingNumber: carrierResult.trackingNumber,
     printUrl: carrierResult.printUrl,
-    status: 'pickup_scheduled',
+    status,
   }
 }
 

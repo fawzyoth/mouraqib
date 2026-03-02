@@ -9,6 +9,7 @@ import type {
   CancelResult,
   PickupResult,
   PrintPickupResult,
+  ApiCallLogger,
 } from './types.ts'
 import { CarrierApiError } from './types.ts'
 
@@ -16,6 +17,7 @@ const BASE_URL = 'https://www.firstdeliverygroup.com/api/v2'
 
 interface FirstDeliveryConfig {
   apiToken: string
+  onApiCall?: ApiCallLogger
 }
 
 /**
@@ -31,12 +33,14 @@ interface FirstDeliveryConfig {
 export class FirstDeliveryAdapter implements CarrierAdapter {
   readonly carrierId = 'first-delivery'
   private readonly token: string
+  private readonly onApiCall?: ApiCallLogger
 
   constructor(config: FirstDeliveryConfig) {
     if (!config.apiToken) {
       throw new Error('FirstDeliveryAdapter: apiToken is required')
     }
     this.token = config.apiToken
+    this.onApiCall = config.onApiCall
   }
 
   // ─── Public API ──────────────────────────────────────────
@@ -214,41 +218,65 @@ export class FirstDeliveryAdapter implements CarrierAdapter {
 
   /**
    * Execute a POST request against the First Delivery API.
-   * Handles auth headers, JSON serialization, and error detection.
+   * Handles auth headers, JSON serialization, error detection, and logging.
    */
   private async post(endpoint: string, body: unknown): Promise<Record<string, any>> {
     const url = `${BASE_URL}${endpoint}`
 
     console.log(`[FirstDelivery] POST ${endpoint}`, JSON.stringify(body))
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.token}`,
-      },
-      body: JSON.stringify(body),
-    })
-
+    const startTime = Date.now()
+    let response: Response
     let responseData: unknown
-    const contentType = response.headers.get('content-type') ?? ''
+    let success = false
+    let errorMessage: string | null = null
 
-    if (contentType.includes('application/json')) {
-      responseData = await response.json()
-    } else {
-      responseData = await response.text()
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.token}`,
+        },
+        body: JSON.stringify(body),
+      })
+
+      const contentType = response.headers.get('content-type') ?? ''
+
+      if (contentType.includes('application/json')) {
+        responseData = await response.json()
+      } else {
+        responseData = await response.text()
+      }
+
+      console.log(`[FirstDelivery] ${endpoint} → ${response.status}`, JSON.stringify(responseData).slice(0, 2000))
+
+      success = response.ok
+
+      if (!response.ok) {
+        errorMessage = `HTTP ${response.status}`
+        // Log before throwing
+        this.logApiCall(url, body, response.status, responseData, startTime, false, errorMessage)
+        throw new CarrierApiError(
+          this.carrierId,
+          endpoint,
+          response.status,
+          responseData,
+        )
+      }
+    } catch (err) {
+      if (err instanceof CarrierApiError) {
+        throw err // Already logged above
+      }
+      // Network or unexpected error
+      const elapsed = Date.now() - startTime
+      errorMessage = (err as Error).message
+      this.logApiCall(url, body, null, null, startTime, false, errorMessage)
+      throw err
     }
 
-    console.log(`[FirstDelivery] ${endpoint} → ${response.status}`, JSON.stringify(responseData).slice(0, 2000))
-
-    if (!response.ok) {
-      throw new CarrierApiError(
-        this.carrierId,
-        endpoint,
-        response.status,
-        responseData,
-      )
-    }
+    // Log successful call
+    this.logApiCall(url, body, response!.status, responseData, startTime, true, null)
 
     // If the response is a plain string (e.g., a URL), wrap it
     if (typeof responseData === 'string') {
@@ -261,5 +289,33 @@ export class FirstDeliveryAdapter implements CarrierAdapter {
     }
 
     return responseData as Record<string, any>
+  }
+
+  private logApiCall(
+    url: string,
+    requestBody: unknown,
+    httpStatus: number | null,
+    responseBody: unknown,
+    startTime: number,
+    success: boolean,
+    errorMessage: string | null,
+  ): void {
+    if (!this.onApiCall) return
+
+    try {
+      this.onApiCall({
+        method: 'POST',
+        url,
+        requestHeaders: { 'Content-Type': 'application/json' },
+        requestBody,
+        httpStatus,
+        responseBody,
+        responseTimeMs: Date.now() - startTime,
+        success,
+        errorMessage,
+      })
+    } catch (logErr) {
+      console.error('[FirstDelivery] Logger error:', logErr)
+    }
   }
 }

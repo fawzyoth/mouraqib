@@ -1,5 +1,5 @@
 import { FirstDeliveryAdapter } from './first-delivery.ts'
-import type { CarrierAdapter } from './types.ts'
+import type { CarrierAdapter, ApiCallLogger } from './types.ts'
 
 /**
  * Resolve the correct CarrierAdapter implementation for a given carrier name.
@@ -16,6 +16,7 @@ import type { CarrierAdapter } from './types.ts'
 export function getCarrierAdapter(
   carrierName: string,
   credentials: Record<string, string>,
+  onApiCall?: ApiCallLogger,
 ): CarrierAdapter {
   const name = carrierName.toLowerCase().trim()
 
@@ -27,6 +28,7 @@ export function getCarrierAdapter(
     case 'first delivery group':
       return new FirstDeliveryAdapter({
         apiToken: credentials.apiKey ?? credentials.api_key ?? credentials.token ?? '',
+        onApiCall,
       })
 
     default:

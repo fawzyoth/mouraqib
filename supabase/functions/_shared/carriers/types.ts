@@ -99,6 +99,22 @@ export interface CarrierAdapter {
   printPickup?(pickupId: string): Promise<PrintPickupResult>
 }
 
+// ─── API Call Logging ────────────────────────────────────────
+
+export interface ApiCallLog {
+  method: string
+  url: string
+  requestHeaders: Record<string, string>
+  requestBody: unknown
+  httpStatus: number | null
+  responseBody: unknown
+  responseTimeMs: number
+  success: boolean
+  errorMessage: string | null
+}
+
+export type ApiCallLogger = (log: ApiCallLog) => void | Promise<void>
+
 // ─── Error Types ─────────────────────────────────────────────
 
 /**
