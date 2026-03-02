@@ -49,9 +49,12 @@ export class FirstDeliveryAdapter implements CarrierAdapter {
     const body = this.mapToFirstDeliveryOrder(payload)
     const data = await this.post('/create', body)
 
+    // First Delivery wraps the response: { result: { barCode, link }, status, message }
+    const result = data.result as Record<string, unknown> | undefined
+
     return {
-      trackingNumber: data.barCode,
-      printUrl: data.print ?? undefined,
+      trackingNumber: (result?.barCode as string) ?? data.barCode ?? '',
+      printUrl: (result?.link as string) ?? data.print ?? undefined,
     }
   }
 
@@ -198,21 +201,28 @@ export class FirstDeliveryAdapter implements CarrierAdapter {
   // ─── Private Helpers ─────────────────────────────────────
 
   /**
-   * Map our internal CreateShipmentPayload to First Delivery's field names.
+   * Map our internal CreateShipmentPayload to First Delivery's nested format.
+   *
+   * First Delivery expects: { Client: { ... }, Produit: { ... } }
    */
   private mapToFirstDeliveryOrder(payload: CreateShipmentPayload): Record<string, unknown> {
     return {
-      nom: payload.clientName,
-      gouvernerat: payload.governorate,
-      ville: payload.city,
-      adresse: payload.address,
-      telephone: payload.phone,
-      ...(payload.phone2 ? { telephone2: payload.phone2 } : {}),
-      prix: payload.price,
-      designation: payload.designation,
-      nombreArticle: payload.articleCount,
-      ...(payload.comment ? { commentaire: payload.comment } : {}),
-      ...(payload.exchangeCount !== undefined ? { nombreEchange: payload.exchangeCount } : {}),
+      Client: {
+        nom: payload.clientName,
+        gouvernerat: payload.governorate,
+        ville: payload.city,
+        adresse: payload.address,
+        telephone: payload.phone,
+        telephone2: payload.phone2 ?? '',
+      },
+      Produit: {
+        prix: payload.price,
+        designation: payload.designation,
+        nombreArticle: payload.articleCount,
+        commentaire: payload.comment ?? '',
+        article: payload.article || payload.designation,
+        nombreEchange: payload.exchangeCount ?? 0,
+      },
     }
   }
 

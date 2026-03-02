@@ -34,6 +34,16 @@
           <span v-if="shipment.labelPrinted" class="inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Imprimé</span>
           <span v-else class="inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">Non imprimé</span>
         </div>
+        <a
+          v-if="shipment.labelUrl"
+          :href="shipment.labelUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-[#4959b4] hover:bg-[#3a4791] text-white text-xs font-medium rounded-lg transition-colors"
+        >
+          <Printer class="w-3.5 h-3.5" />
+          Imprimer le bordereau
+        </a>
       </div>
 
       <div class="border-t border-gray-200 dark:border-gray-800"></div>
@@ -199,7 +209,7 @@
 </template>
 
 <script setup lang="ts">
-import { X, User, Phone as PhoneIcon, MapPin, Globe, AlertTriangle } from 'lucide-vue-next'
+import { X, User, Phone as PhoneIcon, MapPin, Globe, AlertTriangle, Printer } from 'lucide-vue-next'
 import { getStatusLabel, getStatusTextClass } from '@/composables/useStatusFormatting'
 
 defineProps<{

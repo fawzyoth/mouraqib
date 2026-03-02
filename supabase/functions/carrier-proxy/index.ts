@@ -227,6 +227,7 @@ async function handleCreateShipment(
     phone2: shipmentFields.phone2,
     price: shipmentFields.price,
     designation: shipmentFields.designation,
+    article: shipmentFields.article,
     articleCount: shipmentFields.articleCount ?? 1,
     comment: shipmentFields.comment,
     exchangeCount: shipmentFields.exchangeCount,
@@ -244,11 +245,12 @@ async function handleCreateShipment(
     console.error(`[carrier-proxy] check-status failed after create for ${carrierResult.trackingNumber}`)
   }
 
-  // Persist the real carrier tracking number and actual status
+  // Persist the real carrier tracking number, label URL, and actual status
   await supabase
     .from('shipments')
     .update({
       carrier_tracking_number: carrierResult.trackingNumber,
+      label_url: carrierResult.printUrl || null,
       status,
     })
     .eq('id', shipmentId)

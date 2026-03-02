@@ -32,6 +32,7 @@ export interface UIShipment {
   orderNumber: string
   customerName: string
   labelNumber: string | null
+  labelUrl: string | null
   labelPrinted: boolean
   labelPrintedAt: string | null
   weight: number | null
@@ -70,7 +71,7 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
 
   return {
     id: row.id,
-    trackingNumber: row.tracking_number,
+    trackingNumber: row.carrier_tracking_number || row.tracking_number,
     carrier: carrierName,
     carrierId: row.carrier_id,
     client: clientName,
@@ -86,6 +87,7 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
     orderNumber: row.reference || '',
     customerName: row.recipient_name,
     labelNumber: row.label_number,
+    labelUrl: (row as any).label_url || null,
     labelPrinted: row.label_printed,
     labelPrintedAt: row.label_printed_at,
     weight: row.weight,

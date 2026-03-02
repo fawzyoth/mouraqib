@@ -58,6 +58,7 @@
 import { computed, ref, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
+import { useAuthStore } from '@/stores/auth'
 import { subSectionRoutes } from '@/composables/useNavigation'
 
 // Feature components
@@ -73,6 +74,7 @@ import PrintLabelModal from '@/components/modals/PrintLabelModal.vue'
 const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
+const authStore = useAuthStore()
 const activeSection = computed(() => (route.meta.subSection as string) || '')
 const subMenuOpen = inject<import('vue').Ref<boolean>>('subMenuOpen', ref(false))
 
@@ -106,7 +108,23 @@ const showShipmentDetail = ref(false)
 const createdShipment = ref<any>(null)
 const stickyCarrier = ref('')
 
-function handleCreateShipment(_data: any) { /* stub */ }
+async function handleCreateShipment(data: any) {
+  const carrier = appStore.carriers.find((c: any) => c.name === data.carrier)
+  const carrierId = carrier?.id || null
+  const userId = authStore.user?.id || null
+
+  const result = await appStore.shipmentsData.create(
+    data,
+    appStore.orgContext,
+    userId,
+    carrierId,
+    carrier?.apiStatus
+  )
+  if (result) {
+    createdShipment.value = result
+    stickyCarrier.value = data.carrier || ''
+  }
+}
 function resetShipmentForm() { /* stub */ }
 function handleSuccessPrintLabel(_shipment: any) {
   labelToPrint.value = _shipment

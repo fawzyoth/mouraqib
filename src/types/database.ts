@@ -301,6 +301,7 @@ export interface Database {
           product_price: number
           delivery_fee: number
           label_number: string | null
+          label_url: string | null
           label_printed: boolean
           label_printed_at: string | null
           delivered_at: string | null
@@ -340,6 +341,7 @@ export interface Database {
           product_price?: number
           delivery_fee?: number
           label_number?: string | null
+          label_url?: string | null
           label_printed?: boolean
           label_printed_at?: string | null
           delivered_at?: string | null
@@ -379,6 +381,7 @@ export interface Database {
           product_price?: number
           delivery_fee?: number
           label_number?: string | null
+          label_url?: string | null
           label_printed?: boolean
           label_printed_at?: string | null
           delivered_at?: string | null

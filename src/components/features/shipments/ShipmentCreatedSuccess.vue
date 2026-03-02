@@ -42,6 +42,28 @@
             </div>
           </div>
 
+          <!-- Label URL -->
+          <div v-if="shipment.labelUrl" class="px-6 py-4 border-b border-gray-100 dark:border-gray-800 bg-blue-50 dark:bg-blue-900/10">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+                <FileText class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-900 dark:text-white">Bordereau disponible</p>
+                <p class="text-xs text-gray-500 truncate">{{ shipment.trackingNumber }}</p>
+              </div>
+              <a
+                :href="shipment.labelUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1"
+              >
+                <ExternalLink class="w-3 h-3" />
+                Ouvrir
+              </a>
+            </div>
+          </div>
+
           <!-- Summary grid -->
           <div class="px-6 py-5 grid grid-cols-2 gap-4">
             <div>
@@ -64,7 +86,18 @@
 
           <!-- Action buttons -->
           <div class="px-6 pb-6 space-y-3">
+            <a
+              v-if="shipment.labelUrl"
+              :href="shipment.labelUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#4959b4] hover:bg-[#3a4791] text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              <Printer class="w-4 h-4" />
+              Imprimer le bordereau
+            </a>
             <button
+              v-else
               @click="$emit('print-label')"
               class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#4959b4] hover:bg-[#3a4791] text-white rounded-lg text-sm font-medium transition-colors"
             >
@@ -94,7 +127,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { CheckCircle, Copy, Check, Printer, Plus, ArrowRight, ListFilter } from 'lucide-vue-next'
+import { CheckCircle, Copy, Check, Printer, Plus, ArrowRight, ListFilter, FileText, ExternalLink } from 'lucide-vue-next'
 
 defineProps<{
   shipment: {

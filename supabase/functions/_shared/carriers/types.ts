@@ -19,6 +19,7 @@ export interface CreateShipmentPayload {
   designation: string
   articleCount: number
   comment?: string
+  article?: string
   exchangeCount?: number
 }
 

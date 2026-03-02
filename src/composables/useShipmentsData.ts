@@ -1,4 +1,5 @@
 import { ref, type Ref } from 'vue'
+import { supabase } from '@/lib/supabase'
 import { shipmentsService } from '@/services'
 import { dbShipmentToUI, uiShipmentToInsert, STATUS_UI_TO_DB } from '@/mappers/shipments'
 import type { UIShipment } from '@/mappers/shipments'
@@ -34,7 +35,8 @@ export function useShipmentsData(orgId: Ref<string>) {
     form: Record<string, any>,
     orgContext: OrgContext,
     userId: string | null,
-    carrierId: string | null
+    carrierId: string | null,
+    carrierApiStatus?: string
   ): Promise<UIShipment | null> {
     if (!orgId.value) {
       toast.error('Organisation introuvable — veuillez vous reconnecter')
@@ -56,6 +58,61 @@ export function useShipmentsData(orgId: Ref<string>) {
           + ' à ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
         completed: true,
       }]
+
+      // If carrier API is connected, send to carrier-proxy to get real tracking number
+      console.log('[create-shipment] carrierId:', carrierId, 'carrierApiStatus:', carrierApiStatus)
+      if (carrierId && carrierApiStatus === 'connected') {
+        try {
+          const { data, error } = await supabase.functions.invoke('carrier-proxy', {
+            body: {
+              carrierId,
+              action: 'create-shipment',
+              payload: {
+                shipmentId: row.id,
+                clientName: form.customerName,
+                governorate: form.gouvernorat,
+                city: form.delegation || form.gouvernorat,
+                address: form.address,
+                phone: form.phone,
+                phone2: form.phoneSecondary || undefined,
+                price: (form.productPrice || 0) + (form.deliveryFee || 0),
+                designation: form.productName + (form.description ? ` - ${form.description}` : ''),
+                article: form.productName || undefined,
+                articleCount: 1,
+                comment: form.reference || undefined,
+                exchangeCount: form.type === 'exchange' ? (form.exchangeItemCount || 1) : undefined,
+              },
+            },
+          })
+
+          if (!error && data?.result) {
+            const result = data.result
+            if (result.carrierTrackingNumber) {
+              uiShipment.trackingNumber = result.carrierTrackingNumber
+            }
+            if (result.printUrl) {
+              uiShipment.labelUrl = result.printUrl
+            }
+            toast.success('Colis envoyé au transporteur')
+          } else if (error) {
+            // FunctionsHttpError stores the raw Response in error.context
+            let detail = ''
+            try {
+              const response = (error as any).context
+              if (response && typeof response.json === 'function') {
+                const body = await response.json()
+                detail = body?.error || body?.detail || JSON.stringify(body)
+              }
+            } catch { /* ignore */ }
+            console.error('[carrier-proxy] create-shipment error:', error.message, detail)
+            toast.warning(detail || 'Colis créé localement, mais non envoyé au transporteur')
+          }
+        } catch (proxyErr: any) {
+          console.error('[carrier-proxy] create-shipment failed:', proxyErr)
+          toast.warning('Colis créé localement, mais non envoyé au transporteur')
+        }
+      }
+
       shipments.value.unshift(uiShipment)
       toast.success('Colis créé')
       return uiShipment
