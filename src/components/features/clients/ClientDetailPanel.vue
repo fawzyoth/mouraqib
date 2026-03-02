@@ -194,22 +194,31 @@
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Gouvernorat</label>
-              <input v-model="editForm.region" type="text" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent" placeholder="Optionnel" />
+              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Gouvernorat *</label>
+              <select v-model="editForm.region" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent">
+                <option value="">Sélectionner</option>
+                <option v-for="gov in governorates" :key="gov" :value="gov">{{ gov }}</option>
+              </select>
             </div>
             <div>
-              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Délégation</label>
-              <input v-model="editForm.delegation" type="text" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent" placeholder="Optionnel" />
+              <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Délégation *</label>
+              <select v-model="editForm.delegation" :disabled="!editForm.region" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent disabled:opacity-50">
+                <option value="">Sélectionner</option>
+                <option v-for="del in delegations" :key="del" :value="del">{{ del }}</option>
+              </select>
             </div>
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Localité</label>
-              <input v-model="editForm.locality" type="text" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent" placeholder="Optionnel" />
+              <select v-model="editForm.locality" :disabled="!editForm.delegation" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent disabled:opacity-50">
+                <option value="">Sélectionner</option>
+                <option v-for="loc in localities" :key="loc" :value="loc">{{ loc }}</option>
+              </select>
             </div>
             <div>
               <label class="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Code postal</label>
-              <input v-model="editForm.postalCode" type="text" class="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent" placeholder="Optionnel" />
+              <input v-model="editForm.postalCode" type="text" readonly class="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-500" placeholder="Auto-rempli" />
             </div>
           </div>
 
@@ -235,9 +244,11 @@
 </template>
 
 <script setup lang="ts">
+import { computed, watch } from 'vue'
 import { Pencil, Loader2, X, Phone as PhoneIcon, Mail, MapPin } from 'lucide-vue-next'
+import zonesData from '@/data/zones-first'
 
-defineProps<{
+const props = defineProps<{
   show: boolean
   client: Record<string, any> | null
   isEditing: boolean
@@ -251,4 +262,52 @@ defineEmits<{
   (e: 'cancel-edit'): void
   (e: 'save'): void
 }>()
+
+const governorates = Object.keys(zonesData).sort()
+
+const delegations = computed(() => {
+  if (!props.editForm.region || !zonesData[props.editForm.region]) return []
+  return Object.keys(zonesData[props.editForm.region]).sort()
+})
+
+const localities = computed(() => {
+  if (!props.editForm.region || !props.editForm.delegation || !zonesData[props.editForm.region]?.[props.editForm.delegation]) return []
+  return Object.keys(zonesData[props.editForm.region][props.editForm.delegation]).sort()
+})
+
+// Skip cascading resets during the initial prefill tick
+let skipReset = false
+watch(() => props.isEditing, (v) => {
+  if (v) {
+    skipReset = true
+    // Allow one tick for all prefilled values to settle
+    setTimeout(() => { skipReset = false }, 0)
+  }
+})
+
+// When gouvernorat changes, reset delegation/locality/postal
+watch(() => props.editForm.region, () => {
+  if (skipReset) return
+  props.editForm.delegation = ''
+  props.editForm.locality = ''
+  props.editForm.postalCode = ''
+})
+
+// When delegation changes, reset locality/postal
+watch(() => props.editForm.delegation, () => {
+  if (skipReset) return
+  props.editForm.locality = ''
+  props.editForm.postalCode = ''
+})
+
+// When locality changes, auto-fill postal code
+watch(() => props.editForm.locality, () => {
+  if (skipReset) return
+  if (props.editForm.region && props.editForm.delegation && props.editForm.locality) {
+    const loc = zonesData[props.editForm.region]?.[props.editForm.delegation]?.[props.editForm.locality]
+    props.editForm.postalCode = loc?.codePostal || ''
+  } else {
+    props.editForm.postalCode = ''
+  }
+})
 </script>

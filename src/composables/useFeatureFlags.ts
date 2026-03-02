@@ -9,7 +9,7 @@ export function useFeatureFlags(orgId: Ref<string>) {
   const flagsMap = ref<Map<string, boolean>>(new Map())
   const isLoaded = ref(false)
 
-  const userRole = computed(() => authStore.user?.role || 'user')
+  const userRole = computed(() => authStore.user?.role || 'agent_confirmation')
 
   async function loadFlags() {
     // In demo mode, everything is enabled — no DB call

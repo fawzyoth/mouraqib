@@ -66,7 +66,7 @@ export interface Database {
           name: string
           email: string
           phone: string | null
-          role: 'owner' | 'admin' | 'manager' | 'support' | 'user' | 'superadmin'
+          role: 'owner' | 'manager' | 'agent_confirmation' | 'agent_warehouse' | 'superadmin'
           avatar_url: string | null
           is_admin: boolean
           created_at: string
@@ -78,7 +78,7 @@ export interface Database {
           name: string
           email: string
           phone?: string | null
-          role?: 'owner' | 'admin' | 'manager' | 'support' | 'user' | 'superadmin'
+          role?: 'owner' | 'manager' | 'agent_confirmation' | 'agent_warehouse' | 'superadmin'
           avatar_url?: string | null
           is_admin?: boolean
           created_at?: string
@@ -90,7 +90,7 @@ export interface Database {
           name?: string
           email?: string
           phone?: string | null
-          role?: 'owner' | 'admin' | 'manager' | 'support' | 'user' | 'superadmin'
+          role?: 'owner' | 'manager' | 'agent_confirmation' | 'agent_warehouse' | 'superadmin'
           avatar_url?: string | null
           is_admin?: boolean
           created_at?: string
@@ -978,7 +978,7 @@ export interface Database {
         Row: {
           id: string
           organization_id: string
-          role: 'owner' | 'admin' | 'manager' | 'support' | 'user'
+          role: 'owner' | 'manager' | 'agent_confirmation' | 'agent_warehouse'
           feature: string
           enabled: boolean
           created_at: string
@@ -986,7 +986,7 @@ export interface Database {
         Insert: {
           id?: string
           organization_id: string
-          role: 'owner' | 'admin' | 'manager' | 'support' | 'user'
+          role: 'owner' | 'manager' | 'agent_confirmation' | 'agent_warehouse'
           feature: string
           enabled?: boolean
           created_at?: string
@@ -994,7 +994,7 @@ export interface Database {
         Update: {
           id?: string
           organization_id?: string
-          role?: 'owner' | 'admin' | 'manager' | 'support' | 'user'
+          role?: 'owner' | 'manager' | 'agent_confirmation' | 'agent_warehouse'
           feature?: string
           enabled?: boolean
           created_at?: string

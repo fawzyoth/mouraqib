@@ -1,6 +1,6 @@
 import { ref, type Ref } from 'vue'
 import { clientsService } from '@/services'
-import { dbClientToUI, uiClientToInsert } from '@/mappers/clients'
+import { dbClientToUI, uiClientToInsert, uiFormToUpdate } from '@/mappers/clients'
 import type { UIClient } from '@/mappers/clients'
 import { useToast } from './useToast'
 
@@ -59,6 +59,23 @@ export function useClientsData(orgId: Ref<string>) {
     }
   }
 
+  async function update(id: string, formData: Record<string, any>): Promise<UIClient | null> {
+    try {
+      const updates = uiFormToUpdate(formData)
+      const row = await clientsService.update(id, updates)
+      const uiClient = dbClientToUI(row)
+      const index = clientsList.value.findIndex(c => c.id === id)
+      if (index !== -1) {
+        clientsList.value[index] = { ...clientsList.value[index], ...uiClient }
+      }
+      toast.success('Client mis à jour')
+      return uiClient
+    } catch (e: any) {
+      toast.error('Erreur mise à jour client: ' + (e.message || e))
+      return null
+    }
+  }
+
   async function updateStatus(id: string, newStatus: 'active' | 'vip' | 'inactive' | 'blocked'): Promise<boolean> {
     try {
       await clientsService.update(id, { status: newStatus })
@@ -86,5 +103,5 @@ export function useClientsData(orgId: Ref<string>) {
     }
   }
 
-  return { clientsList, clientStats, isLoading, load, create, updateStatus, remove }
+  return { clientsList, clientStats, isLoading, load, create, update, updateStatus, remove }
 }

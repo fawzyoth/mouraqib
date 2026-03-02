@@ -42,7 +42,7 @@
         <div class="p-4 border-b border-gray-200 dark:border-gray-800 flex flex-wrap items-center gap-3">
           <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Actions par rôle :</span>
           <div v-for="role in ROLES" :key="role" class="flex items-center gap-1">
-            <span class="text-xs text-gray-500 capitalize">{{ role }}</span>
+            <span class="text-xs text-gray-500">{{ ROLE_LABELS[role] || role }}</span>
             <button
               @click="bulkSetRole(role, true)"
               class="px-2 py-0.5 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded hover:bg-green-200 dark:hover:bg-green-900/50"
@@ -64,8 +64,8 @@
             <thead>
               <tr class="bg-gray-50 dark:bg-gray-800/50">
                 <th class="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400 min-w-[250px]">Fonctionnalité</th>
-                <th v-for="role in ROLES" :key="role" class="text-center px-3 py-3 font-medium text-gray-600 dark:text-gray-400 capitalize w-24">
-                  {{ role }}
+                <th v-for="role in ROLES" :key="role" class="text-center px-3 py-3 font-medium text-gray-600 dark:text-gray-400 w-24">
+                  {{ ROLE_LABELS[role] || role }}
                 </th>
                 <th class="text-center px-3 py-3 font-medium text-gray-600 dark:text-gray-400 w-32">Tous</th>
               </tr>
@@ -168,7 +168,14 @@ defineEmits<{
   'toggle-submenu': []
 }>()
 
-const ROLES = ['owner', 'admin', 'manager', 'support', 'user'] as const
+const ROLES = ['owner', 'manager', 'agent_confirmation', 'agent_warehouse'] as const
+
+const ROLE_LABELS: Record<string, string> = {
+  owner: 'Owner',
+  manager: 'Manager',
+  agent_confirmation: 'Agent Confirm.',
+  agent_warehouse: 'Agent Entrepôt',
+}
 
 interface FeatureNode {
   id: string
@@ -279,7 +286,6 @@ const FEATURE_TREE: FeatureNode[] = [
     children: [
       { id: 'administration.admin-users', label: 'Liste des utilisateurs' },
       { id: 'administration.admin-billing', label: 'Facturation comptes' },
-      { id: 'administration.admin-transactions', label: 'Transactions' },
     ],
   },
 ]

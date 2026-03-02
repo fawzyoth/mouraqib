@@ -147,10 +147,10 @@
                       class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
                     >
                       <option value="">Sélectionner...</option>
-                      <option value="admin">Administrateur</option>
+                      <option value="owner">Owner</option>
                       <option value="manager">Manager</option>
-                      <option value="operator">Opérateur</option>
-                      <option value="viewer">Lecteur</option>
+                      <option value="agent_confirmation">Agent Confirmation</option>
+                      <option value="agent_warehouse">Agent Entrepôt</option>
                     </select>
                   </div>
                 </div>
@@ -483,20 +483,20 @@ function removeMember(memberId: string) {
 
 function getRoleClass(role: string): string {
   const classes: Record<string, string> = {
-    admin: 'bg-blue-100 text-blue-700',
-    manager: 'bg-purple-100 text-purple-700',
-    operator: 'bg-green-100 text-green-700',
-    viewer: 'bg-gray-100 text-gray-700'
+    owner: 'bg-purple-100 text-purple-700',
+    manager: 'bg-blue-100 text-blue-700',
+    agent_confirmation: 'bg-green-100 text-green-700',
+    agent_warehouse: 'bg-orange-100 text-orange-700',
   }
   return classes[role] || 'bg-gray-100 text-gray-700'
 }
 
 function getRoleLabel(role: string): string {
   const labels: Record<string, string> = {
-    admin: 'Administrateur',
+    owner: 'Owner',
     manager: 'Manager',
-    operator: 'Opérateur',
-    viewer: 'Lecteur'
+    agent_confirmation: 'Agent Confirmation',
+    agent_warehouse: 'Agent Entrepôt',
   }
   return labels[role] || role
 }

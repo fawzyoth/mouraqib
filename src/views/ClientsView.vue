@@ -7,7 +7,7 @@
     @toggle-submenu="subMenuOpen = !subMenuOpen"
     @open-add-client="navigateTo('add-client')"
     @view-client="(c: any) => { selectedClient = c; showClientDetail = true }"
-    @edit-client="(c: any) => { selectedClient = c; showClientDetail = true; isEditingClient = true }"
+    @edit-client="(c: any) => { selectedClient = c; showClientDetail = true; enterEditMode(c) }"
     @toggle-vip="toggleClientVip"
     @toggle-blocked="toggleClientBlocked"
   />
@@ -55,7 +55,7 @@
     :edit-form="editClientForm"
     :is-saving="isSavingClient"
     @close="selectedClient = null; showClientDetail = false; isEditingClient = false"
-    @enter-edit="isEditingClient = true"
+    @enter-edit="enterEditMode(selectedClient)"
     @cancel-edit="isEditingClient = false"
     @save="saveClientEdit"
   />
@@ -97,18 +97,55 @@ const isEditingClient = ref(false)
 const isSavingClient = ref(false)
 const editClientForm = reactive({
   name: '',
-  email: '',
   phone: '',
+  phoneSecondary: '',
+  email: '',
   address: '',
+  region: '',
+  delegation: '',
+  locality: '',
+  postalCode: '',
+  status: 'active',
+  notes: '',
 })
 
 // VIP stats
 const totalVipRevenue = ref(0)
 const avgVipDeliveryRate = ref(0)
 
+function enterEditMode(client: any) {
+  if (client) {
+    editClientForm.name = client.name || ''
+    editClientForm.phone = client.phone || ''
+    editClientForm.phoneSecondary = client.phoneSecondary || ''
+    editClientForm.email = client.email || ''
+    editClientForm.address = client.address || ''
+    editClientForm.region = client.region || ''
+    editClientForm.delegation = client.delegation || ''
+    editClientForm.locality = client.locality || ''
+    editClientForm.postalCode = client.postalCode || ''
+    editClientForm.status = client.status || 'active'
+    editClientForm.notes = client.notes || ''
+  }
+  isEditingClient.value = true
+}
+
+async function saveClientEdit() {
+  if (!selectedClient.value?.id) return
+  isSavingClient.value = true
+  try {
+    const updated = await appStore.clientsData.update(selectedClient.value.id, editClientForm)
+    if (updated) {
+      selectedClient.value = { ...selectedClient.value, ...updated }
+      isEditingClient.value = false
+    }
+  } finally {
+    isSavingClient.value = false
+  }
+}
+
 // Stubs (will be migrated from DTV)
 function addClient(_data: any) { /* stub */ }
 function toggleClientVip(_client: any) { /* stub */ }
 function toggleClientBlocked(_client: any) { /* stub */ }
-function saveClientEdit() { /* stub */ }
 </script>

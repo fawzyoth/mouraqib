@@ -1,5 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { isSupabaseConfigured } from '@/lib/supabase'
 import { subSectionRoutes } from '@/composables/useNavigation'
 import { useAuthStore } from '@/stores/auth'
 import { featureFlagsService } from '@/services/featureFlags'
@@ -91,9 +91,8 @@ const router = createRouter({
   }
 })
 
-// Navigation guard
-router.beforeEach(async (to, from, next) => {
-  // Check if route requires authentication
+// Navigation guard — waits for auth init, then uses in-memory state (no per-nav getSession calls)
+router.beforeEach(async (to, _from, next) => {
   const requiresAuth = to.meta.requiresAuth
   const authRedirect = to.meta.authRedirect
 
@@ -114,14 +113,14 @@ router.beforeEach(async (to, from, next) => {
     return next()
   }
 
-  // Get current session
-  let isAuthenticated = false
-  try {
-    const { data: { session } } = await supabase.auth.getSession()
-    isAuthenticated = !!session
-  } catch (error) {
-    console.error('Error checking auth session:', error)
+  // Wait for the auth store to finish its one-time init (restores session from
+  // localStorage).  After that, we rely on in-memory state kept in sync by
+  // onAuthStateChange — no per-navigation getSession() calls.
+  const authStore = useAuthStore()
+  if (!authStore.isInitialized) {
+    await authStore.initialize()
   }
+  const isAuthenticated = authStore.isAuthenticated
 
   // If route requires auth and user is not authenticated
   if (requiresAuth && !isAuthenticated) {
@@ -138,26 +137,27 @@ router.beforeEach(async (to, from, next) => {
 
   // If route requires admin and user is not a platform admin
   if (to.meta.requiresAdmin && isAuthenticated) {
-    const authStore = useAuthStore()
     if (!authStore.isPlatformAdmin) {
       return next({ path: '/dashboard' })
     }
   }
 
-  // Feature flag check — skip for demo mode (already handled above) and dashboard (fallback route)
+  // Feature flag check — use cached flags (synchronous, no network call)
   if (isAuthenticated && to.meta.feature && to.meta.mainSection && to.meta.mainSection !== 'dashboard') {
-    const authStore = useAuthStore()
     const orgId = authStore.user?.organizationId
-    const role = authStore.user?.role || 'user'
+    const role = authStore.user?.role || 'agent_confirmation'
 
     // Superadmin bypasses all feature flag checks
     if (role === 'superadmin') return next()
 
     if (orgId) {
-      try {
-        const flags = await featureFlagsService.getForOrg(orgId)
+      // Use cached flags only — featureFlagsService returns from cache if available
+      const now = Date.now()
+      const cachedFlags = featureFlagsService.getCached?.() ?? null
+
+      if (cachedFlags) {
         const flagMap = new Map<string, boolean>()
-        for (const f of flags) {
+        for (const f of cachedFlags) {
           flagMap.set(`${f.role}.${f.feature}`, f.enabled)
         }
 
@@ -175,10 +175,8 @@ router.beforeEach(async (to, from, next) => {
         if (flagMap.has(featureKey) && !flagMap.get(featureKey)) {
           return next({ path: '/dashboard' })
         }
-      } catch (err) {
-        // On error, allow navigation (fail-open)
-        console.error('Feature flag check failed:', err)
       }
+      // If no cached flags, allow navigation (fail-open). Flags will load on next page mount.
     }
   }
 

@@ -33,6 +33,12 @@ export const featureFlagsService = {
     _cacheTimestamp = 0
   },
 
+  /** Return cached flags synchronously (or null if not yet loaded). */
+  getCached(): FeatureFlag[] | null {
+    if (!_cachedOrgId || _cachedFlags.length === 0) return null
+    return _cachedFlags
+  },
+
   async getForOrgAdmin(organizationId: string): Promise<FeatureFlag[]> {
     const { data, error } = await supabase
       .from('feature_flags')
