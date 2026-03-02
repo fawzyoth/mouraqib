@@ -1,5 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { isSupabaseConfigured } from '@/lib/supabase'
 import { subSectionRoutes } from '@/composables/useNavigation'
 import { useAuthStore } from '@/stores/auth'
 import { featureFlagsService } from '@/services/featureFlags'
@@ -76,68 +76,80 @@ const router = createRouter({
   }
 })
 
-// Navigation guard
+// Navigation guard — uses cached auth state from the Pinia store to avoid
+// async getSession() calls that can hang after browser-tab switches.
 router.beforeEach(async (to, from, next) => {
-  // Check if route requires authentication
   const requiresAuth = to.meta.requiresAuth
   const authRedirect = to.meta.authRedirect
 
   // Check for demo mode first
   const isDemoMode = localStorage.getItem('demoMode') === 'true'
   if (isDemoMode) {
-    if (authRedirect) {
-      return next({ path: '/dashboard' })
-    }
+    if (authRedirect) return next({ path: '/dashboard' })
     return next()
   }
 
   // Skip auth checks if Supabase is not configured
   if (!isSupabaseConfigured) {
-    if (requiresAuth) {
-      return next({ name: 'signin' })
-    }
+    if (requiresAuth) return next({ name: 'signin' })
     return next()
   }
 
-  // Get current session
-  let isAuthenticated = false
-  try {
-    const { data: { session } } = await supabase.auth.getSession()
-    isAuthenticated = !!session
-  } catch (error) {
-    console.error('Error checking auth session:', error)
+  // Ensure auth store is initialized (awaits the same promise if already in progress)
+  const authStore = useAuthStore()
+  if (!authStore.isInitialized) {
+    await Promise.race([
+      authStore.initialize(),
+      new Promise<void>(resolve => setTimeout(resolve, 3000)),
+    ])
   }
 
-  // If route requires auth and user is not authenticated
+  // Use cached auth state — no async Supabase call on every navigation
+  const isAuthenticated = authStore.isAuthenticated
+
   if (requiresAuth && !isAuthenticated) {
-    return next({
-      name: 'signin',
-      query: { redirect: to.fullPath }
-    })
+    return next({ name: 'signin', query: { redirect: to.fullPath } })
   }
 
-  // If user is authenticated and trying to access auth pages
   if (authRedirect && isAuthenticated) {
     return next({ path: '/dashboard' })
   }
 
-  // If route requires admin and user is not a platform admin
   if (to.meta.requiresAdmin && isAuthenticated) {
-    const authStore = useAuthStore()
     if (!authStore.isPlatformAdmin) {
       return next({ path: '/dashboard' })
     }
   }
 
-  // Feature flag check — skip for demo mode (already handled above)
+  // Role-based section guard (defense in depth alongside feature flags)
+  if (isAuthenticated && to.meta.mainSection) {
+    const role = authStore.user?.role || 'agent_warehouse'
+    const section = to.meta.mainSection as string
+    const SECTION_ACCESS: Record<string, string[]> = {
+      clients:        ['owner', 'manager', 'agent_confirmation'],
+      carriers:       ['owner', 'manager'],
+      finance:        ['owner', 'manager'],
+      analytics:      ['owner', 'manager'],
+      settings:       ['owner', 'manager'],
+      administration: ['owner'],
+    }
+    const allowedRoles = SECTION_ACCESS[section]
+    if (allowedRoles && !allowedRoles.includes(role)) {
+      return next({ path: '/dashboard' })
+    }
+  }
+
+  // Feature flag check — uses service cache (sync if cache is fresh)
   if (isAuthenticated && to.meta.feature && to.meta.mainSection) {
-    const authStore = useAuthStore()
     const orgId = authStore.user?.organizationId
-    const role = authStore.user?.role || 'user'
+    const role = authStore.user?.role || 'agent_warehouse'
 
     if (orgId) {
       try {
-        const flags = await featureFlagsService.getForOrg(orgId)
+        const flags = await Promise.race([
+          featureFlagsService.getForOrg(orgId),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+        ])
         const flagMap = new Map<string, boolean>()
         for (const f of flags) {
           flagMap.set(`${f.role}.${f.feature}`, f.enabled)
@@ -146,20 +158,17 @@ router.beforeEach(async (to, from, next) => {
         const feature = to.meta.feature as string
         const mainSection = to.meta.mainSection as string
 
-        // Check parent section
         const parentKey = `${role}.${mainSection}`
         if (flagMap.has(parentKey) && !flagMap.get(parentKey)) {
           return next({ path: '/dashboard' })
         }
 
-        // Check specific feature
         const featureKey = `${role}.${feature}`
         if (flagMap.has(featureKey) && !flagMap.get(featureKey)) {
           return next({ path: '/dashboard' })
         }
-      } catch (err) {
-        // On error, allow navigation (fail-open)
-        console.error('Feature flag check failed:', err)
+      } catch {
+        // On error or timeout, allow navigation (fail-open)
       }
     }
   }

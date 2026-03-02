@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js'
-import type { Profile, Organization } from '@/types/database'
+import type { Profile, Organization, UserRole } from '@/types/database'
 
 export interface User {
   id: string
@@ -10,7 +10,7 @@ export interface User {
   email: string
   organization: string
   organizationId: string | null
-  role: string
+  role: UserRole
   isAdmin: boolean
   avatarUrl: string | null
 }
@@ -23,12 +23,22 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoading = ref(false)
   const isInitialized = ref(false)
   const isDemoMode = ref(false)
+  const isCreatingMember = ref(false)
 
   const isAuthenticated = computed(() => isDemoMode.value || (!!session.value && !!user.value))
   const isPlatformAdmin = computed(() => user.value?.isAdmin ?? false)
 
-  async function initialize() {
-    if (isInitialized.value) return
+  // Store the init promise so multiple callers can await the same initialization
+  let _initPromise: Promise<void> | null = null
+
+  function initialize(): Promise<void> {
+    if (isInitialized.value) return Promise.resolve()
+    if (_initPromise) return _initPromise
+    _initPromise = _doInitialize()
+    return _initPromise
+  }
+
+  async function _doInitialize() {
 
     // Check for demo mode first
     checkDemoMode()
@@ -55,6 +65,9 @@ export const useAuthStore = defineStore('auth', () => {
 
       // Listen for auth changes
       supabase.auth.onAuthStateChange(async (event, newSession) => {
+        // Skip auth events while creating a member (signUp triggers SIGNED_IN for the new user)
+        if (isCreatingMember.value) return
+
         session.value = newSession
 
         if (event === 'SIGNED_IN' && newSession) {
@@ -97,7 +110,7 @@ export const useAuthStore = defineStore('auth', () => {
           email: supabaseUser.email || '',
           organization: '',
           organizationId: null,
-          role: 'user',
+          role: 'agent_warehouse',
           isAdmin: false,
           avatarUrl: null
         }
@@ -372,6 +385,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     isPlatformAdmin,
     isDemoMode,
+    isCreatingMember,
     initialize,
     signIn,
     signInDemo,

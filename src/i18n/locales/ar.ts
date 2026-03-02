@@ -662,7 +662,7 @@ export default {
   placeholders: {
     nameExample: 'مثال: أحمد بن علي',
     phoneExample: 'مثال: 98 123 456',
-    emailExample: 'مثال: client@email.com',
+    emailExample: "مثال: client{'@'}email.com",
     addressExample: 'مثال: 15 نهج الحرية',
     postalCodeExample: 'مثال: 1002',
     notesPlaceholder: 'ملاحظات على الحريف (تفضيلات التوصيل، الخ...)'
@@ -684,5 +684,99 @@ export default {
     unblockClient: 'فك الحظر',
     viewDetails: 'شوف التفاصيل',
     editClient: 'بدّل'
+  },
+
+  // Detail panels
+  details: {
+    shipmentDetails: 'تفاصيل الكولي',
+    clientDetails: 'تفاصيل الحريف',
+    recipient: 'المرسل إليه',
+    carrier: 'الشركة',
+    amount: 'المبلغ',
+    date: 'التاريخ'
+  },
+
+  // Returns section titles
+  returnsList: {
+    activeReturns: 'مرجوعات نشطة',
+    recoveredReturns: 'مرجوعات استرجعت',
+    lostReturns: 'مرجوعات ضايعة'
+  },
+
+  // Company Profile
+  companyProfile: {
+    changeLogo: 'بدّل اللوغو',
+    generalInfo: 'معلومات عامة',
+    companyName: 'اسم الشركة',
+    taxId: 'المعرّف الجبائي',
+    postalCode: 'الرمز البريدي',
+    businessSettings: 'إعدادات تجارية',
+    currency: 'العملة',
+    timezone: 'التوقيت'
+  },
+
+  // Users & Roles
+  usersRoles: {
+    subtitle: 'تنجّم تدير أعضاء الفريق متاعك والصلاحيات متاعهم',
+    members: 'الأعضاء',
+    member: 'عضو',
+    roles: 'الأدوار',
+    role: 'الدور',
+    status: 'الحالة',
+    lastLogin: 'آخر دخول',
+    addMember: 'زيد عضو',
+    editMember: 'عدّل العضو',
+    invite: 'ادعي',
+    searchPlaceholder: 'ابحث بالاسم ولا الإيمايل',
+    filterByRole: 'فلتر بالدور',
+    clear: 'امسح',
+    apply: 'طبّق',
+    noMembers: 'ما لقينا حتى عضو',
+    fullName: 'الاسم الكامل',
+    namePlaceholder: 'محمد بن علي',
+    emailPlaceholder: "mohamed{'@'}exemple.tn",
+    selectRole: 'اختار دور',
+    statusActive: 'نشط',
+    statusInvited: 'مدعو',
+    statusInactive: 'غير نشط',
+    createRole: 'أنشئ دور',
+    editRole: 'عدّل الدور',
+    roleName: 'اسم الدور',
+    roleNamePlaceholder: 'مسؤول المخزون',
+    description: 'الوصف',
+    roleDescriptionPlaceholder: 'وصّف مسؤوليات هالدور',
+    permissions: 'الصلاحيات',
+    rolesDescription: 'أنشئ أدوار مخصصة بصلاحيات محددة باش تتحكم أكثر في الوصول.',
+    default: 'افتراضي',
+    noDescription: 'ما فماش وصف',
+    others: 'أخرين',
+    confirmDelete: 'تأكيد الحذف',
+    confirmDeleteMember: 'متأكد تحب تحذف {name}؟ هالعملية ما تتراجعش.',
+    confirmDeleteRole: 'متأكد تحب تحذف الدور "{name}"؟ الأعضاء بهالدور باش يتنقلوا للدور الافتراضي.',
+    memberAdded: 'العضو تبعث بنجاح',
+    memberUpdated: 'العضو تحدّث',
+    memberRemoved: 'العضو تحذف',
+    roleCreated: 'الدور تخلق بنجاح',
+    roleUpdated: 'الدور تحدّث',
+    roleRemoved: 'الدور تحذف',
+    errorAddMember: 'خطأ في دعوة العضو',
+    errorUpdateMember: 'خطأ في تحديث العضو',
+    errorRemoveMember: 'خطأ في حذف العضو',
+    errorAddRole: 'خطأ في خلق الدور',
+    errorUpdateRole: 'خطأ في تحديث الدور',
+    errorRemoveRole: 'خطأ في حذف الدور',
+    password: 'كلمة السر',
+    passwordPlaceholder: 'أقل حاجة 6 حروف',
+    passwordMinLength: 'كلمة السر لازم فيها 6 حروف على الأقل',
+    roleOwner: 'المالك',
+    roleManager: 'مدير',
+    roleAgentConfirmation: 'عون تأكيد',
+    roleAgentWarehouse: 'عون مستودع',
+    roleOwnerDesc: 'وصول كامل لكل شيء، بما في ذلك الحذف.',
+    roleManagerDesc: 'وصول كامل لكل الأقسام، من غير حذف.',
+    roleAgentConfirmationDesc: 'وصول للوحة التحكم، الطرود، العملاء، الالتقاطات والمرتجعات.',
+    roleAgentWarehouseDesc: 'وصول للوحة التحكم، الطرود، الالتقاطات والمرتجعات فقط.',
+    deleteNotAllowed: 'كان المالك ينجم يحذف.',
+    sectionNotAllowed: 'ما عندكش وصول لهالقسم.'
   }
 }

@@ -5,6 +5,8 @@ import { verifyUser, hasRole } from '../_shared/auth.ts'
 
 interface InviteRequest {
   email: string
+  name: string
+  password: string
   role: string
   boutiqueIds?: string[]
 }
@@ -24,26 +26,33 @@ serve(async (req) => {
       )
     }
 
-    if (!hasRole(user, ['owner', 'admin'])) {
+    if (!hasRole(user, ['owner', 'manager'])) {
       return new Response(
-        JSON.stringify({ error: 'Forbidden: only owners and admins can invite members' }),
+        JSON.stringify({ error: 'Forbidden: only owners and managers can invite members' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     // 2. Parse request
     const body: InviteRequest = await req.json()
-    const { email, role, boutiqueIds } = body
+    const { email, name, password, role, boutiqueIds } = body
 
-    if (!email || !role) {
+    if (!email || !role || !password || !name) {
       return new Response(
-        JSON.stringify({ error: 'Email and role are required' }),
+        JSON.stringify({ error: 'Name, email, password and role are required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (password.length < 6) {
+      return new Response(
+        JSON.stringify({ error: 'Password must be at least 6 characters' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     // Validate role
-    const validRoles = ['admin', 'manager', 'support', 'user']
+    const validRoles = ['manager', 'agent_confirmation', 'agent_warehouse']
     if (!validRoles.includes(role)) {
       return new Response(
         JSON.stringify({ error: `Invalid role. Must be one of: ${validRoles.join(', ')}` }),
@@ -68,30 +77,32 @@ serve(async (req) => {
       )
     }
 
-    // 4. Invite user via Supabase Auth admin API (sends magic link email)
-    const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
-      data: {
+    // 4. Create user with password via Supabase Auth admin API
+    const { data: createData, error: createError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true, // Auto-confirm so they can log in immediately
+      user_metadata: {
+        name,
         invited_by: user.id,
         organization_id: user.organizationId,
-        role: role,
+        role,
       },
     })
 
-    if (inviteError) {
+    if (createError) {
       // If user already exists in auth but not in this org, just create profile
-      if (inviteError.message.includes('already been registered')) {
-        // Look up the existing auth user
+      if (createError.message.includes('already been registered') || createError.message.includes('already exists')) {
         const { data: { users } } = await supabase.auth.admin.listUsers()
-        const existingUser = users?.find(u => u.email === email)
+        const existingUser = users?.find((u: any) => u.email === email)
 
         if (existingUser) {
-          // Create profile for existing user in this org
           const { data: newProfile, error: profileError } = await supabase
             .from('profiles')
             .insert({
               id: existingUser.id,
               organization_id: user.organizationId,
-              name: existingUser.user_metadata?.name ?? email.split('@')[0],
+              name: existingUser.user_metadata?.name ?? name ?? email.split('@')[0],
               email,
               role,
               is_admin: false,
@@ -106,7 +117,6 @@ serve(async (req) => {
             )
           }
 
-          // Assign boutiques if specified
           if (boutiqueIds && boutiqueIds.length > 0) {
             await supabase.from('profile_boutiques').insert(
               boutiqueIds.map(bid => ({
@@ -124,19 +134,19 @@ serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({ error: 'Failed to send invitation', details: inviteError.message }),
+        JSON.stringify({ error: 'Failed to create user', details: createError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // 5. Create profile for the invited user
-    if (inviteData.user) {
+    // 5. Create profile for the new user
+    if (createData.user) {
       const { data: newProfile, error: profileError } = await supabase
         .from('profiles')
         .insert({
-          id: inviteData.user.id,
+          id: createData.user.id,
           organization_id: user.organizationId,
-          name: email.split('@')[0],
+          name,
           email,
           role,
           is_admin: false,
@@ -163,19 +173,19 @@ serve(async (req) => {
         organization_id: user.organizationId,
         user_id: user.id,
         type: 'settings',
-        message: `Invited ${email} as ${role}`,
+        message: `Created member ${name} (${email}) as ${role}`,
         entity_type: 'profile',
         entity_id: newProfile?.id,
       })
 
       return new Response(
-        JSON.stringify({ profileId: newProfile?.id, inviteSent: true }),
+        JSON.stringify({ profileId: newProfile?.id }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     return new Response(
-      JSON.stringify({ error: 'Unexpected: no user returned from invite' }),
+      JSON.stringify({ error: 'Unexpected: no user returned from create' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {

@@ -6,7 +6,7 @@
   >
     <div class="text-center">
       <Loader2 class="w-8 h-8 animate-spin text-primary-blue mx-auto mb-3" />
-      <p class="text-sm text-gray-500">Chargement...</p>
+      <p class="text-sm text-gray-500">{{ t('common.loading') }}</p>
     </div>
   </div>
 
@@ -283,7 +283,7 @@
     <ReturnsList
       v-else-if="activeSection === 'active-returns' || activeSection === 'recovered-returns' || activeSection === 'lost-returns'"
       :mode="activeSection === 'active-returns' ? 'active' : activeSection === 'recovered-returns' ? 'recovered' : 'lost'"
-      :section-title="activeSection === 'active-returns' ? 'Retours actifs' : activeSection === 'recovered-returns' ? 'Retours récupérés' : 'Retours perdus'"
+      :section-title="activeSection === 'active-returns' ? t('returnsList.activeReturns') : activeSection === 'recovered-returns' ? t('returnsList.recoveredReturns') : t('returnsList.lostReturns')"
       :filtered-returns="filteredReturns"
       :active-returns-stats="activeReturnsStats"
       :is-syncing-returns="isSyncingReturns"
@@ -316,6 +316,7 @@
       :selected-carrier="selectedCarrier"
       :delivery-carriers-count="deliveryCarriers.length - carriers.length"
       :syncing-carrier-id="syncingCarrierId"
+      :can-delete="canDelete"
       @toggle-sub-menu="subMenuOpen = !subMenuOpen"
       @navigate="navigateTo"
       @select-carrier="selectCarrier"
@@ -466,8 +467,15 @@
     <UsersRoles
       v-else-if="activeSection === 'users-roles'"
       :team-members="teamMembers"
+      :available-roles="availableRoles"
+      :can-delete="canDelete"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
-      @update-members="teamMembers = $event"
+      @add-member="handleAddMember"
+      @update-member="handleUpdateMember"
+      @remove-member="handleRemoveMember"
+      @add-role="handleAddRole"
+      @update-role="handleUpdateRole"
+      @remove-role="handleRemoveRole"
     />
 
     <!-- Admin: Users -->
@@ -497,6 +505,7 @@
     <!-- Settings: Company Profile -->
     <CompanyProfile
       v-else-if="activeSection === 'company-profile'"
+      :initial-profile="companyProfile"
       @toggle-submenu="subMenuOpen = !subMenuOpen"
       @save="saveCompanyProfile"
     />
@@ -784,6 +793,7 @@ import {
   Loader2
 } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import {
   shipmentsService,
@@ -797,6 +807,7 @@ import {
   carrierPaymentsService,
   paymentDiscrepanciesService,
   failedSearchesService,
+  organizationsService,
 } from '@/services'
 import { useCarriersData } from '@/composables/useCarriersData'
 import { useBoutiquesData } from '@/composables/useBoutiquesData'
@@ -817,6 +828,7 @@ import { toggleInArray } from '@/composables/useArrayToggle'
 import { getStatusLabel, getStatusTextClass, getStatusDotClass, getRoleClass, getRoleLabel } from '@/composables/useStatusFormatting'
 import { useNavigation, mainNavigation, subNavigation } from '@/composables/useNavigation'
 import { useFeatureFlags } from '@/composables/useFeatureFlags'
+import { usePermissions } from '@/composables/usePermissions'
 import AppShell from '@/components/layout/AppShell.vue'
 
 // Feature components
@@ -886,6 +898,7 @@ import {
 } from '@/data/pricing'
 
 const router = useRouter()
+const { t } = useI18n()
 const authStore = useAuthStore()
 const toast = useToast()
 
@@ -902,8 +915,8 @@ const pickupsData = usePickupsData(orgId)
 const orgData = useOrganizationData(orgId)
 const financeData = useFinanceData(orgId)
 
-function handleLogout() {
-  authStore.signOut()
+async function handleLogout() {
+  await authStore.signOut()
   router.push('/signin')
 }
 
@@ -912,6 +925,9 @@ const isAdmin = computed(() => authStore.isPlatformAdmin)
 
 // Feature flags
 const { isFeatureEnabled, loadFlags: loadFeatureFlags } = useFeatureFlags(orgId)
+
+// Permissions
+const { canDelete } = usePermissions()
 
 // Navigation state (from composable - includes localStorage persistence)
 const {
@@ -2054,249 +2070,42 @@ function toggleFlow(index: number) {
 }
 
 // Members & Roles Management
-const membersTab = ref('members')
-const memberSearchQuery = ref('')
-const showRoleFilter = ref(false)
-const selectedRoleFilters = ref<string[]>([])
-const showMemberModal = ref(false)
-const showRoleModal = ref(false)
-const showDeleteConfirm = ref(false)
-const deleteConfirmMessage = ref('')
-const deleteTarget = ref<{ type: 'member' | 'role', id: number | string } | null>(null)
-const editingMember = ref<any>(null)
-const editingRole = ref<any>(null)
-
-const memberForm = ref({
-  name: '',
-  email: '',
-  role: '',
-  status: 'active'
-})
-
-const roleForm = ref({
-  name: '',
-  description: '',
-  permissions: [] as string[]
-})
-
 const availableRoles = ref<any[]>([])
 
-const permissionCategories = [
-  {
-    name: 'Colis',
-    permissions: [
-      { id: 'shipments.view', label: 'Voir les colis' },
-      { id: 'shipments.create', label: 'Créer des colis' },
-      { id: 'shipments.update', label: 'Modifier les colis' },
-      { id: 'shipments.delete', label: 'Supprimer les colis' },
-      { id: 'shipments.all', label: 'Toutes permissions colis' }
-    ]
-  },
-  {
-    name: 'Clients',
-    permissions: [
-      { id: 'clients.view', label: 'Voir les clients' },
-      { id: 'clients.manage', label: 'Gérer les clients' }
-    ]
-  },
-  {
-    name: 'Utilisateurs',
-    permissions: [
-      { id: 'users.view', label: 'Voir les utilisateurs' },
-      { id: 'users.manage', label: 'Gérer les utilisateurs' }
-    ]
-  },
-  {
-    name: 'Paramètres',
-    permissions: [
-      { id: 'settings.view', label: 'Voir les paramètres' },
-      { id: 'settings.manage', label: 'Modifier les paramètres' },
-      { id: 'billing.view', label: 'Voir la facturation' }
-    ]
-  },
-  {
-    name: 'Rapports',
-    permissions: [
-      { id: 'reports.view', label: 'Voir les rapports' },
-      { id: 'reports.export', label: 'Exporter les rapports' }
-    ]
-  }
-]
-
-const filteredMembers = computed(() => {
-  let members = teamMembers.value
-
-  if (memberSearchQuery.value) {
-    const query = memberSearchQuery.value.toLowerCase()
-    members = members.filter(m =>
-      m.name.toLowerCase().includes(query) ||
-      m.email.toLowerCase().includes(query)
-    )
-  }
-
-  if (selectedRoleFilters.value.length > 0) {
-    members = members.filter(m =>
-      selectedRoleFilters.value.some(roleId => {
-        const role = availableRoles.value.find(r => r.id === roleId)
-        return role && m.role === role.name
-      })
-    )
-  }
-
-  return members
-})
-
-function openAddMemberModal() {
-  editingMember.value = null
-  memberForm.value = { name: '', email: '', role: '', status: 'active' }
-  showMemberModal.value = true
-}
-
-function editMember(member: any) {
-  editingMember.value = member
-  memberForm.value = {
-    name: member.name,
-    email: member.email,
-    role: member.role,
-    status: member.status || 'active'
-  }
-  showMemberModal.value = true
-}
-
-function closeMemberModal() {
-  showMemberModal.value = false
-  editingMember.value = null
-}
-
-async function saveMember() {
-  if (!memberForm.value.name || !memberForm.value.email || !memberForm.value.role) {
-    alert('Veuillez remplir tous les champs obligatoires')
-    return
-  }
-
-  if (!authStore.isDemoMode && !editingMember.value) {
-    await orgData.addMember({
-      name: memberForm.value.name,
-      email: memberForm.value.email,
-      role: memberForm.value.role,
-    })
-    teamMembers.value = orgData.teamMembers.value
-    closeMemberModal()
-    return
-  }
-
-  if (editingMember.value) {
-    const index = teamMembers.value.findIndex(m => m.id === editingMember.value.id)
-    if (index !== -1) {
-      teamMembers.value[index] = {
-        ...teamMembers.value[index],
-        name: memberForm.value.name,
-        email: memberForm.value.email,
-        role: memberForm.value.role,
-        status: memberForm.value.status,
-        initials: memberForm.value.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-      }
+// Load from localStorage as fallback
+const savedMembers = localStorage.getItem('teamMembers')
+if (savedMembers) {
+  try {
+    const parsed = JSON.parse(savedMembers)
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      teamMembers.value = parsed
     }
-  } else {
-    const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500']
-    teamMembers.value.push({
-      id: Date.now(),
-      name: memberForm.value.name,
-      email: memberForm.value.email,
-      role: memberForm.value.role,
-      status: 'invited',
-      lastLogin: 'Jamais',
-      initials: memberForm.value.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
-      avatarColor: colors[Math.floor(Math.random() * colors.length)]
-    })
-    updateRoleCounts()
-  }
-
-  closeMemberModal()
+  } catch { /* ignore */ }
 }
 
-function confirmDeleteMember(member: any) {
-  deleteTarget.value = { type: 'member', id: member.id }
-  deleteConfirmMessage.value = `Êtes-vous sûr de vouloir supprimer ${member.name} ? Cette action est irréversible.`
-  showDeleteConfirm.value = true
-}
-
-function openAddRoleModal() {
-  editingRole.value = null
-  roleForm.value = { name: '', description: '', permissions: [] }
-  showRoleModal.value = true
-}
-
-function editRole(role: any) {
-  editingRole.value = role
-  roleForm.value = {
-    name: role.name,
-    description: role.description || '',
-    permissions: [...(role.permissions || [])]
-  }
-  showRoleModal.value = true
-}
-
-function closeRoleModal() {
-  showRoleModal.value = false
-  editingRole.value = null
-}
-
-function saveRole() {
-  if (!roleForm.value.name) {
-    alert('Veuillez entrer un nom de rôle')
-    return
-  }
-
-  if (editingRole.value) {
-    const index = availableRoles.value.findIndex(r => r.id === editingRole.value.id)
-    if (index !== -1) {
-      availableRoles.value[index] = {
-        ...availableRoles.value[index],
-        name: roleForm.value.name,
-        description: roleForm.value.description,
-        permissions: roleForm.value.permissions
-      }
+const savedRoles = localStorage.getItem('availableRoles')
+if (savedRoles) {
+  try {
+    const parsed = JSON.parse(savedRoles)
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      availableRoles.value = parsed
     }
-  } else {
-    availableRoles.value.push({
-      id: 'custom-' + Date.now(),
-      name: roleForm.value.name,
-      description: roleForm.value.description,
-      memberCount: 0,
-      isDefault: false,
-      isOwner: false,
-      permissions: roleForm.value.permissions
-    })
-  }
-
-  closeRoleModal()
+  } catch { /* ignore */ }
 }
 
-function confirmDeleteRole(role: any) {
-  deleteTarget.value = { type: 'role', id: role.id }
-  deleteConfirmMessage.value = `Êtes-vous sûr de vouloir supprimer le rôle "${role.name}" ? Les membres avec ce rôle seront déplacés vers le rôle par défaut.`
-  showDeleteConfirm.value = true
+// If no roles loaded yet (no Supabase, no localStorage), provide defaults
+if (availableRoles.value.length === 0) {
+  availableRoles.value = [
+    { id: 'owner', name: 'Owner', description: 'Propriétaire. Accès complet et suppression.', memberCount: 1, isDefault: true, isOwner: true, isSystem: true, permissions: ['all'] },
+    { id: 'manager', name: 'Manager', description: 'Accès complet sans suppression.', memberCount: 0, isDefault: true, isOwner: false, isSystem: true, permissions: ['users.manage', 'settings.manage', 'billing.view', 'shipments.all', 'clients.manage', 'reports.view'] },
+    { id: 'agent_confirmation', name: 'Agent Confirmation', description: 'Dashboard, colis, clients, enlèvements, retours.', memberCount: 0, isDefault: true, isOwner: false, isSystem: true, permissions: ['shipments.view', 'shipments.create', 'shipments.update', 'clients.view', 'clients.manage'] },
+    { id: 'agent_warehouse', name: 'Agent Entrepôt', description: 'Dashboard, colis, enlèvements, retours.', memberCount: 0, isDefault: true, isOwner: false, isSystem: true, permissions: ['shipments.view', 'shipments.update'] },
+  ]
 }
 
-function executeDelete() {
-  if (!deleteTarget.value) return
-
-  if (deleteTarget.value.type === 'member') {
-    const index = teamMembers.value.findIndex(m => m.id === deleteTarget.value!.id)
-    if (index !== -1) {
-      teamMembers.value.splice(index, 1)
-      updateRoleCounts()
-    }
-  } else if (deleteTarget.value.type === 'role') {
-    const index = availableRoles.value.findIndex(r => r.id === deleteTarget.value!.id)
-    if (index !== -1) {
-      availableRoles.value.splice(index, 1)
-    }
-  }
-
-  showDeleteConfirm.value = false
-  deleteTarget.value = null
+function persistMembersAndRoles() {
+  localStorage.setItem('teamMembers', JSON.stringify(teamMembers.value))
+  localStorage.setItem('availableRoles', JSON.stringify(availableRoles.value))
 }
 
 function updateRoleCounts() {
@@ -2305,20 +2114,141 @@ function updateRoleCounts() {
   })
 }
 
-function exportMembers() {
-  const data = teamMembers.value.map(m => ({
-    Nom: m.name,
-    Email: m.email,
-    Rôle: m.role,
-    Statut: m.status || 'active',
-    'Dernière connexion': m.lastLogin
-  }))
-  console.log('Export members:', data)
-  alert('Export des membres en cours...')
+async function handleAddMember(form: { name: string; email: string; password: string; role: string }) {
+  try {
+    if (!authStore.isDemoMode) {
+      await orgData.addMember(form)
+      teamMembers.value = orgData.teamMembers.value
+    } else {
+      const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500']
+      teamMembers.value.push({
+        id: Date.now().toString(),
+        name: form.name,
+        email: form.email,
+        role: form.role,
+        status: 'invited',
+        lastLogin: 'N/A',
+        initials: form.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2),
+        avatarColor: colors[Math.floor(Math.random() * colors.length)]
+      })
+    }
+    updateRoleCounts()
+    persistMembersAndRoles()
+    toast.success(t('usersRoles.memberAdded'))
+  } catch (e: any) {
+    toast.error(t('usersRoles.errorAddMember') + ': ' + (e.message || e))
+  }
+}
+
+async function handleUpdateMember(data: { id: string | number; name: string; email: string; role: string; status: string }) {
+  try {
+    if (!authStore.isDemoMode) {
+      await organizationsService.updateMemberRole(data.id as string, data.role)
+    }
+    const index = teamMembers.value.findIndex(m => m.id === data.id)
+    if (index !== -1) {
+      teamMembers.value[index] = {
+        ...teamMembers.value[index],
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        status: data.status,
+        initials: data.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+      }
+    }
+    updateRoleCounts()
+    persistMembersAndRoles()
+    toast.success(t('usersRoles.memberUpdated'))
+  } catch (e: any) {
+    toast.error(t('usersRoles.errorUpdateMember') + ': ' + (e.message || e))
+  }
+}
+
+async function handleRemoveMember(id: string | number) {
+  if (!canDelete.value) return
+  try {
+    if (!authStore.isDemoMode) {
+      await orgData.removeMember(id as string)
+      teamMembers.value = orgData.teamMembers.value
+    } else {
+      teamMembers.value = teamMembers.value.filter(m => m.id !== id)
+    }
+    updateRoleCounts()
+    persistMembersAndRoles()
+    toast.success(t('usersRoles.memberRemoved'))
+  } catch (e: any) {
+    toast.error(t('usersRoles.errorRemoveMember') + ': ' + (e.message || e))
+  }
+}
+
+async function handleAddRole(data: { name: string; description: string; permissions: string[] }) {
+  try {
+    if (!authStore.isDemoMode) {
+      await orgData.createRole(data)
+      availableRoles.value = orgData.availableRoles.value
+    } else {
+      availableRoles.value.push({
+        id: 'custom-' + Date.now(),
+        name: data.name,
+        description: data.description,
+        memberCount: 0,
+        isDefault: false,
+        isOwner: false,
+        isSystem: false,
+        permissions: data.permissions
+      })
+    }
+    persistMembersAndRoles()
+    toast.success(t('usersRoles.roleCreated'))
+  } catch (e: any) {
+    toast.error(t('usersRoles.errorAddRole') + ': ' + (e.message || e))
+  }
+}
+
+async function handleUpdateRole(data: { id: string; name: string; description: string; permissions: string[] }) {
+  try {
+    if (!authStore.isDemoMode) {
+      await orgData.updateRole(data.id, data)
+      availableRoles.value = orgData.availableRoles.value
+    } else {
+      const index = availableRoles.value.findIndex(r => r.id === data.id)
+      if (index !== -1) {
+        availableRoles.value[index] = {
+          ...availableRoles.value[index],
+          name: data.name,
+          description: data.description,
+          permissions: data.permissions
+        }
+      }
+    }
+    persistMembersAndRoles()
+    toast.success(t('usersRoles.roleUpdated'))
+  } catch (e: any) {
+    toast.error(t('usersRoles.errorUpdateRole') + ': ' + (e.message || e))
+  }
+}
+
+async function handleRemoveRole(id: string) {
+  if (!canDelete.value) return
+  try {
+    if (!authStore.isDemoMode) {
+      await orgData.deleteRole(id)
+      availableRoles.value = orgData.availableRoles.value
+    } else {
+      const index = availableRoles.value.findIndex(r => r.id === id)
+      if (index !== -1) {
+        availableRoles.value.splice(index, 1)
+      }
+    }
+    persistMembersAndRoles()
+    toast.success(t('usersRoles.roleRemoved'))
+  } catch (e: any) {
+    toast.error(t('usersRoles.errorRemoveRole') + ': ' + (e.message || e))
+  }
 }
 
 // Company Profile
-const companyProfile = ref({
+const defaultProfile = {
   name: '',
   taxId: '',
   email: '',
@@ -2328,14 +2258,21 @@ const companyProfile = ref({
   postalCode: '',
   currency: 'TND',
   timezone: 'Africa/Tunis'
-})
+}
+const savedProfile = localStorage.getItem('companyProfile')
+const companyProfile = ref(savedProfile ? { ...defaultProfile, ...JSON.parse(savedProfile) } : { ...defaultProfile })
 
-async function saveCompanyProfile() {
+async function saveCompanyProfile(profileData?: Record<string, any>) {
+  if (profileData) {
+    Object.assign(companyProfile.value, profileData)
+  }
+  // Always save to localStorage
+  localStorage.setItem('companyProfile', JSON.stringify(companyProfile.value))
   if (!authStore.isDemoMode) {
     await orgData.saveProfile(companyProfile.value)
-    return
+  } else {
+    toast.success('Profil entreprise enregistré avec succès!')
   }
-  alert('Profil entreprise enregistré avec succès!')
 }
 
 // Security Settings
@@ -2662,10 +2599,20 @@ function syncComposableData() {
   pickupRequests.value = pickupsData.pickupRequests.value as any[]
   pickupHistory.value = pickupsData.pickupHistory.value as any[]
   scheduledPickups.value = pickupsData.scheduledPickups.value as any[]
-  // Organization
-  teamMembers.value = orgData.teamMembers.value
-  availableRoles.value = orgData.availableRoles.value
-  companyProfile.value = orgData.companyProfile.value
+  // Organization - Supabase data takes priority over localStorage
+  if (orgData.teamMembers.value.length > 0) {
+    teamMembers.value = orgData.teamMembers.value
+    localStorage.setItem('teamMembers', JSON.stringify(teamMembers.value))
+  }
+  if (orgData.availableRoles.value.length > 0) {
+    availableRoles.value = orgData.availableRoles.value
+    localStorage.setItem('availableRoles', JSON.stringify(availableRoles.value))
+  }
+  updateRoleCounts()
+  if (orgData.companyProfile.value.name) {
+    companyProfile.value = orgData.companyProfile.value
+    localStorage.setItem('companyProfile', JSON.stringify(companyProfile.value))
+  }
   // Finance
   userBalance.value = financeData.userBalance.value
   invoices.value = financeData.invoices.value
@@ -4194,6 +4141,7 @@ async function saveCarrierFromPage() {
 }
 
 async function deleteCarrier(carrierId: string) {
+  if (!canDelete.value) return
   if (!authStore.isDemoMode) {
     await carriersData.remove(carrierId)
     carriers.value = carriersData.carriers.value as any[]

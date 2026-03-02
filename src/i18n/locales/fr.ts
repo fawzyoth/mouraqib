@@ -676,7 +676,7 @@ export default {
   placeholders: {
     nameExample: 'Ex: Ahmed Ben Ali',
     phoneExample: 'Ex: 98 123 456',
-    emailExample: 'Ex: client@email.com',
+    emailExample: "Ex: client{'@'}email.com",
     addressExample: 'Ex: 15 Rue de la Liberté',
     postalCodeExample: 'Ex: 1002',
     notesPlaceholder: 'Notes sur le client (préférences de livraison, etc.)'
@@ -698,5 +698,99 @@ export default {
     unblockClient: 'Débloquer',
     viewDetails: 'Voir les détails',
     editClient: 'Modifier'
+  },
+
+  // Detail panels
+  details: {
+    shipmentDetails: 'Détails du colis',
+    clientDetails: 'Détails du client',
+    recipient: 'Destinataire',
+    carrier: 'Transporteur',
+    amount: 'Montant',
+    date: 'Date'
+  },
+
+  // Returns section titles
+  returnsList: {
+    activeReturns: 'Retours actifs',
+    recoveredReturns: 'Retours récupérés',
+    lostReturns: 'Retours perdus'
+  },
+
+  // Company Profile
+  companyProfile: {
+    changeLogo: 'Changer le logo',
+    generalInfo: 'Informations générales',
+    companyName: "Nom de l'entreprise",
+    taxId: 'Matricule fiscal',
+    postalCode: 'Code postal',
+    businessSettings: 'Paramètres commerciaux',
+    currency: 'Devise',
+    timezone: 'Fuseau horaire'
+  },
+
+  // Users & Roles
+  usersRoles: {
+    subtitle: 'Gérez les membres de votre équipe et leurs permissions',
+    members: 'Membres',
+    member: 'Membre',
+    roles: 'Rôles',
+    role: 'Rôle',
+    status: 'Statut',
+    lastLogin: 'Dernière connexion',
+    addMember: 'Ajouter un membre',
+    editMember: 'Modifier le membre',
+    invite: 'Inviter',
+    searchPlaceholder: 'Rechercher par nom ou email',
+    filterByRole: 'Filtrer par rôle',
+    clear: 'Effacer',
+    apply: 'Appliquer',
+    noMembers: 'Aucun membre trouvé',
+    fullName: 'Nom complet',
+    namePlaceholder: 'Jean Dupont',
+    emailPlaceholder: "jean{'@'}exemple.tn",
+    selectRole: 'Sélectionner un rôle',
+    statusActive: 'Actif',
+    statusInvited: 'Invité',
+    statusInactive: 'Inactif',
+    createRole: 'Créer un rôle',
+    editRole: 'Modifier le rôle',
+    roleName: 'Nom du rôle',
+    roleNamePlaceholder: 'Gestionnaire de stock',
+    description: 'Description',
+    roleDescriptionPlaceholder: 'Décrivez les responsabilités de ce rôle',
+    permissions: 'Permissions',
+    rolesDescription: 'Créez des rôles personnalisés avec des permissions spécifiques pour un meilleur contrôle d\'accès.',
+    default: 'Défaut',
+    noDescription: 'Aucune description',
+    others: 'autres',
+    confirmDelete: 'Confirmer la suppression',
+    confirmDeleteMember: 'Êtes-vous sûr de vouloir supprimer {name} ? Cette action est irréversible.',
+    confirmDeleteRole: 'Êtes-vous sûr de vouloir supprimer le rôle "{name}" ? Les membres avec ce rôle seront déplacés vers le rôle par défaut.',
+    memberAdded: 'Membre invité avec succès',
+    memberUpdated: 'Membre mis à jour',
+    memberRemoved: 'Membre supprimé',
+    roleCreated: 'Rôle créé avec succès',
+    roleUpdated: 'Rôle mis à jour',
+    roleRemoved: 'Rôle supprimé',
+    errorAddMember: 'Erreur lors de l\'invitation du membre',
+    errorUpdateMember: 'Erreur lors de la mise à jour du membre',
+    errorRemoveMember: 'Erreur lors de la suppression du membre',
+    errorAddRole: 'Erreur lors de la création du rôle',
+    errorUpdateRole: 'Erreur lors de la mise à jour du rôle',
+    errorRemoveRole: 'Erreur lors de la suppression du rôle',
+    password: 'Mot de passe',
+    passwordPlaceholder: 'Minimum 6 caractères',
+    passwordMinLength: 'Le mot de passe doit contenir au moins 6 caractères',
+    roleOwner: 'Propriétaire',
+    roleManager: 'Manager',
+    roleAgentConfirmation: 'Agent Confirmation',
+    roleAgentWarehouse: 'Agent Entrepôt',
+    roleOwnerDesc: 'Accès complet à toutes les fonctionnalités, y compris la suppression.',
+    roleManagerDesc: 'Accès complet à toutes les sections, sans pouvoir supprimer.',
+    roleAgentConfirmationDesc: 'Accès au tableau de bord, colis, clients, enlèvements et retours.',
+    roleAgentWarehouseDesc: 'Accès au tableau de bord, colis, enlèvements et retours uniquement.',
+    deleteNotAllowed: 'Seul le propriétaire peut effectuer des suppressions.',
+    sectionNotAllowed: 'Vous n\'avez pas accès à cette section.'
   }
 }

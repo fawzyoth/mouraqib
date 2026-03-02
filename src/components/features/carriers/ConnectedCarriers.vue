@@ -75,7 +75,7 @@
               <button @click.stop="$emit('edit-carrier', carrier)" class="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors" title="Modifier">
                 <FileText class="w-4 h-4" />
               </button>
-              <button @click.stop="$emit('delete-carrier', carrier.id)" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Supprimer">
+              <button v-if="canDelete" @click.stop="$emit('delete-carrier', carrier.id)" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Supprimer">
                 <Trash2 class="w-4 h-4" />
               </button>
             </div>
@@ -316,9 +316,12 @@ interface Props {
   selectedCarrier: Carrier | null
   deliveryCarriersCount: number
   syncingCarrierId: number | string | null
+  canDelete?: boolean
 }
 
-defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  canDelete: false
+})
 
 defineEmits<{
   'toggle-sub-menu': []
