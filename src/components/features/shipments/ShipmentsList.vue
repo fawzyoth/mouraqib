@@ -145,13 +145,10 @@
                   <span>{{ getStatusLabel(shipment.status) }}</span>
                 </span>
               </td>
-              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Evenement">{{ shipment.latestEvent }}</td>
-              <td class="px-4 py-3" data-label="Origine">
-                <div class="flex items-center space-x-2">
-                  <span class="text-lg">{{ shipment.originFlag }}</span>
-                  <span class="text-sm text-gray-600 dark:text-gray-400">{{ shipment.origin }}</span>
-                </div>
-              </td>
+              <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white" data-label="Prix">{{ shipment.amount ? shipment.amount.toFixed(2) + ' DT' : '-' }}</td>
+              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Création">{{ formatDate(shipment.createdAt) }}</td>
+              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Ramassage">{{ formatDate(shipment.pickupDate) }}</td>
+              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Livraison">{{ formatDate(shipment.deliveryDate) }}</td>
             </tr>
           </tbody>
         </table>
@@ -213,9 +210,10 @@ interface Shipment {
   carrier: string
   client?: string
   status: string
-  latestEvent: string
-  originFlag: string
-  origin: string
+  amount: number
+  createdAt: string
+  pickupDate: string | null
+  deliveryDate: string | null
   [key: string]: any
 }
 
@@ -236,8 +234,10 @@ const columns = [
   { key: 'carrier', label: 'Transporteur', filterable: true },
   { key: 'client', label: 'Client', filterable: true },
   { key: 'status', label: 'Statut', filterable: true },
-  { key: 'latestEvent', label: 'Dernier evenement', filterable: false },
-  { key: 'origin', label: 'Origine', filterable: true },
+  { key: 'amount', label: 'Prix', filterable: false },
+  { key: 'createdAt', label: 'Création', filterable: false },
+  { key: 'pickupDate', label: 'Ramassage', filterable: false },
+  { key: 'deliveryDate', label: 'Livraison', filterable: false },
 ]
 
 const route = useRoute()
@@ -247,7 +247,7 @@ const router = useRouter()
 // Filter state — initialized from URL query params
 // ---------------------------------------------------------------------------
 const q = route.query
-const columnFilterKeys = ['trackingNumber', 'carrier', 'client', 'status', 'origin']
+const columnFilterKeys = ['trackingNumber', 'carrier', 'client', 'status']
 
 const activeStatusTab = ref((q.tab as string) || 'all')
 const searchQuery = ref((q.q as string) || '')
@@ -406,4 +406,11 @@ const paginatedShipments = computed(() => {
 watch([activeStatusTab, searchQuery, pageSize, columnFilters], () => {
   currentPage.value = 1
 })
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-'
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return '-'
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+}
 </script>

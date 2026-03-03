@@ -54,6 +54,7 @@ export interface UIShipment {
   totalPrice: number
   amount: number
   createdAt: string
+  pickupDate: string | null
   updatedAt: string
   events: any[]
 }
@@ -64,7 +65,7 @@ interface OrgContext {
   phone: string
 }
 
-export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | null; client?: { name: string } | null }, org: OrgContext): UIShipment {
+export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | null; client?: { name: string } | null; pickup?: { scheduled_date: string } | null }, org: OrgContext): UIShipment {
   const carrierName = row.carrier?.name || 'Non assigné'
   const clientName = row.client?.name || '-'
   const uiStatus = STATUS_DB_TO_UI[row.status] || row.status
@@ -111,6 +112,7 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
     totalPrice: row.cod_amount,
     amount: row.cod_amount,
     createdAt: row.created_at,
+    pickupDate: row.pickup?.scheduled_date || null,
     updatedAt: row.updated_at,
     events: [],
   }

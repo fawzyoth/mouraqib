@@ -12,6 +12,13 @@
         </div>
       </div>
       <div class="flex items-center space-x-3">
+        <button
+          @click="router.push('/shipments/create')"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-primary-blue hover:bg-blue-700 rounded-lg transition-colors"
+        >
+          <Plus class="w-4 h-4" />
+          <span class="hidden sm:inline">Créer colis</span>
+        </button>
         <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors relative">
           <Bell class="w-5 h-5 text-gray-500" />
           <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
@@ -155,14 +162,18 @@
 </template>
 
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
 import {
   ListFilter,
   Bell,
   Package,
   CheckCircle,
   Banknote,
-  AlertTriangle
+  AlertTriangle,
+  Plus
 } from 'lucide-vue-next'
+
+const router = useRouter()
 
 interface DashboardStats {
   todayDeliveries: number

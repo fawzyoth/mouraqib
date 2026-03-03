@@ -16,106 +16,12 @@
     <main class="flex-1 overflow-y-auto p-6">
       <div class="max-w-3xl mx-auto space-y-6">
 
-        <!-- Section 1: Type de colis -->
+        <!-- Section 1: Informations de Destination -->
         <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
           <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800">
             <div class="flex items-center space-x-3">
               <div class="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
                 <span class="text-sm font-bold text-orange-600">1</span>
-              </div>
-              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Type de colis</h2>
-            </div>
-          </div>
-          <div class="p-6">
-            <!-- Type Selection -->
-            <div class="grid grid-cols-2 gap-4 mb-6">
-              <button
-                type="button"
-                @click="newShipment.type = 'normal'"
-                :class="[
-                  'p-5 rounded-xl border-2 text-left transition-all',
-                  newShipment.type === 'normal'
-                    ? 'border-primary-blue bg-primary-blue/5 dark:bg-primary-blue/10'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                ]"
-              >
-                <div class="flex items-center gap-3 mb-2">
-                  <div :class="['w-10 h-10 rounded-xl flex items-center justify-center', newShipment.type === 'normal' ? 'bg-primary-blue/10' : 'bg-gray-100 dark:bg-gray-800']">
-                    <Package class="w-5 h-5" :class="newShipment.type === 'normal' ? 'text-primary-blue' : 'text-gray-400'" />
-                  </div>
-                  <div>
-                    <span class="font-semibold" :class="newShipment.type === 'normal' ? 'text-primary-blue' : 'text-gray-700 dark:text-gray-300'">Livraison normale</span>
-                  </div>
-                </div>
-                <p class="text-sm text-gray-500">Envoi standard d'un colis au client</p>
-              </button>
-              <button
-                type="button"
-                @click="newShipment.type = 'exchange'"
-                :class="[
-                  'p-5 rounded-xl border-2 text-left transition-all',
-                  newShipment.type === 'exchange'
-                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                ]"
-              >
-                <div class="flex items-center gap-3 mb-2">
-                  <div :class="['w-10 h-10 rounded-xl flex items-center justify-center', newShipment.type === 'exchange' ? 'bg-orange-100 dark:bg-orange-900/30' : 'bg-gray-100 dark:bg-gray-800']">
-                    <RefreshCw class="w-5 h-5" :class="newShipment.type === 'exchange' ? 'text-orange-500' : 'text-gray-400'" />
-                  </div>
-                  <div>
-                    <span class="font-semibold" :class="newShipment.type === 'exchange' ? 'text-orange-600' : 'text-gray-700 dark:text-gray-300'">Echange</span>
-                  </div>
-                </div>
-                <p class="text-sm text-gray-500">Livrer un colis et recuperer un article</p>
-              </button>
-            </div>
-
-            <!-- Exchange Details (only shown when exchange is selected) -->
-            <div v-if="newShipment.type === 'exchange'" class="p-5 bg-orange-50 dark:bg-orange-900/10 rounded-xl border border-orange-200 dark:border-orange-800/30 space-y-4">
-              <div class="flex items-center gap-2 text-orange-700 dark:text-orange-400 mb-2">
-                <RefreshCw class="w-4 h-4" />
-                <span class="text-sm font-semibold">Details de l'echange</span>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Reason for exchange -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Raison de l'echange <span class="text-red-500">*</span></label>
-                  <select v-model="newShipment.exchangeReason" class="w-full px-3 py-2 border border-orange-200 dark:border-orange-800 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
-                    <option value="">Selectionner une raison</option>
-                    <option value="wrong_size">Mauvaise taille</option>
-                    <option value="wrong_color">Mauvaise couleur</option>
-                    <option value="defective">Produit defectueux</option>
-                    <option value="wrong_product">Mauvais produit</option>
-                    <option value="customer_changed_mind">Client a change d'avis</option>
-                    <option value="other">Autre raison</option>
-                  </select>
-                </div>
-
-                <!-- Number of items to collect -->
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre d'articles a recuperer <span class="text-red-500">*</span></label>
-                  <input v-model.number="newShipment.exchangeItemCount" type="number" min="1" placeholder="1" class="w-full px-3 py-2 border border-orange-200 dark:border-orange-800 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
-                </div>
-              </div>
-
-              <!-- Description of items to collect -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description des articles a recuperer</label>
-                <textarea v-model="newShipment.exchangeDescription" rows="2" placeholder="Ex: T-shirt bleu taille L a retourner" class="w-full px-3 py-2 border border-orange-200 dark:border-orange-800 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"></textarea>
-              </div>
-
-            </div>
-          </div>
-        </div>
-
-        <!-- Section 2: Informations de Destination -->
-        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-          <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800">
-            <div class="flex items-center space-x-3">
-              <div class="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                <span class="text-sm font-bold text-orange-600">2</span>
               </div>
               <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Informations de Destination</h2>
             </div>
@@ -263,32 +169,18 @@
           </div>
         </div>
 
-        <!-- Section 3: Transporteur -->
+        <!-- Section 2: Transporteur -->
         <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
           <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800">
             <div class="flex items-center space-x-3">
               <div class="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                <span class="text-sm font-bold text-orange-600">3</span>
+                <span class="text-sm font-bold text-orange-600">2</span>
               </div>
               <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Transporteur</h2>
             </div>
           </div>
           <div class="p-6">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Choisir le transporteur <span class="text-red-500">*</span></label>
-
-            <!-- Search input -->
-            <div class="relative mb-4">
-              <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                v-model="carrierSearchQuery"
-                type="text"
-                placeholder="Rechercher un transporteur..."
-                class="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              />
-              <span v-if="carrierSearchQuery" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                {{ filteredCarriersLocal.length }} resultats
-              </span>
-            </div>
 
             <!-- Carrier grid with scroll -->
             <div class="max-h-80 overflow-y-auto rounded-lg border border-gray-100 dark:border-gray-800 p-2">
@@ -315,6 +207,100 @@
               <p v-if="filteredCarriersLocal.length === 0" class="text-center text-sm text-gray-500 py-8">Aucun transporteur trouve</p>
             </div>
             <p v-if="!newShipment.carrier" class="text-xs text-red-500 mt-2">Veuillez selectionner un transporteur</p>
+          </div>
+        </div>
+
+        <!-- Section 3: Type de colis -->
+        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+          <div class="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800">
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                <span class="text-sm font-bold text-orange-600">3</span>
+              </div>
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Type de colis</h2>
+            </div>
+          </div>
+          <div class="p-6">
+            <!-- Type Selection -->
+            <div class="grid grid-cols-2 gap-4 mb-6">
+              <button
+                type="button"
+                @click="newShipment.type = 'normal'"
+                :class="[
+                  'p-5 rounded-xl border-2 text-left transition-all',
+                  newShipment.type === 'normal'
+                    ? 'border-primary-blue bg-primary-blue/5 dark:bg-primary-blue/10'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                ]"
+              >
+                <div class="flex items-center gap-3 mb-2">
+                  <div :class="['w-10 h-10 rounded-xl flex items-center justify-center', newShipment.type === 'normal' ? 'bg-primary-blue/10' : 'bg-gray-100 dark:bg-gray-800']">
+                    <Package class="w-5 h-5" :class="newShipment.type === 'normal' ? 'text-primary-blue' : 'text-gray-400'" />
+                  </div>
+                  <div>
+                    <span class="font-semibold" :class="newShipment.type === 'normal' ? 'text-primary-blue' : 'text-gray-700 dark:text-gray-300'">Livraison normale</span>
+                  </div>
+                </div>
+                <p class="text-sm text-gray-500">Envoi standard d'un colis au client</p>
+              </button>
+              <button
+                type="button"
+                @click="newShipment.type = 'exchange'"
+                :class="[
+                  'p-5 rounded-xl border-2 text-left transition-all',
+                  newShipment.type === 'exchange'
+                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                ]"
+              >
+                <div class="flex items-center gap-3 mb-2">
+                  <div :class="['w-10 h-10 rounded-xl flex items-center justify-center', newShipment.type === 'exchange' ? 'bg-orange-100 dark:bg-orange-900/30' : 'bg-gray-100 dark:bg-gray-800']">
+                    <RefreshCw class="w-5 h-5" :class="newShipment.type === 'exchange' ? 'text-orange-500' : 'text-gray-400'" />
+                  </div>
+                  <div>
+                    <span class="font-semibold" :class="newShipment.type === 'exchange' ? 'text-orange-600' : 'text-gray-700 dark:text-gray-300'">Echange</span>
+                  </div>
+                </div>
+                <p class="text-sm text-gray-500">Livrer un colis et recuperer un article</p>
+              </button>
+            </div>
+
+            <!-- Exchange Details (only shown when exchange is selected) -->
+            <div v-if="newShipment.type === 'exchange'" class="p-5 bg-orange-50 dark:bg-orange-900/10 rounded-xl border border-orange-200 dark:border-orange-800/30 space-y-4">
+              <div class="flex items-center gap-2 text-orange-700 dark:text-orange-400 mb-2">
+                <RefreshCw class="w-4 h-4" />
+                <span class="text-sm font-semibold">Details de l'echange</span>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Reason for exchange -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Raison de l'echange <span class="text-red-500">*</span></label>
+                  <select v-model="newShipment.exchangeReason" class="w-full px-3 py-2 border border-orange-200 dark:border-orange-800 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                    <option value="">Selectionner une raison</option>
+                    <option value="wrong_size">Mauvaise taille</option>
+                    <option value="wrong_color">Mauvaise couleur</option>
+                    <option value="defective">Produit defectueux</option>
+                    <option value="wrong_product">Mauvais produit</option>
+                    <option value="customer_changed_mind">Client a change d'avis</option>
+                    <option value="other">Autre raison</option>
+                  </select>
+                </div>
+
+                <!-- Number of items to collect -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre d'articles a recuperer <span class="text-red-500">*</span></label>
+                  <input v-model.number="newShipment.exchangeItemCount" type="number" min="1" placeholder="1" class="w-full px-3 py-2 border border-orange-200 dark:border-orange-800 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                </div>
+              </div>
+
+              <!-- Description of items to collect -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description des articles a recuperer</label>
+                <textarea v-model="newShipment.exchangeDescription" rows="2" placeholder="Ex: T-shirt bleu taille L a retourner" class="w-full px-3 py-2 border border-orange-200 dark:border-orange-800 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"></textarea>
+              </div>
+
+            </div>
           </div>
         </div>
 
