@@ -135,7 +135,10 @@ async function handleCreateShipment(data: any) {
     stickyCarrier.value = data.carrier || ''
   }
 }
-function resetShipmentForm() { /* stub */ }
+function resetShipmentForm() {
+  createdShipment.value = null
+  stickyCarrier.value = ''
+}
 function handleSuccessPrintLabel(_shipment: any) {
   labelToPrint.value = _shipment
   showPrintLabelModal.value = true

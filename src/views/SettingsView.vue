@@ -55,6 +55,8 @@
 import { computed, ref, inject } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
+import { deliveryCarriers } from '@/data/carriers-catalog'
+import zonesFirst from '@/data/zones-first'
 
 // Feature components
 import CompanyProfile from '@/components/features/settings/CompanyProfile.vue'
@@ -76,21 +78,94 @@ const subMenuOpen = inject<import('vue').Ref<boolean>>('subMenuOpen', ref(false)
 // Section-local state
 // ---------------------------------------------------------------------------
 
-// Payment History
-const paymentHistoryData = ref<any[]>([])
-const paymentHistoryStats = ref({ total: 0, amount: 0, pending: 0 })
+// Payment History — sourced from appStore.payments (loaded by useFinanceData)
+const paymentHistoryData = computed(() => appStore.payments)
+const paymentHistoryStats = computed(() => {
+  const payments = appStore.payments as Array<{ amount: number; status: string }>
+  const paid = payments.filter(p => p.status === 'paid')
+  const pending = payments.filter(p => p.status === 'pending')
+  return {
+    totalPaid: paid.reduce((sum, p) => sum + Number(p.amount), 0),
+    pending: pending.reduce((sum, p) => sum + Number(p.amount), 0),
+    invoiceCount: payments.length,
+  }
+})
 
 // Organization Modal
 const showOrganizationModal = ref(false)
 
 // Add Boutique Modal
 const showAddBoutiqueModal = ref(false)
-const availableCarriers = ref<any[]>([])
-const gouvernorats = ref<any[]>([])
 
-// Stubs (will be migrated from DTV)
-function saveCompanyProfile(_data: any) { /* stub */ }
-function updateTeamMembers(members: any) { /* stub — appStore.teamMembers update */ }
-function saveOrganization(_data: any) { /* stub */ }
-function createBoutique(_data: any) { /* stub */ }
+// Available carriers — static catalog of all delivery carriers
+const availableCarriers = computed(() => deliveryCarriers)
+
+// Gouvernorats — top-level keys from zones-first geographical data
+const gouvernorats = computed(() => Object.keys(zonesFirst).sort())
+
+// ---------------------------------------------------------------------------
+// Handlers
+// ---------------------------------------------------------------------------
+
+async function saveCompanyProfile(_data: any) {
+  await appStore.orgData.saveProfile(_data)
+}
+
+async function updateTeamMembers(members: any[]) {
+  const current = appStore.teamMembers
+  const currentIds = new Set(current.map((m: any) => m.id))
+  const incomingIds = new Set(members.map((m: any) => m.id))
+
+  // Detect added members (id exists in incoming but not in current)
+  const added = members.filter((m: any) => !currentIds.has(m.id))
+  // Detect removed members (id exists in current but not in incoming)
+  const removed = current.filter((m: any) => !incomingIds.has(m.id))
+  // Detect edited members (id exists in both, but role/name/email changed)
+  const edited = members.filter((m: any) => {
+    if (!currentIds.has(m.id)) return false
+    const existing = current.find((c: any) => c.id === m.id)
+    return existing && (existing.role !== m.role || existing.name !== m.name || existing.email !== m.email)
+  })
+
+  for (const member of added) {
+    await appStore.orgData.addMember({
+      name: member.name,
+      email: member.email,
+      role: member.role,
+    })
+  }
+
+  for (const member of removed) {
+    await appStore.orgData.removeMember(member.id)
+  }
+
+  // For role/name/email changes, re-invite is not applicable — update locally
+  // (no dedicated updateMember method exists in the composable)
+  for (const member of edited) {
+    const idx = appStore.teamMembers.findIndex((m: any) => m.id === member.id)
+    if (idx !== -1) {
+      Object.assign(appStore.teamMembers[idx], {
+        name: member.name,
+        email: member.email,
+        role: member.role,
+        status: member.status,
+        initials: member.initials,
+      })
+    }
+  }
+}
+
+async function saveOrganization(_data: any) {
+  const ok = await appStore.orgData.saveProfile(_data)
+  if (ok) {
+    showOrganizationModal.value = false
+  }
+}
+
+async function createBoutique(_data: any) {
+  const result = await appStore.boutiquesData.create(_data)
+  if (result) {
+    showAddBoutiqueModal.value = false
+  }
+}
 </script>

@@ -182,7 +182,29 @@ async function saveClientEdit() {
 }
 
 // Stubs (will be migrated from DTV)
-function addClient(_data: any) { /* stub */ }
-function toggleClientVip(_client: any) { /* stub */ }
-function toggleClientBlocked(_client: any) { /* stub */ }
+async function addClient(data: any) {
+  isSavingClient.value = true
+  try {
+    const created = await appStore.clientsData.create(data)
+    if (created) {
+      navigateTo('all-clients')
+    }
+  } finally {
+    isSavingClient.value = false
+  }
+}
+async function toggleClientVip(_client: any) {
+  if (_client.status === 'vip') {
+    await appStore.clientsData.updateStatus(_client.id, 'active')
+  } else {
+    await appStore.clientsData.updateStatus(_client.id, 'vip')
+  }
+}
+async function toggleClientBlocked(_client: any) {
+  if (_client.status === 'blocked') {
+    await appStore.clientsData.updateStatus(_client.id, 'active')
+  } else {
+    await appStore.clientsData.updateStatus(_client.id, 'blocked')
+  }
+}
 </script>
