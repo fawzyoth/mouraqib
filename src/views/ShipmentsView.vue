@@ -93,13 +93,22 @@ const openBulkImport = inject<() => void>('openBulkImport', () => {})
 // Section-local state
 // ---------------------------------------------------------------------------
 
-// Status tabs for ShipmentsList
-const statusTabs = ref([
-  { id: 'all', label: 'Tous', count: 0 },
-  { id: 'in-transit', label: 'En transit', count: 0 },
-  { id: 'delivered', label: 'Livré', count: 0 },
-  { id: 'returned', label: 'Retourné', count: 0 },
-])
+// Status tabs for ShipmentsList (counts derived from store)
+const statusTabs = computed(() => {
+  const s = appStore.shipments
+  const count = (status: string) => s.filter((sh: any) => sh.status === status).length
+  return [
+    { id: 'all', label: 'Tous', count: s.length },
+    { id: 'pending', label: 'En attente', count: count('Pending') },
+    { id: 'pickup-scheduled', label: 'Ramassage prévu', count: count('Pickup scheduled') },
+    { id: 'picked-up', label: 'Enlevé', count: count('Picked up') },
+    { id: 'in-transit', label: 'En transit', count: count('In transit') },
+    { id: 'out-for-delivery', label: 'En livraison', count: count('Out for delivery') },
+    { id: 'delivered', label: 'Livré', count: count('Delivered') },
+    { id: 'returned', label: 'Retourné', count: count('Returned') },
+    { id: 'cancelled', label: 'Annulé', count: count('Cancelled') },
+  ].filter(t => t.id === 'all' || t.count > 0)
+})
 
 // Shipment detail panel
 const selectedShipment = ref<any>(null)

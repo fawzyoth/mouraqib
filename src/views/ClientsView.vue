@@ -43,7 +43,7 @@
   <!-- Clients: Statistics -->
   <ClientStatistics
     v-else-if="activeSection === 'client-stats'"
-    :clients="appStore.clients"
+    :clients="enrichedClients"
     @toggle-submenu="subMenuOpen = !subMenuOpen"
   />
 

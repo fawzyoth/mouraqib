@@ -106,25 +106,6 @@
                 <textarea v-model="newShipment.exchangeDescription" rows="2" placeholder="Ex: T-shirt bleu taille L a retourner" class="w-full px-3 py-2 border border-orange-200 dark:border-orange-800 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"></textarea>
               </div>
 
-              <!-- Image upload -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Photo de l'article (optionnel)</label>
-                <div class="flex items-center gap-4">
-                  <label class="flex-1 cursor-pointer">
-                    <div class="border-2 border-dashed border-orange-200 dark:border-orange-800 rounded-lg p-4 text-center hover:border-orange-400 transition-colors">
-                      <input type="file" accept="image/*" @change="handleExchangeImageUpload" class="hidden" />
-                      <Camera class="w-8 h-8 text-orange-400 mx-auto mb-2" />
-                      <p class="text-sm text-gray-500">Cliquez pour ajouter une photo</p>
-                    </div>
-                  </label>
-                  <div v-if="newShipment.exchangeImage" class="w-24 h-24 relative">
-                    <img :src="newShipment.exchangeImage" alt="Preview" class="w-full h-full object-cover rounded-lg" />
-                    <button @click="newShipment.exchangeImage = null" class="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600">
-                      <X class="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>

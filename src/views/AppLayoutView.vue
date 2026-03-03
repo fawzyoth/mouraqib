@@ -100,6 +100,10 @@ import ShipmentDetailPanel from '@/components/features/shipments/ShipmentDetailP
 import GlobalSearchModal from '@/components/modals/GlobalSearchModal.vue'
 import RechargeModal from '@/components/modals/RechargeModal.vue'
 import BulkImportModal from '@/components/modals/BulkImportModal.vue'
+import { supabase } from '@/lib/supabase'
+import { shipmentsService } from '@/services/shipments'
+import { pickupsService } from '@/services/pickups'
+import type { ShipmentInsert } from '@/types/database'
 
 const router = useRouter()
 const appStore = useAppStore()
@@ -182,9 +186,183 @@ function processRecharge(payload: { delivered: number; returned: number }) {
 // Bulk import modal
 const showBulkImportModal = ref(false)
 
-function handleBulkImport(payload: any) {
-  // This will be handled by the shipments view via inject
+async function handleBulkImport(payload: { type: 'excel' | 'manual'; rows: Partial<ShipmentInsert>[]; manualRows?: { recipient: string; phone: string; address: string; amount: number | null }[] }) {
   showBulkImportModal.value = false
+  const orgId = authStore.user?.organizationId
+  const userId = authStore.user?.id || null
+  if (!orgId) {
+    toast.error('Organisation introuvable')
+    return
+  }
+
+  try {
+    let inserts: ShipmentInsert[] = []
+
+    // Find connected First Delivery carrier for this org
+    const firstDeliveryCarrier = appStore.carriers.find((c: any) => {
+      const name = c.name.toLowerCase().trim()
+      return (
+        name === 'first' ||
+        name === 'first delivery' ||
+        name === 'first-delivery' ||
+        name === 'firstdelivery' ||
+        name === 'first delivery group'
+      ) && c.apiStatus === 'connected'
+    })
+
+    if (payload.type === 'excel') {
+      inserts = payload.rows.map((row) => ({
+        organization_id: orgId,
+        created_by: userId,
+        carrier_id: firstDeliveryCarrier?.id || null,
+        recipient_name: row.recipient_name || '',
+        recipient_phone: row.recipient_phone || '',
+        recipient_phone_secondary: row.recipient_phone_secondary || null,
+        recipient_address: row.recipient_address || '',
+        governorate: row.governorate || '',
+        delegation: row.delegation || null,
+        product_description: row.product_description || null,
+        is_fragile: row.is_fragile || false,
+        allow_open: row.allow_open || false,
+        cod_amount: row.cod_amount || 0,
+        product_price: row.product_price || 0,
+        delivery_fee: row.delivery_fee || 0,
+      }))
+    } else if (payload.manualRows) {
+      inserts = payload.manualRows.map((row) => ({
+        organization_id: orgId,
+        created_by: userId,
+        carrier_id: firstDeliveryCarrier?.id || null,
+        recipient_name: row.recipient,
+        recipient_phone: row.phone,
+        recipient_address: row.address || '',
+        governorate: '',
+        cod_amount: row.amount || 0,
+        product_price: row.amount || 0,
+        delivery_fee: 0,
+      }))
+    }
+
+    if (inserts.length === 0) return
+
+    // 1. Insert all shipments into DB
+    const createdShipments = await shipmentsService.createMany(inserts)
+    toast.success(`${createdShipments.length} colis importés`)
+
+    // 2. For First Delivery: register each shipment with the carrier API, then request pickup
+    if (firstDeliveryCarrier && createdShipments.length > 0) {
+      toast.success('Envoi des colis au transporteur First Delivery...')
+
+      const barCodes: string[] = []
+      const shipmentIds: string[] = []
+      let successCount = 0
+
+      for (const shipment of createdShipments) {
+        try {
+          const { data, error } = await supabase.functions.invoke('carrier-proxy', {
+            body: {
+              carrierId: firstDeliveryCarrier.id,
+              action: 'create-shipment',
+              payload: {
+                shipmentId: shipment.id,
+                clientName: shipment.recipient_name,
+                governorate: shipment.governorate,
+                city: shipment.delegation || shipment.governorate,
+                address: shipment.recipient_address,
+                phone: shipment.recipient_phone,
+                phone2: shipment.recipient_phone_secondary || undefined,
+                price: shipment.cod_amount,
+                designation: shipment.product_description || '',
+                articleCount: 1,
+              },
+            },
+          })
+
+          if (!error && data?.result?.carrierTrackingNumber) {
+            barCodes.push(data.result.carrierTrackingNumber)
+            shipmentIds.push(shipment.id)
+            successCount++
+          } else {
+            let detail = ''
+            try {
+              const response = (error as any)?.context
+              if (response && typeof response.json === 'function') {
+                const body = await response.json()
+                detail = body?.error || body?.detail || ''
+              }
+            } catch { /* ignore */ }
+            console.error(`[bulk-import] create-shipment failed for ${shipment.id}:`, error?.message, detail)
+          }
+        } catch (err: any) {
+          console.error(`[bulk-import] create-shipment error for ${shipment.id}:`, err)
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`${successCount}/${createdShipments.length} colis envoyés au transporteur`)
+      } else {
+        toast.warning('Aucun colis envoyé au transporteur')
+      }
+
+      // 3. Request pickup for all successfully registered shipments
+      if (barCodes.length > 0) {
+        try {
+          // Create a pickup_request in DB
+          const tomorrow = new Date()
+          tomorrow.setDate(tomorrow.getDate() + 1)
+          const scheduledDate = tomorrow.toISOString().split('T')[0]
+
+          const pickup = await pickupsService.create({
+            organization_id: orgId,
+            carrier_id: firstDeliveryCarrier.id,
+            scheduled_date: scheduledDate,
+            time_slot: '08:00-10:00',
+            address: appStore.orgContext.address || 'Adresse de ramassage',
+            shipment_count: barCodes.length,
+            notes: `Import automatique - ${barCodes.length} colis`,
+          })
+
+          // Link shipments to pickup
+          await pickupsService.assignShipments(pickup.id, shipmentIds)
+
+          // Call carrier-proxy request-pickup
+          const { data: pickupData, error: pickupError } = await supabase.functions.invoke('carrier-proxy', {
+            body: {
+              carrierId: firstDeliveryCarrier.id,
+              action: 'request-pickup',
+              payload: {
+                pickupId: pickup.id,
+                barCodes,
+              },
+            },
+          })
+
+          if (!pickupError && pickupData?.result) {
+            toast.success(`Demande de ramassage envoyée (${barCodes.length} colis)`)
+          } else {
+            let detail = ''
+            try {
+              const response = (pickupError as any)?.context
+              if (response && typeof response.json === 'function') {
+                const body = await response.json()
+                detail = body?.error || body?.detail || ''
+              }
+            } catch { /* ignore */ }
+            console.error('[bulk-import] request-pickup error:', pickupError?.message, detail)
+            toast.warning('Colis créés mais la demande de ramassage a échoué')
+          }
+        } catch (pickupErr: any) {
+          console.error('[bulk-import] pickup request failed:', pickupErr)
+          toast.warning('Colis créés mais la demande de ramassage a échoué')
+        }
+      }
+    }
+
+    // Reload shipments to pick up the new ones
+    await appStore.shipmentsData.load(appStore.orgContext)
+  } catch (e: any) {
+    toast.error('Erreur import: ' + (e.message || e))
+  }
 }
 
 // Logout

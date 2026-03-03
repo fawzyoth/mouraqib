@@ -71,19 +71,66 @@
               </button>
             </div>
 
+            <!-- Loading state -->
+            <div v-if="isParsing" class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div class="flex items-center gap-3">
+                <Loader2 class="w-5 h-5 text-blue-600 animate-spin" />
+                <p class="text-sm font-medium text-blue-800 dark:text-blue-200">Lecture du fichier en cours...</p>
+              </div>
+            </div>
+
+            <!-- Parse error -->
+            <div v-if="parseError" class="mt-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+              <div class="flex items-center gap-3">
+                <AlertCircle class="w-5 h-5 text-red-600" />
+                <p class="text-sm font-medium text-red-800 dark:text-red-200">{{ parseError }}</p>
+              </div>
+            </div>
+
             <!-- Imported File Preview -->
-            <div v-if="importedFile" class="mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+            <div v-if="importedFile && parsedRows.length > 0 && !isParsing" class="mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
                   <CheckCircle class="w-5 h-5 text-green-600" />
                   <div>
                     <p class="text-sm font-medium text-green-800 dark:text-green-200">{{ importedFile.name }}</p>
-                    <p class="text-xs text-green-600 dark:text-green-400">{{ importedFileRows }} colis détectés</p>
+                    <p class="text-xs text-green-600 dark:text-green-400">{{ parsedRows.length }} colis détectés</p>
                   </div>
                 </div>
-                <button @click="importedFile = null" class="text-green-600 hover:text-green-700">
+                <button @click="clearFile" class="text-green-600 hover:text-green-700">
                   <X class="w-4 h-4" />
                 </button>
+              </div>
+
+              <!-- Preview table -->
+              <div v-if="parsedRows.length > 0" class="mt-3 overflow-x-auto max-h-48 overflow-y-auto">
+                <table class="min-w-full text-xs">
+                  <thead>
+                    <tr class="border-b border-green-200 dark:border-green-800">
+                      <th class="px-2 py-1 text-left text-green-700 dark:text-green-300">#</th>
+                      <th class="px-2 py-1 text-left text-green-700 dark:text-green-300">Client</th>
+                      <th class="px-2 py-1 text-left text-green-700 dark:text-green-300">Téléphone</th>
+                      <th class="px-2 py-1 text-left text-green-700 dark:text-green-300">Gouvernorat</th>
+                      <th class="px-2 py-1 text-left text-green-700 dark:text-green-300">Ville</th>
+                      <th class="px-2 py-1 text-right text-green-700 dark:text-green-300">Prix</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(row, i) in parsedRows.slice(0, 5)" :key="i" class="border-b border-green-100 dark:border-green-900">
+                      <td class="px-2 py-1 text-green-600">{{ i + 1 }}</td>
+                      <td class="px-2 py-1 text-green-800 dark:text-green-200">{{ row.recipient_name }}</td>
+                      <td class="px-2 py-1 text-green-800 dark:text-green-200">{{ row.recipient_phone }}</td>
+                      <td class="px-2 py-1 text-green-800 dark:text-green-200">{{ row.governorate }}</td>
+                      <td class="px-2 py-1 text-green-800 dark:text-green-200">{{ row.delegation }}</td>
+                      <td class="px-2 py-1 text-right text-green-800 dark:text-green-200">{{ row.cod_amount }} DT</td>
+                    </tr>
+                    <tr v-if="parsedRows.length > 5">
+                      <td colspan="6" class="px-2 py-1 text-center text-green-600 italic">
+                        ... et {{ parsedRows.length - 5 }} autres colis
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -125,7 +172,7 @@
           </button>
           <button
             @click="processBulkImport"
-            :disabled="bulkImportTab === 'excel' ? !importedFile : bulkShipmentRows.filter(r => r.recipient && r.phone).length === 0"
+            :disabled="isImportDisabled"
             class="px-4 py-2 bg-[#4959b4] hover:bg-[#3a4791] disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium flex items-center gap-2"
           >
             <Upload class="w-4 h-4" />
@@ -138,15 +185,68 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   X,
   FileSpreadsheet,
   Plus,
   Upload,
   Download,
-  CheckCircle
+  CheckCircle,
+  AlertCircle,
+  Loader2
 } from 'lucide-vue-next'
+import Papa from 'papaparse'
+import * as XLSX from 'xlsx'
+import type { ShipmentInsert } from '@/types/database'
+
+const TEMPLATE_HEADERS = [
+  'Nom client',
+  'Addresse',
+  'Gouvernorat',
+  'Ville',
+  'Téléphone',
+  'Téléphone 2',
+  'Nbr article',
+  'Prix',
+  'Designation',
+  'Commentaire',
+  'Ouvrir colis',
+  'Colis Fragile',
+]
+
+// Column name → ShipmentInsert field mapping
+const COLUMN_MAP: Record<string, string> = {
+  'nom client': 'recipient_name',
+  'addresse': 'recipient_address',
+  'gouvernorat': 'governorate',
+  'ville': 'delegation',
+  'téléphone': 'recipient_phone',
+  'telephone': 'recipient_phone',
+  'téléphone 2': 'recipient_phone_secondary',
+  'telephone 2': 'recipient_phone_secondary',
+  'nbr article': 'article_count',
+  'prix': 'cod_amount',
+  'designation': 'product_description',
+  'commentaire': 'comment',
+  'ouvrir colis': 'allow_open',
+  'colis fragile': 'is_fragile',
+}
+
+export interface ParsedShipmentRow {
+  recipient_name: string
+  recipient_address: string
+  governorate: string
+  delegation: string
+  recipient_phone: string
+  recipient_phone_secondary: string
+  article_count: number
+  cod_amount: number
+  product_description: string
+  comment: string
+  allow_open: boolean
+  is_fragile: boolean
+}
 
 const props = defineProps<{
   show: boolean
@@ -154,13 +254,15 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  import: [payload: { type: 'excel' | 'manual'; file?: File; rows?: { recipient: string; phone: string; address: string; amount: number | null }[] }]
+  import: [payload: { type: 'excel' | 'manual'; rows: Partial<ShipmentInsert>[]; manualRows?: { recipient: string; phone: string; address: string; amount: number | null }[] }]
 }>()
 
 const bulkImportTab = ref<'excel' | 'manual'>('excel')
 const isDragging = ref(false)
 const importedFile = ref<File | null>(null)
-const importedFileRows = ref(0)
+const isParsing = ref(false)
+const parseError = ref('')
+const parsedRows = ref<ParsedShipmentRow[]>([])
 const fileInput = ref<HTMLInputElement | null>(null)
 
 const bulkShipmentRows = ref([
@@ -169,13 +271,25 @@ const bulkShipmentRows = ref([
   { recipient: '', phone: '', address: '', amount: null as number | null },
 ])
 
+const isImportDisabled = computed(() => {
+  if (bulkImportTab.value === 'excel') return parsedRows.value.length === 0
+  return bulkShipmentRows.value.filter(r => r.recipient && r.phone).length === 0
+})
+
 watch(() => props.show, (newVal) => {
   if (newVal) {
     bulkImportTab.value = 'excel'
-    importedFile.value = null
-    importedFileRows.value = 0
+    clearFile()
   }
 })
+
+function clearFile() {
+  importedFile.value = null
+  parsedRows.value = []
+  parseError.value = ''
+  isParsing.value = false
+  if (fileInput.value) fileInput.value.value = ''
+}
 
 function handleFileDrop(e: DragEvent) {
   isDragging.value = false
@@ -194,31 +308,135 @@ function handleFileSelect(e: Event) {
 }
 
 function processFile(file: File) {
-  const validTypes = [
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-excel',
-    'text/csv'
-  ]
+  const isCSV = file.name.endsWith('.csv') || file.type === 'text/csv'
+  const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls') ||
+    file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+    file.type === 'application/vnd.ms-excel'
 
-  if (!validTypes.includes(file.type) && !file.name.endsWith('.csv') && !file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-    alert('Format de fichier non supporté. Veuillez utiliser un fichier Excel (.xlsx, .xls) ou CSV.')
+  if (!isCSV && !isExcel) {
+    parseError.value = 'Format de fichier non supporté. Veuillez utiliser un fichier Excel (.xlsx, .xls) ou CSV.'
     return
   }
 
   importedFile.value = file
-  importedFileRows.value = Math.floor(Math.random() * 50) + 10
+  parseError.value = ''
+  isParsing.value = true
+  parsedRows.value = []
+
+  if (isCSV) {
+    parseCSV(file)
+  } else {
+    parseExcel(file)
+  }
+}
+
+function parseCSV(file: File) {
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    encoding: 'UTF-8',
+    complete(results) {
+      isParsing.value = false
+      if (results.errors.length > 0 && results.data.length === 0) {
+        parseError.value = 'Erreur de lecture du fichier CSV: ' + results.errors[0].message
+        return
+      }
+      mapRowsToShipments(results.data as Record<string, string>[])
+    },
+    error(err) {
+      isParsing.value = false
+      parseError.value = 'Erreur de lecture du fichier CSV: ' + err.message
+    },
+  })
+}
+
+function parseExcel(file: File) {
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    try {
+      const data = new Uint8Array(e.target!.result as ArrayBuffer)
+      const workbook = XLSX.read(data, { type: 'array' })
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
+      const jsonData = XLSX.utils.sheet_to_json<Record<string, string>>(firstSheet, { defval: '' })
+      isParsing.value = false
+      mapRowsToShipments(jsonData)
+    } catch (err: any) {
+      isParsing.value = false
+      parseError.value = 'Erreur de lecture du fichier Excel: ' + (err.message || err)
+    }
+  }
+  reader.onerror = () => {
+    isParsing.value = false
+    parseError.value = 'Erreur de lecture du fichier'
+  }
+  reader.readAsArrayBuffer(file)
+}
+
+function normalizeHeader(header: string): string {
+  return header.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function mapRowsToShipments(rawRows: Record<string, string>[]) {
+  if (rawRows.length === 0) {
+    parseError.value = 'Le fichier ne contient aucune ligne de données'
+    return
+  }
+
+  const rows: ParsedShipmentRow[] = []
+
+  for (const raw of rawRows) {
+    // Build a normalized map for this row
+    const mapped: Record<string, string> = {}
+    for (const [key, value] of Object.entries(raw)) {
+      const normalizedKey = normalizeHeader(key)
+      const fieldName = COLUMN_MAP[normalizedKey]
+      if (fieldName) {
+        mapped[fieldName] = (value ?? '').toString().trim()
+      }
+    }
+
+    // Skip rows with no client name and no phone
+    if (!mapped.recipient_name && !mapped.recipient_phone) continue
+
+    const isOui = (val: string) => {
+      const v = (val || '').toLowerCase().trim()
+      return v === 'oui' || v === 'yes' || v === '1' || v === 'true'
+    }
+
+    rows.push({
+      recipient_name: mapped.recipient_name || '',
+      recipient_address: mapped.recipient_address || '',
+      governorate: mapped.governorate || '',
+      delegation: mapped.delegation || '',
+      recipient_phone: mapped.recipient_phone || '',
+      recipient_phone_secondary: mapped.recipient_phone_secondary || '',
+      article_count: parseInt(mapped.article_count) || 1,
+      cod_amount: parseFloat(mapped.cod_amount) || 0,
+      product_description: mapped.product_description || '',
+      comment: mapped.comment || '',
+      allow_open: isOui(mapped.allow_open),
+      is_fragile: isOui(mapped.is_fragile),
+    })
+  }
+
+  if (rows.length === 0) {
+    parseError.value = 'Aucune ligne valide trouvée. Vérifiez que les colonnes correspondent au modèle.'
+    return
+  }
+
+  parsedRows.value = rows
 }
 
 function downloadImportTemplate() {
-  const headers = ['Destinataire', 'Téléphone', 'Adresse', 'Ville', 'Montant', 'Notes']
-  const exampleRow = ['Ahmed Ben Ali', '+216 22 333 444', '15 Rue de la Liberté', 'Tunis', '45.00', 'Livraison express']
+  const exampleRow = ['Ahmed Ben Ali', '15 Rue de la Liberté', 'Tunis', 'La Marsa', '+216 22 333 444', '', '1', '45.00', 'Chemise bleue', 'Livraison express', '', '']
 
   const csvContent = [
-    headers.join(','),
+    TEMPLATE_HEADERS.join(','),
     exampleRow.join(','),
   ].join('\n')
 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const bom = '\uFEFF' // BOM for UTF-8 Excel compat
+  const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' })
   const link = document.createElement('a')
   link.href = URL.createObjectURL(blob)
   link.download = 'modele_import_colis.csv'
@@ -237,14 +455,30 @@ function removeBulkShipmentRow(index: number) {
 
 function processBulkImport() {
   if (bulkImportTab.value === 'excel') {
-    if (!importedFile.value) return
-    emit('import', { type: 'excel', file: importedFile.value })
-    importedFile.value = null
-    importedFileRows.value = 0
+    if (parsedRows.value.length === 0) return
+
+    // Convert parsed rows to ShipmentInsert partials
+    const shipmentInserts: Partial<ShipmentInsert>[] = parsedRows.value.map((row) => ({
+      recipient_name: row.recipient_name,
+      recipient_phone: row.recipient_phone,
+      recipient_phone_secondary: row.recipient_phone_secondary || null,
+      recipient_address: row.recipient_address,
+      governorate: row.governorate,
+      delegation: row.delegation || null,
+      product_description: [row.product_description, row.comment].filter(Boolean).join(' - ') || null,
+      is_fragile: row.is_fragile,
+      allow_open: row.allow_open,
+      cod_amount: row.cod_amount,
+      product_price: row.cod_amount,
+      delivery_fee: 0,
+    }))
+
+    emit('import', { type: 'excel', rows: shipmentInserts })
+    clearFile()
   } else {
     const validRows = bulkShipmentRows.value.filter(r => r.recipient && r.phone)
     if (validRows.length === 0) return
-    emit('import', { type: 'manual', rows: validRows })
+    emit('import', { type: 'manual', rows: [], manualRows: validRows })
     bulkShipmentRows.value = [
       { recipient: '', phone: '', address: '', amount: null },
       { recipient: '', phone: '', address: '', amount: null },

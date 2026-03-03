@@ -127,9 +127,15 @@
         <div>
           <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Statistiques</p>
           <div class="space-y-2.5">
-            <div class="flex justify-between text-sm">
+            <div
+              class="flex justify-between text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 -mx-2 px-2 py-1 rounded-lg transition-colors"
+              @click="router.push({ path: '/shipments', query: { f_client: client.name } })"
+            >
               <span class="text-gray-500 dark:text-gray-400">Total commandes</span>
-              <span class="font-semibold text-gray-900 dark:text-white">{{ client.totalOrders }}</span>
+              <span class="font-semibold text-primary-blue flex items-center gap-1">
+                {{ client.totalOrders }}
+                <ExternalLink class="w-3 h-3" />
+              </span>
             </div>
             <div class="flex justify-between text-sm">
               <span class="text-gray-500 dark:text-gray-400">Livrées</span>
@@ -245,8 +251,11 @@
 
 <script setup lang="ts">
 import { computed, watch } from 'vue'
-import { Pencil, Loader2, X, Phone as PhoneIcon, Mail, MapPin } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+import { Pencil, Loader2, X, Phone as PhoneIcon, Mail, MapPin, ExternalLink } from 'lucide-vue-next'
 import zonesData from '@/data/zones-first'
+
+const router = useRouter()
 
 const props = defineProps<{
   show: boolean
