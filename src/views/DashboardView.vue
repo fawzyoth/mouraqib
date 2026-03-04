@@ -342,6 +342,22 @@ const returnAlertsCount = computed(() => returnAlerts.value.length)
 
 // filteredTaskCategories must remain a ref because toggle/complete mutate tasks
 const filteredTaskCategories = ref<any[]>([])
+const dailyTasksStats = ref({ total: 0, completed: 0, pending: 0, progressPercent: 0 })
+
+/** Recompute dailyTasksStats from the current filteredTaskCategories. */
+function recalcDailyTasksStats() {
+  let total = 0
+  let completed = 0
+  for (const cat of filteredTaskCategories.value) {
+    for (const t of cat.tasks) {
+      total++
+      if (t.completed) completed++
+    }
+  }
+  const pending = total - completed
+  const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0
+  dailyTasksStats.value = { total, completed, pending, progressPercent }
+}
 
 // Populate task categories reactively from shipments
 watchEffect(() => {
@@ -485,23 +501,6 @@ watchEffect(() => {
   filteredTaskCategories.value = categories
   recalcDailyTasksStats()
 })
-
-const dailyTasksStats = ref({ total: 0, completed: 0, pending: 0, progressPercent: 0 })
-
-/** Recompute dailyTasksStats from the current filteredTaskCategories. */
-function recalcDailyTasksStats() {
-  let total = 0
-  let completed = 0
-  for (const cat of filteredTaskCategories.value) {
-    for (const t of cat.tasks) {
-      total++
-      if (t.completed) completed++
-    }
-  }
-  const pending = total - completed
-  const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0
-  dailyTasksStats.value = { total, completed, pending, progressPercent }
-}
 
 /** Toggle a single task's completed state within a category. */
 function toggleDailyTask(_categoryId: string, _taskId: number) {
