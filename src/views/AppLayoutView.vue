@@ -366,8 +366,8 @@ async function handleBulkImport(payload: { type: 'excel' | 'manual'; rows: Parti
 }
 
 // Logout
-function handleLogout() {
-  authStore.signOut()
+async function handleLogout() {
+  await authStore.signOut()
   router.push('/signin')
 }
 

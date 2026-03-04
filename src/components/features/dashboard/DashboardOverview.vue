@@ -66,7 +66,7 @@
           <h3 class="font-semibold text-gray-900 dark:text-white">Actions urgentes</h3>
           <span class="px-2 py-0.5 bg-orange-100 text-orange-600 text-xs rounded-full font-medium">{{ urgentActions.length }}</span>
         </div>
-        <button class="text-sm text-orange-500 hover:text-orange-600 font-medium">Tout traiter</button>
+        <button @click="emit('handle-all-actions')" class="text-sm text-orange-500 hover:text-orange-600 font-medium">Tout traiter</button>
       </div>
       <div class="divide-y divide-gray-100 dark:divide-gray-800">
         <div v-for="action in urgentActions" :key="action.id" class="px-5 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
@@ -93,8 +93,8 @@
           </div>
           <div class="flex items-center space-x-2">
             <span class="text-xs text-gray-400">{{ action.time }}</span>
-            <button class="btn-primary btn-primary-sm">
-              {{ action.actionLabel }}
+            <button @click="emit('handle-action', action)" class="btn-primary btn-primary-sm">
+              Traiter
             </button>
           </div>
         </div>
@@ -208,7 +208,9 @@ interface Props {
 
 defineProps<Props>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'toggle-sub-menu'): void
+  (e: 'handle-action', action: UrgentAction): void
+  (e: 'handle-all-actions'): void
 }>()
 </script>

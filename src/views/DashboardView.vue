@@ -9,6 +9,8 @@
     :return-alerts-count="returnAlertsCount"
     @toggle-sub-menu="subMenuOpen = !subMenuOpen"
     @navigate="navigateTo"
+    @handle-action="onHandleAction"
+    @handle-all-actions="onHandleAllActions"
   />
 
   <!-- Dashboard: Today's Tasks -->
@@ -50,6 +52,14 @@
     :logs="activityLogs"
     @toggle-sub-menu="subMenuOpen = !subMenuOpen"
   />
+
+  <!-- Urgent Action Modal -->
+  <UrgentActionModal
+    :show="urgentModal.isOpen.value"
+    :action="selectedUrgentAction"
+    :all-actions="urgentActions"
+    @close="urgentModal.close()"
+  />
 </template>
 
 <script setup lang="ts">
@@ -80,6 +90,8 @@ import DashboardDelayed from '@/components/features/dashboard/DashboardDelayed.v
 import DashboardReturnAlerts from '@/components/features/dashboard/DashboardReturnAlerts.vue'
 import DashboardFinancialSnapshot from '@/components/features/dashboard/DashboardFinancialSnapshot.vue'
 import DashboardActivityLog from '@/components/features/dashboard/DashboardActivityLog.vue'
+import UrgentActionModal from '@/components/features/dashboard/UrgentActionModal.vue'
+import { useModal } from '@/composables/useModal'
 
 const route = useRoute()
 const router = useRouter()
@@ -91,6 +103,28 @@ const subMenuOpen = inject<import('vue').Ref<boolean>>('subMenuOpen', ref(false)
 function navigateTo(subSection: string) {
   const routeInfo = subSectionRoutes[subSection]
   if (routeInfo) router.push(routeInfo.path)
+}
+
+// ---------------------------------------------------------------------------
+// Urgent Action Modal
+// ---------------------------------------------------------------------------
+
+const selectedUrgentAction = ref<any>(null)
+const urgentModal = useModal(() => { selectedUrgentAction.value = null })
+
+function onHandleAction(action: any) {
+  // Pending pickup confirmations must go through the scan page
+  if (action.type === 'confirm') {
+    router.push('/pickups')
+    return
+  }
+  selectedUrgentAction.value = action
+  urgentModal.open()
+}
+
+function onHandleAllActions() {
+  selectedUrgentAction.value = null
+  urgentModal.open()
 }
 
 // ---------------------------------------------------------------------------
@@ -264,7 +298,8 @@ const urgentActions = computed(() => {
       title: `${pending.length} commande${pending.length > 1 ? 's' : ''} en attente de confirmation`,
       description: 'Commandes à confirmer',
       time: 'Maintenant',
-      actionLabel: 'Confirmer',
+      actionLabel: 'Scanner',
+      shipmentIds: pending.map(s => s.id),
     })
   }
 
@@ -281,6 +316,7 @@ const urgentActions = computed(() => {
       description: 'Retard de livraison',
       time: `+${worst.transitDays}j`,
       actionLabel: 'Voir',
+      shipmentIds: delayed.map(s => s.id),
     })
   }
 
@@ -295,6 +331,7 @@ const urgentActions = computed(() => {
       description: 'Colis bloqués',
       time: 'Récent',
       actionLabel: 'Voir',
+      shipmentIds: stuck.map(s => s.id),
     })
   }
 
@@ -309,6 +346,7 @@ const urgentActions = computed(() => {
       description: 'Retours en attente',
       time: 'Récent',
       actionLabel: 'Traiter',
+      shipmentIds: returned.map(s => s.id),
     })
   }
 
@@ -317,12 +355,13 @@ const urgentActions = computed(() => {
   if (unprinted.length > 0) {
     actions.push({
       id: id++,
-      type: 'confirm',
+      type: 'print',
       icon: markRaw(Package),
       title: `Bordereau non imprimé pour ${unprinted.length} colis`,
       description: 'Bordereaux à imprimer',
       time: 'Récent',
       actionLabel: 'Imprimer',
+      shipmentIds: unprinted.map(s => s.id),
     })
   }
 
