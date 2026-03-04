@@ -329,8 +329,8 @@ async function onOrgChange() {
 function getFlagValue(feature: string, role: string): boolean {
   const key = `${role}.${feature}`
   if (flagsMap.has(key)) return flagsMap.get(key)!
-  // Opt-out model: enabled by default
-  return true
+  // Opt-in model: disabled by default
+  return false
 }
 
 async function toggleFlag(feature: string, role: string) {

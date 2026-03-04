@@ -79,6 +79,12 @@ const router = createRouter({
       children: appRoutes,
     },
     {
+      path: '/access-denied',
+      name: 'access-denied',
+      component: () => import('@/views/AccessDeniedView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/:pathMatch(.*)*',
       redirect: '/dashboard'
     }
@@ -138,11 +144,11 @@ router.beforeEach(async (to, _from, next) => {
   // If route requires admin and user is not a platform admin
   if (to.meta.requiresAdmin && isAuthenticated) {
     if (!authStore.isPlatformAdmin) {
-      return next({ path: '/dashboard' })
+      return next({ path: '/access-denied' })
     }
   }
 
-  // Feature flag check — use cached flags (synchronous, no network call)
+  // Feature flag check — opt-in model: block unless explicitly enabled
   if (isAuthenticated && to.meta.feature && to.meta.mainSection && to.meta.mainSection !== 'dashboard') {
     const orgId = authStore.user?.organizationId
     const role = authStore.user?.role || 'agent_confirmation'
@@ -151,8 +157,6 @@ router.beforeEach(async (to, _from, next) => {
     if (role === 'superadmin') return next()
 
     if (orgId) {
-      // Use cached flags only — featureFlagsService returns from cache if available
-      const now = Date.now()
       const cachedFlags = featureFlagsService.getCached?.() ?? null
 
       if (cachedFlags) {
@@ -164,19 +168,21 @@ router.beforeEach(async (to, _from, next) => {
         const feature = to.meta.feature as string
         const mainSection = to.meta.mainSection as string
 
-        // Check parent section
+        // Check parent section — must be explicitly enabled
         const parentKey = `${role}.${mainSection}`
-        if (flagMap.has(parentKey) && !flagMap.get(parentKey)) {
-          return next({ path: '/dashboard' })
+        if (!flagMap.get(parentKey)) {
+          return next({ path: '/access-denied' })
         }
 
-        // Check specific feature
+        // Check specific feature — must be explicitly enabled
         const featureKey = `${role}.${feature}`
-        if (flagMap.has(featureKey) && !flagMap.get(featureKey)) {
-          return next({ path: '/dashboard' })
+        if (!flagMap.get(featureKey)) {
+          return next({ path: '/access-denied' })
         }
+      } else {
+        // No cached flags — block access (fail-closed for opt-in model)
+        return next({ path: '/access-denied' })
       }
-      // If no cached flags, allow navigation (fail-open). Flags will load on next page mount.
     }
   }
 
