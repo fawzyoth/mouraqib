@@ -79,8 +79,13 @@ export class NavexAdapter implements CarrierAdapter {
 
     const data = await this.post(this.tokenAdd, params)
 
+    // Navex returns: { lien: "https://...print URL", status: 1, status_message: "tracking_number" }
+    const trackingNumber = String(data.status_message ?? data.colis ?? '')
+    const printUrl = data.lien ? String(data.lien) : undefined
+
     return {
-      trackingNumber: String(data.colis ?? ''),
+      trackingNumber,
+      printUrl,
     }
   }
 
