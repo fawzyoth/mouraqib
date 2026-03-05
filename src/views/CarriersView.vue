@@ -118,9 +118,10 @@ const selectedModalCarrier = ref<any>(null)
 const carrierSyncSteps = ref<any[]>([])
 
 const filteredModalCarriers = computed(() => {
-  const q = modalCarrierSearchQuery.value.toLowerCase().trim()
-  if (!q) return deliveryCarriers
-  return deliveryCarriers.filter(c => c.name.toLowerCase().includes(q))
+  return [...deliveryCarriers].sort((a, b) => {
+    if (a.enabled === b.enabled) return 0
+    return a.enabled ? -1 : 1
+  })
 })
 
 function resetNewCarrierForm() {
@@ -187,14 +188,8 @@ async function syncCarrier(carrier: any) {
   if (authStore.isDemoMode || syncingCarrierId.value) return
   syncingCarrierId.value = carrier.id
   try {
-    const { data: { session } } = await supabase.auth.getSession()
-    const fnHeaders = session?.access_token
-      ? { Authorization: `Bearer ${session.access_token}` }
-      : undefined
-
     // Step 1: Test connection
     const { data: testResult, error: testError } = await supabase.functions.invoke('carrier-credentials', {
-      headers: fnHeaders,
       body: { action: 'test', carrierId: carrier.id }
     })
     if (testError || !testResult?.success) {
@@ -204,7 +199,6 @@ async function syncCarrier(carrier: any) {
 
     // Step 2: Sync shipments
     const { data: syncResult, error: syncError } = await supabase.functions.invoke('carrier-proxy', {
-      headers: fnHeaders,
       body: { carrierId: carrier.id, action: 'sync-shipments', payload: {} }
     })
     if (syncError) {
@@ -287,12 +281,7 @@ async function saveCarrierFromPage() {
     if (updated) {
       // Save encrypted credentials via edge function
       if (Object.keys(credentials).length > 0 && !authStore.isDemoMode) {
-        const { data: { session } } = await supabase.auth.getSession()
-        const fnHeaders = session?.access_token
-          ? { Authorization: `Bearer ${session.access_token}` }
-          : undefined
         await supabase.functions.invoke('carrier-credentials', {
-          headers: fnHeaders,
           body: { action: 'save', carrierId: String(editingCarrier.value), credentials }
         })
       }
@@ -314,17 +303,12 @@ async function saveCarrierFromPage() {
     return
   }
 
-  const { data: { session } } = await supabase.auth.getSession()
-  const fnHeaders = session?.access_token
-    ? { Authorization: `Bearer ${session.access_token}` }
-    : undefined
-
-  const skipTestAndSync = !!hasCustom
+  const skipSync = !!hasCustom
   carrierSyncSteps.value = [
     { label: 'Enregistrement du transporteur', status: 'loading' },
     { label: 'Sauvegarde des identifiants API', status: 'pending' },
-    ...(!skipTestAndSync ? [
-      { label: 'Test de connexion API', status: 'pending' as const },
+    { label: 'Test de connexion API', status: 'pending' as const },
+    ...(!skipSync ? [
       { label: 'Synchronisation des colis', status: 'pending' as const },
     ] : []),
   ]
@@ -344,7 +328,6 @@ async function saveCarrierFromPage() {
   carrierSyncSteps.value[1].status = 'loading'
   try {
     const { data: saveResult, error: saveError } = await supabase.functions.invoke('carrier-credentials', {
-      headers: fnHeaders,
       body: { action: 'save', carrierId: uiCarrier.id, credentials }
     })
     if (saveError || !saveResult?.success) {
@@ -370,38 +353,40 @@ async function saveCarrierFromPage() {
     return
   }
 
-  if (!skipTestAndSync) {
-    // Step 3: Test API connection
-    carrierSyncSteps.value[2].status = 'loading'
-    try {
-      const { data: testResult, error: testError } = await supabase.functions.invoke('carrier-credentials', {
-        headers: fnHeaders,
-        body: { action: 'test', carrierId: uiCarrier.id }
-      })
-      if (testError || !testResult?.success) {
-        carrierSyncSteps.value[2].status = 'error'
-        carrierSyncSteps.value[2].detail = 'Connexion échouée — vérifiez vos identifiants'
+  // Step 3: Test API connection (always run)
+  carrierSyncSteps.value[2].status = 'loading'
+  try {
+    const { data: testResult, error: testError } = await supabase.functions.invoke('carrier-credentials', {
+      body: { action: 'test', carrierId: uiCarrier.id }
+    })
+    if (testError || !testResult?.success) {
+      carrierSyncSteps.value[2].status = 'error'
+      carrierSyncSteps.value[2].detail = 'Connexion échouée — vérifiez vos identifiants'
+      if (!skipSync) {
         carrierSyncSteps.value[3].status = 'error'
         carrierSyncSteps.value[3].detail = 'Ignoré (connexion échouée)'
-        resetNewCarrierForm()
-        return
       }
-      carrierSyncSteps.value[2].status = 'done'
-      carrierSyncSteps.value[2].detail = 'API connectée'
-    } catch {
-      carrierSyncSteps.value[2].status = 'error'
-      carrierSyncSteps.value[2].detail = 'Erreur de connexion'
-      carrierSyncSteps.value[3].status = 'error'
-      carrierSyncSteps.value[3].detail = 'Ignoré (connexion échouée)'
       resetNewCarrierForm()
       return
     }
+    carrierSyncSteps.value[2].status = 'done'
+    carrierSyncSteps.value[2].detail = 'API connectée'
+  } catch {
+    carrierSyncSteps.value[2].status = 'error'
+    carrierSyncSteps.value[2].detail = 'Erreur de connexion'
+    if (!skipSync) {
+      carrierSyncSteps.value[3].status = 'error'
+      carrierSyncSteps.value[3].detail = 'Ignoré (connexion échouée)'
+    }
+    resetNewCarrierForm()
+    return
+  }
 
+  if (!skipSync) {
     // Step 4: Sync shipments
     carrierSyncSteps.value[3].status = 'loading'
     try {
       const { data: syncResult, error: syncError } = await supabase.functions.invoke('carrier-proxy', {
-        headers: fnHeaders,
         body: { carrierId: uiCarrier.id, action: 'sync-shipments', payload: {} }
       })
       if (syncError) {

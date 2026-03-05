@@ -17,7 +17,7 @@ CROSS JOIN (VALUES
   ('dashboard'), ('dashboard.overview'), ('dashboard.today-shipments'), ('dashboard.delayed-shipments'), ('dashboard.returns-alerts'), ('dashboard.financial-snapshot'), ('dashboard.activity-log'),
   ('clients'), ('clients.all-clients'), ('clients.add-client'), ('clients.vip-clients'), ('clients.blocked-clients'), ('clients.client-stats'),
   ('shipments'), ('shipments.all-shipments'), ('shipments.create-shipment'), ('shipments.labels'),
-  ('pickups'), ('pickups.schedule-pickup'), ('pickups.pickup-history'),
+  ('pickups'), ('pickups.request-pickup'), ('pickups.schedule-pickup'), ('pickups.pickup-history'),
   ('returns'), ('returns.active-returns'), ('returns.recovered-returns'), ('returns.lost-returns'), ('returns.return-value'), ('returns.return-reports'),
   ('carriers'), ('carriers.connected-carriers'), ('carriers.add-carrier'),
   ('finance'), ('finance.expected-payments'), ('finance.received-payments'), ('finance.payment-discrepancies'), ('finance.revenue'), ('finance.return-losses'), ('finance.invoices'), ('finance.exports'),
@@ -35,7 +35,7 @@ CROSS JOIN (VALUES
   ('dashboard'), ('dashboard.overview'), ('dashboard.today-shipments'), ('dashboard.delayed-shipments'), ('dashboard.returns-alerts'), ('dashboard.financial-snapshot'), ('dashboard.activity-log'),
   ('clients'), ('clients.all-clients'), ('clients.add-client'), ('clients.vip-clients'), ('clients.blocked-clients'), ('clients.client-stats'),
   ('shipments'), ('shipments.all-shipments'), ('shipments.create-shipment'), ('shipments.labels'),
-  ('pickups'), ('pickups.schedule-pickup'), ('pickups.pickup-history'),
+  ('pickups'), ('pickups.request-pickup'), ('pickups.schedule-pickup'), ('pickups.pickup-history'),
   ('returns'), ('returns.active-returns'), ('returns.recovered-returns'), ('returns.lost-returns'), ('returns.return-value'), ('returns.return-reports')
 ) AS f(feature)
 ON CONFLICT (organization_id, role, feature) DO UPDATE SET enabled = true;
@@ -47,7 +47,7 @@ FROM organizations o
 CROSS JOIN (VALUES
   ('dashboard'), ('dashboard.overview'), ('dashboard.today-shipments'), ('dashboard.delayed-shipments'), ('dashboard.returns-alerts'), ('dashboard.financial-snapshot'), ('dashboard.activity-log'),
   ('shipments'), ('shipments.all-shipments'), ('shipments.create-shipment'), ('shipments.labels'),
-  ('pickups'), ('pickups.schedule-pickup'), ('pickups.pickup-history'),
+  ('pickups'), ('pickups.request-pickup'), ('pickups.schedule-pickup'), ('pickups.pickup-history'),
   ('returns'), ('returns.active-returns'), ('returns.recovered-returns'), ('returns.lost-returns'), ('returns.return-value'), ('returns.return-reports')
 ) AS f(feature)
 ON CONFLICT (organization_id, role, feature) DO UPDATE SET enabled = true;
@@ -64,7 +64,7 @@ BEGIN
     ('dashboard'), ('dashboard.overview'), ('dashboard.today-shipments'), ('dashboard.delayed-shipments'), ('dashboard.returns-alerts'), ('dashboard.financial-snapshot'), ('dashboard.activity-log'),
     ('clients'), ('clients.all-clients'), ('clients.add-client'), ('clients.vip-clients'), ('clients.blocked-clients'), ('clients.client-stats'),
     ('shipments'), ('shipments.all-shipments'), ('shipments.create-shipment'), ('shipments.labels'),
-    ('pickups'), ('pickups.schedule-pickup'), ('pickups.pickup-history'),
+    ('pickups'), ('pickups.request-pickup'), ('pickups.schedule-pickup'), ('pickups.pickup-history'),
     ('returns'), ('returns.active-returns'), ('returns.recovered-returns'), ('returns.lost-returns'), ('returns.return-value'), ('returns.return-reports'),
     ('carriers'), ('carriers.connected-carriers'), ('carriers.add-carrier'),
     ('finance'), ('finance.expected-payments'), ('finance.received-payments'), ('finance.payment-discrepancies'), ('finance.revenue'), ('finance.return-losses'), ('finance.invoices'), ('finance.exports'),
@@ -81,7 +81,7 @@ BEGIN
     ('dashboard'), ('dashboard.overview'), ('dashboard.today-shipments'), ('dashboard.delayed-shipments'), ('dashboard.returns-alerts'), ('dashboard.financial-snapshot'), ('dashboard.activity-log'),
     ('clients'), ('clients.all-clients'), ('clients.add-client'), ('clients.vip-clients'), ('clients.blocked-clients'), ('clients.client-stats'),
     ('shipments'), ('shipments.all-shipments'), ('shipments.create-shipment'), ('shipments.labels'),
-    ('pickups'), ('pickups.schedule-pickup'), ('pickups.pickup-history'),
+    ('pickups'), ('pickups.request-pickup'), ('pickups.schedule-pickup'), ('pickups.pickup-history'),
     ('returns'), ('returns.active-returns'), ('returns.recovered-returns'), ('returns.lost-returns'), ('returns.return-value'), ('returns.return-reports')
   ) AS f(feature)
   ON CONFLICT (organization_id, role, feature) DO NOTHING;
@@ -92,7 +92,7 @@ BEGIN
   FROM (VALUES
     ('dashboard'), ('dashboard.overview'), ('dashboard.today-shipments'), ('dashboard.delayed-shipments'), ('dashboard.returns-alerts'), ('dashboard.financial-snapshot'), ('dashboard.activity-log'),
     ('shipments'), ('shipments.all-shipments'), ('shipments.create-shipment'), ('shipments.labels'),
-    ('pickups'), ('pickups.schedule-pickup'), ('pickups.pickup-history'),
+    ('pickups'), ('pickups.request-pickup'), ('pickups.schedule-pickup'), ('pickups.pickup-history'),
     ('returns'), ('returns.active-returns'), ('returns.recovered-returns'), ('returns.lost-returns'), ('returns.return-value'), ('returns.return-reports')
   ) AS f(feature)
   ON CONFLICT (organization_id, role, feature) DO NOTHING;

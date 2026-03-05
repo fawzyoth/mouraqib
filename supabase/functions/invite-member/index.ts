@@ -16,7 +16,7 @@ serve(async (req) => {
 
   try {
     // 1. Verify caller is owner/admin
-    const user = await verifyUser(req.headers.get('Authorization'))
+    const { user } = await verifyUser(req.headers.get('Authorization'))
     if (!user) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),

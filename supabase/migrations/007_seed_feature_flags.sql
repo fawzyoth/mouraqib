@@ -24,7 +24,7 @@ CROSS JOIN (VALUES
   -- Shipments
   ('shipments.all-shipments'), ('shipments.create-shipment'), ('shipments.labels'),
   -- Pickups
-  ('pickups.schedule-pickup'), ('pickups.pickup-history'),
+  ('pickups.request-pickup'), ('pickups.schedule-pickup'), ('pickups.pickup-history'),
   -- Returns
   ('returns.active-returns'), ('returns.recovered-returns'), ('returns.lost-returns'),
   ('returns.return-value'), ('returns.return-reports'),

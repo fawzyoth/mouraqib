@@ -198,23 +198,20 @@ async function handleBulkImport(payload: { type: 'excel' | 'manual'; rows: Parti
   try {
     let inserts: ShipmentInsert[] = []
 
-    // Find connected First Delivery carrier for this org
-    const firstDeliveryCarrier = appStore.carriers.find((c: any) => {
+    // Find a connected carrier with API integration for this org (First Delivery or Navex)
+    const supportedCarrier = appStore.carriers.find((c: any) => {
       const name = c.name.toLowerCase().trim()
-      return (
-        name === 'first' ||
-        name === 'first delivery' ||
-        name === 'first-delivery' ||
-        name === 'firstdelivery' ||
-        name === 'first delivery group'
-      ) && c.apiStatus === 'connected'
+      const isFirstDelivery = name === 'first' || name === 'first delivery' || name === 'first-delivery' || name === 'firstdelivery' || name === 'first delivery group'
+      const isNavex = name === 'navex' || name === 'navex delivery'
+      return (isFirstDelivery || isNavex) && c.apiStatus === 'connected'
     })
+    const isNavexCarrier = supportedCarrier && ['navex', 'navex delivery'].includes(supportedCarrier.name.toLowerCase().trim())
 
     if (payload.type === 'excel') {
       inserts = payload.rows.map((row) => ({
         organization_id: orgId,
         created_by: userId,
-        carrier_id: firstDeliveryCarrier?.id || null,
+        carrier_id: supportedCarrier?.id || null,
         recipient_name: row.recipient_name || '',
         recipient_phone: row.recipient_phone || '',
         recipient_phone_secondary: row.recipient_phone_secondary || null,
@@ -232,7 +229,7 @@ async function handleBulkImport(payload: { type: 'excel' | 'manual'; rows: Parti
       inserts = payload.manualRows.map((row) => ({
         organization_id: orgId,
         created_by: userId,
-        carrier_id: firstDeliveryCarrier?.id || null,
+        carrier_id: supportedCarrier?.id || null,
         recipient_name: row.recipient,
         recipient_phone: row.phone,
         recipient_address: row.address || '',
@@ -249,9 +246,9 @@ async function handleBulkImport(payload: { type: 'excel' | 'manual'; rows: Parti
     const createdShipments = await shipmentsService.createMany(inserts)
     toast.success(`${createdShipments.length} colis importés`)
 
-    // 2. For First Delivery: register each shipment with the carrier API, then request pickup
-    if (firstDeliveryCarrier && createdShipments.length > 0) {
-      toast.success('Envoi des colis au transporteur First Delivery...')
+    // 2. Register each shipment with the connected carrier API, then request pickup
+    if (supportedCarrier && createdShipments.length > 0) {
+      toast.success(`Envoi des colis au transporteur ${supportedCarrier.name}...`)
 
       const barCodes: string[] = []
       const shipmentIds: string[] = []
@@ -261,7 +258,7 @@ async function handleBulkImport(payload: { type: 'excel' | 'manual'; rows: Parti
         try {
           const { data, error } = await supabase.functions.invoke('carrier-proxy', {
             body: {
-              carrierId: firstDeliveryCarrier.id,
+              carrierId: supportedCarrier.id,
               action: 'create-shipment',
               payload: {
                 shipmentId: shipment.id,
@@ -304,8 +301,8 @@ async function handleBulkImport(payload: { type: 'excel' | 'manual'; rows: Parti
         toast.warning('Aucun colis envoyé au transporteur')
       }
 
-      // 3. Request pickup for all successfully registered shipments
-      if (barCodes.length > 0) {
+      // 3. Request pickup for all successfully registered shipments (skip for Navex — auto-scheduled)
+      if (barCodes.length > 0 && !isNavexCarrier) {
         try {
           // Create a pickup_request in DB
           const tomorrow = new Date()
@@ -314,7 +311,7 @@ async function handleBulkImport(payload: { type: 'excel' | 'manual'; rows: Parti
 
           const pickup = await pickupsService.create({
             organization_id: orgId,
-            carrier_id: firstDeliveryCarrier.id,
+            carrier_id: supportedCarrier.id,
             scheduled_date: scheduledDate,
             time_slot: '08:00-10:00',
             address: appStore.orgContext.address || 'Adresse de ramassage',
@@ -328,7 +325,7 @@ async function handleBulkImport(payload: { type: 'excel' | 'manual'; rows: Parti
           // Call carrier-proxy request-pickup
           const { data: pickupData, error: pickupError } = await supabase.functions.invoke('carrier-proxy', {
             body: {
-              carrierId: firstDeliveryCarrier.id,
+              carrierId: supportedCarrier.id,
               action: 'request-pickup',
               payload: {
                 pickupId: pickup.id,

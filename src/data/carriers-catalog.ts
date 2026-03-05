@@ -96,6 +96,7 @@ export const deliveryCarriers: DeliveryCarrier[] = [
     id: 'navex', name: 'Navex', description: 'Livraison Navex', type: 'express', deliveryTime: '24h', color: '#14B8A6', bgColor: '#CCFBF1', configFields: [
       { key: 'tokenAdd', label: "TOKEN d'ajout", type: 'password', placeholder: 'acc-...', required: true },
       { key: 'tokenRetrieve', label: 'TOKEN de récupération', type: 'password', placeholder: 'acc-etat-...', required: true },
+      { key: 'tokenRetrieveMultiple', label: 'TOKEN de récupération multiple', type: 'password', placeholder: 'acc-etat-multi-...', required: true },
       { key: 'tokenDelete', label: 'TOKEN de suppression', type: 'password', placeholder: 'acc-delete-...', required: true },
     ], enabled: true
   },

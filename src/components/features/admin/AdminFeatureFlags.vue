@@ -220,6 +220,7 @@ const FEATURE_TREE: FeatureNode[] = [
     id: 'pickups',
     label: 'Enlèvements',
     children: [
+      { id: 'pickups.request-pickup', label: 'Demande d\'enlèvement' },
       { id: 'pickups.schedule-pickup', label: 'Scan pickup' },
       { id: 'pickups.pickup-history', label: 'Historique' },
     ],

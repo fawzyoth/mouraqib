@@ -157,17 +157,17 @@
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Frais de paiement</label>
                   <div class="flex">
                     <input v-model.number="newCarrier.fraisPaiement" type="number" step="0.01" min="0" class="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-l-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
-                    <span class="inline-flex items-center px-3 py-2 border border-l-0 border-gray-200 dark:border-gray-700 rounded-r-lg bg-gray-100 dark:bg-gray-700 text-gray-500 text-sm">%</span>
+                    <span class="inline-flex items-center px-3 py-2 border border-l-0 border-gray-200 dark:border-gray-700 rounded-r-lg bg-gray-100 dark:bg-gray-700 text-gray-500 text-sm">DT</span>
                   </div>
-                  <p class="text-xs text-gray-500 mt-1">Pourcentage prélevé sur le montant COD</p>
+                  <p class="text-xs text-gray-500 mt-1">Montant prélevé sur le paiement COD</p>
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Retenu de passage</label>
                   <div class="flex">
                     <input v-model.number="newCarrier.retenuPassage" type="number" step="0.01" min="0" class="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-l-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
-                    <span class="inline-flex items-center px-3 py-2 border border-l-0 border-gray-200 dark:border-gray-700 rounded-r-lg bg-gray-100 dark:bg-gray-700 text-gray-500 text-sm">DT</span>
+                    <span class="inline-flex items-center px-3 py-2 border border-l-0 border-gray-200 dark:border-gray-700 rounded-r-lg bg-gray-100 dark:bg-gray-700 text-gray-500 text-sm">%</span>
                   </div>
-                  <p class="text-xs text-gray-500 mt-1">Montant retenu par passage du livreur</p>
+                  <p class="text-xs text-gray-500 mt-1">Pourcentage retenu par passage du livreur</p>
                 </div>
               </div>
             </div>

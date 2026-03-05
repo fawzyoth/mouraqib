@@ -157,30 +157,33 @@ router.beforeEach(async (to, _from, next) => {
     if (role === 'superadmin') return next()
 
     if (orgId) {
-      const cachedFlags = featureFlagsService.getCached?.() ?? null
-
-      if (cachedFlags) {
-        const flagMap = new Map<string, boolean>()
-        for (const f of cachedFlags) {
-          flagMap.set(`${f.role}.${f.feature}`, f.enabled)
-        }
-
-        const feature = to.meta.feature as string
-        const mainSection = to.meta.mainSection as string
-
-        // Check parent section — must be explicitly enabled
-        const parentKey = `${role}.${mainSection}`
-        if (!flagMap.get(parentKey)) {
+      // Ensure flags are loaded before checking (handles direct URL navigation)
+      let flags = featureFlagsService.getCached()
+      if (!flags) {
+        try {
+          flags = await featureFlagsService.getForOrg(orgId)
+        } catch {
           return next({ path: '/access-denied' })
         }
+      }
 
-        // Check specific feature — must be explicitly enabled
-        const featureKey = `${role}.${feature}`
-        if (!flagMap.get(featureKey)) {
-          return next({ path: '/access-denied' })
-        }
-      } else {
-        // No cached flags — block access (fail-closed for opt-in model)
+      const flagMap = new Map<string, boolean>()
+      for (const f of flags) {
+        flagMap.set(`${f.role}.${f.feature}`, f.enabled)
+      }
+
+      const feature = to.meta.feature as string
+      const mainSection = to.meta.mainSection as string
+
+      // Check parent section — must be explicitly enabled
+      const parentKey = `${role}.${mainSection}`
+      if (!flagMap.get(parentKey)) {
+        return next({ path: '/access-denied' })
+      }
+
+      // Check specific feature — must be explicitly enabled
+      const featureKey = `${role}.${feature}`
+      if (!flagMap.get(featureKey)) {
         return next({ path: '/access-denied' })
       }
     }

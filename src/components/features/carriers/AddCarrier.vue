@@ -137,20 +137,6 @@
               <p class="text-gray-500 text-sm mt-1">Plus de 65 transporteurs tunisiens disponibles</p>
             </div>
             <div class="p-6">
-              <div class="relative mb-5">
-                <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  :value="modalCarrierSearchQuery"
-                  @input="$emit('update:modalCarrierSearchQuery', ($event.target as HTMLInputElement).value)"
-                  type="text"
-                  placeholder="Rechercher un transporteur..."
-                  class="w-full pl-12 pr-4 py-3.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white"
-                />
-                <span v-if="modalCarrierSearchQuery" class="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-orange-600 bg-orange-100 dark:bg-orange-900/30 px-2.5 py-1 rounded-full font-medium">
-                  {{ filteredModalCarriers.length }} trouv&eacute;s
-                </span>
-              </div>
-
               <div class="max-h-96 overflow-y-auto rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30 p-4">
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <button
@@ -236,6 +222,7 @@
                       :value="(newCarrier as any)[field.key] || ''"
                       @input="$emit('update:newCarrierField', field.key, ($event.target as HTMLInputElement).value)"
                       :type="field.type === 'password' && !showApiKey ? 'password' : 'text'"
+                      autocomplete="off"
                       :placeholder="field.placeholder || ''"
                       class="w-full px-4 py-3 pr-12 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                     />
@@ -250,12 +237,12 @@
               <div v-else :class="carrierNeedsField('accountId') ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : ''">
                 <div v-if="carrierNeedsField('accountId')">
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">API ID <span class="text-red-500">*</span></label>
-                  <input :value="newCarrier.apiId" @input="$emit('update:newCarrierField', 'apiId', ($event.target as HTMLInputElement).value)" type="text" placeholder="CARRIER-API-001" class="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                  <input :value="newCarrier.apiId" @input="$emit('update:newCarrierField', 'apiId', ($event.target as HTMLInputElement).value)" type="text" autocomplete="off" placeholder="CARRIER-API-001" class="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">API Key <span class="text-red-500">*</span></label>
                   <div class="relative">
-                    <input :value="newCarrier.apiKey" @input="$emit('update:newCarrierField', 'apiKey', ($event.target as HTMLInputElement).value)" :type="showApiKey ? 'text' : 'password'" placeholder="Votre cl&eacute; API secr&egrave;te" class="w-full px-4 py-3 pr-12 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                    <input :value="newCarrier.apiKey" @input="$emit('update:newCarrierField', 'apiKey', ($event.target as HTMLInputElement).value)" :type="showApiKey ? 'text' : 'password'" autocomplete="off" placeholder="Votre cl&eacute; API secr&egrave;te" class="w-full px-4 py-3 pr-12 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                     <button type="button" @click="$emit('update:showApiKey', !showApiKey)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                       <Eye v-if="!showApiKey" class="w-5 h-5" />
                       <EyeOff v-else class="w-5 h-5" />
@@ -343,14 +330,14 @@
                     <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Frais paiement COD</label>
                     <div class="flex items-baseline gap-1">
                       <input :value="newCarrier.fraisPaiement" @input="$emit('update:newCarrierField', 'fraisPaiement', Number(($event.target as HTMLInputElement).value))" type="number" step="0.01" min="0" class="w-full px-0 py-1 border-0 border-b-2 border-gray-200 dark:border-gray-600 bg-transparent text-xl font-bold text-gray-900 dark:text-white focus:ring-0 focus:border-orange-500" />
-                      <span class="text-sm text-gray-400 font-medium">%</span>
+                      <span class="text-sm text-gray-400 font-medium">DT</span>
                     </div>
                   </div>
                   <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
                     <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Retenu passage</label>
                     <div class="flex items-baseline gap-1">
                       <input :value="newCarrier.retenuPassage" @input="$emit('update:newCarrierField', 'retenuPassage', Number(($event.target as HTMLInputElement).value))" type="number" step="0.01" min="0" class="w-full px-0 py-1 border-0 border-b-2 border-gray-200 dark:border-gray-600 bg-transparent text-xl font-bold text-gray-900 dark:text-white focus:ring-0 focus:border-orange-500" />
-                      <span class="text-sm text-gray-400 font-medium">DT</span>
+                      <span class="text-sm text-gray-400 font-medium">%</span>
                     </div>
                   </div>
                 </div>

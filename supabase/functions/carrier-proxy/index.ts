@@ -34,7 +34,7 @@ serve(async (req) => {
 
   try {
     // 1. Verify caller
-    const user = await verifyUser(req.headers.get('Authorization'))
+    const { user } = await verifyUser(req.headers.get('Authorization'))
     if (!user) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
@@ -235,14 +235,23 @@ async function handleCreateShipment(
 
   const carrierResult = await adapter.createShipment(createPayload)
 
-  // Get the real status from the carrier right after creation
+  // Determine initial status based on carrier type
   let status = 'pending'
-  try {
-    const statusResult = await adapter.checkStatus(carrierResult.trackingNumber)
-    status = mapCarrierStatus(statusResult.status)
-  } catch {
-    // If check-status fails, keep pending
-    console.error(`[carrier-proxy] check-status failed after create for ${carrierResult.trackingNumber}`)
+  if (adapter.carrierId === 'navex') {
+    // Navex auto-schedules pickup on shipment creation
+    status = 'pickup_scheduled'
+  } else if (adapter.carrierId === 'first-delivery') {
+    // First Delivery: auto-create pickup request after shipment creation
+    status = await autoRequestPickup(adapter, supabase, shipmentId, carrierResult.trackingNumber, shipmentFields)
+  } else {
+    // Get the real status from the carrier right after creation
+    try {
+      const statusResult = await adapter.checkStatus(carrierResult.trackingNumber)
+      status = mapCarrierStatus(statusResult.status)
+    } catch {
+      // If check-status fails, keep pending
+      console.error(`[carrier-proxy] check-status failed after create for ${carrierResult.trackingNumber}`)
+    }
   }
 
   // Persist the real carrier tracking number, label URL, and actual status
@@ -259,6 +268,81 @@ async function handleCreateShipment(
     carrierTrackingNumber: carrierResult.trackingNumber,
     printUrl: carrierResult.printUrl,
     status,
+  }
+}
+
+/**
+ * Auto-create a pickup request for a First Delivery shipment right after creation.
+ * Creates the pickup_request record, calls the carrier API, and links the shipment.
+ * Returns the shipment status to use ('pickup_scheduled' on success, 'pending' on failure).
+ */
+async function autoRequestPickup(
+  adapter: ReturnType<typeof getCarrierAdapter>,
+  supabase: ReturnType<typeof createServiceClient>,
+  shipmentId: string,
+  trackingNumber: string,
+  shipmentFields: Record<string, any>,
+): Promise<string> {
+  try {
+    // Look up shipment to get org and carrier IDs
+    const { data: shipment } = await supabase
+      .from('shipments')
+      .select('organization_id, carrier_id')
+      .eq('id', shipmentId)
+      .single()
+
+    if (!shipment) {
+      console.error(`[carrier-proxy] auto-pickup: shipment ${shipmentId} not found`)
+      return 'pending'
+    }
+
+    // Create pickup_request record
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const scheduledDate = tomorrow.toISOString().split('T')[0]
+
+    const { data: pickup, error: pickupInsertError } = await supabase
+      .from('pickup_requests')
+      .insert({
+        organization_id: shipment.organization_id,
+        carrier_id: shipment.carrier_id,
+        scheduled_date: scheduledDate,
+        time_slot: '08:00-10:00',
+        address: shipmentFields.address || 'Adresse de ramassage',
+        shipment_count: 1,
+        notes: `Ramassage automatique - ${trackingNumber}`,
+      })
+      .select('id')
+      .single()
+
+    if (pickupInsertError || !pickup) {
+      console.error('[carrier-proxy] auto-pickup: failed to create pickup_request:', pickupInsertError?.message)
+      return 'pending'
+    }
+
+    // Link shipment to the pickup
+    await supabase
+      .from('shipments')
+      .update({ pickup_id: pickup.id })
+      .eq('id', shipmentId)
+
+    // Call carrier API to request pickup
+    const pickupResult = await adapter.requestPickup([trackingNumber])
+
+    // Mark pickup as confirmed
+    await supabase
+      .from('pickup_requests')
+      .update({
+        status: 'confirmed',
+        carrier_pickup_id: pickupResult.pickupId,
+      })
+      .eq('id', pickup.id)
+
+    console.log(`[carrier-proxy] auto-pickup: confirmed for ${trackingNumber}, pickupId=${pickupResult.pickupId}`)
+    return 'pickup_scheduled'
+  } catch (err) {
+    console.error('[carrier-proxy] auto-pickup failed:', (err as Error).message)
+    return 'pending'
   }
 }
 
@@ -516,6 +600,7 @@ async function findOrCreateClient(
 function mapCarrierStatus(carrierStatus: string): string {
   const s = (carrierStatus || '').toLowerCase().trim()
 
+  if (s.includes('livr') && s.includes('pay')) return 'delivered'   // Navex: "Livrer Paye"
   if (s.includes('livr')) return 'delivered'
   if (s.includes('rtn') || s.includes('retour')) return 'returned'
   if (s.includes('supprim') || s.includes('annul')) return 'cancelled'
@@ -523,6 +608,7 @@ function mapCarrierStatus(carrierStatus: string): string {
   if (s.includes('transit') || s.includes('transfert') || s.includes('hub')) return 'in_transit'
   if (s.includes('distribution') || s.includes('livraison en cours')) return 'out_for_delivery'
   if (s.includes('créé') || s.includes('cree') || s.includes('nouveau')) return 'pending'
+  if (s.includes('attent')) return 'pending'                        // Navex: "En attente"
 
   return 'in_transit'
 }
