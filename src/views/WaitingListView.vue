@@ -580,10 +580,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useThemeStore } from '@/stores/theme'
 import { Moon, Sun, UserPlus, ArrowLeft, Loader2, CheckCircle, ChevronDown, Check, X, Package, Truck, Users, BarChart3 } from 'lucide-vue-next'
 import { supabase } from '@/lib/supabase'
-
-declare global {
-  interface Window { fbq: (...args: any[]) => void }
-}
+import { loadFacebookPixel } from '@/lib/facebook-pixel'
 
 const themeStore = useThemeStore()
 
@@ -612,6 +609,7 @@ function updateCountdown() {
 }
 
 onMounted(async () => {
+  loadFacebookPixel()
   updateCountdown()
   countdownInterval = window.setInterval(updateCountdown, 1000)
   await fetchRegisteredCount()

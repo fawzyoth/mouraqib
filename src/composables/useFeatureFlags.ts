@@ -9,7 +9,7 @@ export function useFeatureFlags(orgId: Ref<string>) {
   const flagsMap = ref<Map<string, boolean>>(new Map())
   const isLoaded = ref(false)
 
-  const userRole = computed(() => authStore.user?.role || 'user')
+  const userRole = computed(() => authStore.user?.role || 'agent_confirmation')
 
   async function loadFlags() {
     // In demo mode, everything is enabled — no DB call
@@ -36,7 +36,7 @@ export function useFeatureFlags(orgId: Ref<string>) {
 
   /**
    * Check if a feature is enabled for the current user's role.
-   * Opt-out model: returns true if no flag row exists.
+   * Opt-in model: returns false if no flag row exists.
    * If a parent section is disabled, its children are also disabled.
    */
   function isFeatureEnabled(feature: string): boolean {
@@ -53,7 +53,7 @@ export function useFeatureFlags(orgId: Ref<string>) {
     if (dotIndex !== -1) {
       const parentSection = feature.substring(0, dotIndex)
       const parentKey = `${role}.${parentSection}`
-      if (flagsMap.value.has(parentKey) && !flagsMap.value.get(parentKey)) {
+      if (!flagsMap.value.has(parentKey) || !flagsMap.value.get(parentKey)) {
         return false
       }
     }
@@ -64,8 +64,8 @@ export function useFeatureFlags(orgId: Ref<string>) {
       return flagsMap.value.get(key)!
     }
 
-    // Opt-out: enabled by default
-    return true
+    // Opt-in: disabled by default
+    return false
   }
 
   return {

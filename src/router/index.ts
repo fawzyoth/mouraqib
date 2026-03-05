@@ -1,16 +1,27 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { isSupabaseConfigured } from '@/lib/supabase'
 import { subSectionRoutes } from '@/composables/useNavigation'
 import { useAuthStore } from '@/stores/auth'
 import { featureFlagsService } from '@/services/featureFlags'
 
-// Single lazy-import reference so Vue Router reuses the same component instance
-const DeliveryTrackerView = () => import('@/views/DeliveryTrackerView.vue')
+// Section-specific view components (lazy-loaded)
+const sectionComponents: Record<string, () => Promise<any>> = {
+  dashboard:      () => import('@/views/DashboardView.vue'),
+  clients:        () => import('@/views/ClientsView.vue'),
+  shipments:      () => import('@/views/ShipmentsView.vue'),
+  pickups:        () => import('@/views/PickupsView.vue'),
+  returns:        () => import('@/views/ReturnsView.vue'),
+  carriers:       () => import('@/views/CarriersView.vue'),
+  finance:        () => import('@/views/FinanceView.vue'),
+  analytics:      () => import('@/views/AnalyticsView.vue'),
+  settings:       () => import('@/views/SettingsView.vue'),
+  administration: () => import('@/views/AdminView.vue'),
+}
 
-// Generate app routes from the subSectionRoutes map
+// Generate app routes — each section maps to its own view component
 const appRoutes = Object.entries(subSectionRoutes).map(([subSection, { path, mainSection }]) => ({
   path,
-  component: DeliveryTrackerView,
+  component: sectionComponents[mainSection] || sectionComponents.dashboard,
   meta: {
     requiresAuth: true,
     mainSection,
@@ -61,8 +72,18 @@ const router = createRouter({
       path: '/reset-password',
       redirect: '/signin'
     },
-    // All app feature routes (each renders DeliveryTrackerView)
-    ...appRoutes,
+    // All app feature routes nested under the authenticated layout
+    {
+      path: '',
+      component: () => import('@/views/AppLayoutView.vue'),
+      children: appRoutes,
+    },
+    {
+      path: '/access-denied',
+      name: 'access-denied',
+      component: () => import('@/views/AccessDeniedView.vue'),
+      meta: { requiresAuth: true },
+    },
     {
       path: '/:pathMatch(.*)*',
       redirect: '/dashboard'
@@ -76,9 +97,8 @@ const router = createRouter({
   }
 })
 
-// Navigation guard
-router.beforeEach(async (to, from, next) => {
-  // Check if route requires authentication
+// Navigation guard — waits for auth init, then uses in-memory state (no per-nav getSession calls)
+router.beforeEach(async (to, _from, next) => {
   const requiresAuth = to.meta.requiresAuth
   const authRedirect = to.meta.authRedirect
 
@@ -99,14 +119,14 @@ router.beforeEach(async (to, from, next) => {
     return next()
   }
 
-  // Get current session
-  let isAuthenticated = false
-  try {
-    const { data: { session } } = await supabase.auth.getSession()
-    isAuthenticated = !!session
-  } catch (error) {
-    console.error('Error checking auth session:', error)
+  // Wait for the auth store to finish its one-time init (restores session from
+  // localStorage).  After that, we rely on in-memory state kept in sync by
+  // onAuthStateChange — no per-navigation getSession() calls.
+  const authStore = useAuthStore()
+  if (!authStore.isInitialized) {
+    await authStore.initialize()
   }
+  const isAuthenticated = authStore.isAuthenticated
 
   // If route requires auth and user is not authenticated
   if (requiresAuth && !isAuthenticated) {
@@ -123,46 +143,48 @@ router.beforeEach(async (to, from, next) => {
 
   // If route requires admin and user is not a platform admin
   if (to.meta.requiresAdmin && isAuthenticated) {
-    const authStore = useAuthStore()
     if (!authStore.isPlatformAdmin) {
-      return next({ path: '/dashboard' })
+      return next({ path: '/access-denied' })
     }
   }
 
-  // Feature flag check — skip for demo mode (already handled above) and dashboard (fallback route)
+  // Feature flag check — opt-in model: block unless explicitly enabled
   if (isAuthenticated && to.meta.feature && to.meta.mainSection && to.meta.mainSection !== 'dashboard') {
-    const authStore = useAuthStore()
     const orgId = authStore.user?.organizationId
-    const role = authStore.user?.role || 'user'
+    const role = authStore.user?.role || 'agent_confirmation'
 
     // Superadmin bypasses all feature flag checks
     if (role === 'superadmin') return next()
 
     if (orgId) {
-      try {
-        const flags = await featureFlagsService.getForOrg(orgId)
-        const flagMap = new Map<string, boolean>()
-        for (const f of flags) {
-          flagMap.set(`${f.role}.${f.feature}`, f.enabled)
+      // Ensure flags are loaded before checking (handles direct URL navigation)
+      let flags = featureFlagsService.getCached()
+      if (!flags) {
+        try {
+          flags = await featureFlagsService.getForOrg(orgId)
+        } catch {
+          return next({ path: '/access-denied' })
         }
+      }
 
-        const feature = to.meta.feature as string
-        const mainSection = to.meta.mainSection as string
+      const flagMap = new Map<string, boolean>()
+      for (const f of flags) {
+        flagMap.set(`${f.role}.${f.feature}`, f.enabled)
+      }
 
-        // Check parent section
-        const parentKey = `${role}.${mainSection}`
-        if (flagMap.has(parentKey) && !flagMap.get(parentKey)) {
-          return next({ path: '/dashboard' })
-        }
+      const feature = to.meta.feature as string
+      const mainSection = to.meta.mainSection as string
 
-        // Check specific feature
-        const featureKey = `${role}.${feature}`
-        if (flagMap.has(featureKey) && !flagMap.get(featureKey)) {
-          return next({ path: '/dashboard' })
-        }
-      } catch (err) {
-        // On error, allow navigation (fail-open)
-        console.error('Feature flag check failed:', err)
+      // Check parent section — must be explicitly enabled
+      const parentKey = `${role}.${mainSection}`
+      if (!flagMap.get(parentKey)) {
+        return next({ path: '/access-denied' })
+      }
+
+      // Check specific feature — must be explicitly enabled
+      const featureKey = `${role}.${feature}`
+      if (!flagMap.get(featureKey)) {
+        return next({ path: '/access-denied' })
       }
     }
   }

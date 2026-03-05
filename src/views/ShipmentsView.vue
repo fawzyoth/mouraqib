@@ -1,0 +1,189 @@
+<template>
+  <!-- Shipments: All Shipments -->
+  <ShipmentsList
+    v-if="activeSection === 'all-shipments'"
+    :shipments="appStore.shipments"
+    :status-tabs="statusTabs"
+    @toggle-submenu="subMenuOpen = !subMenuOpen"
+    @open-bulk-import="openBulkImport"
+    @open-add-shipment="navigateTo('create-shipment')"
+    @select-shipment="(s: any) => { selectedShipment = s; showShipmentDetail = true }"
+  />
+
+  <!-- Shipments: Create Shipment — success screen or form -->
+  <ShipmentCreatedSuccess
+    v-else-if="activeSection === 'create-shipment' && createdShipment"
+    :shipment="createdShipment"
+    @toggle-submenu="subMenuOpen = !subMenuOpen"
+    @print-label="handleSuccessPrintLabel"
+    @create-another="handleCreateAnother"
+    @view-shipments="handleViewShipments"
+  />
+
+  <CreateShipment
+    v-else-if="activeSection === 'create-shipment'"
+    :clients="appStore.clients"
+    :carriers="appStore.carriers"
+    :initial-carrier="stickyCarrier"
+    @toggle-submenu="subMenuOpen = !subMenuOpen"
+    @submit="handleCreateShipment"
+    @reset="resetShipmentForm"
+  />
+
+  <!-- Shipments: Labels -->
+  <ShipmentLabels
+    v-else-if="activeSection === 'labels'"
+    :shipments="appStore.shipments"
+    @toggle-submenu="subMenuOpen = !subMenuOpen"
+    @print-selected="printSelectedLabels"
+    @open-label-preview="openLabelPreview"
+  />
+
+  <!-- Shipment Detail Panel (always rendered, toggled via :show) -->
+  <ShipmentDetailPanel
+    :show="showShipmentDetail"
+    :shipment="selectedShipment"
+    @close="selectedShipment = null; showShipmentDetail = false"
+  />
+
+  <!-- Print Label Modal -->
+  <PrintLabelModal
+    :show="showPrintLabelModal"
+    :shipment="labelToPrint"
+    @close="closePrintModal"
+    @print="printLabel"
+  />
+</template>
+
+<script setup lang="ts">
+import { computed, ref, inject } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAppStore } from '@/stores/app'
+import { useAuthStore } from '@/stores/auth'
+import { subSectionRoutes } from '@/composables/useNavigation'
+
+// Feature components
+import ShipmentsList from '@/components/features/shipments/ShipmentsList.vue'
+import CreateShipment from '@/components/features/shipments/CreateShipment.vue'
+import ShipmentCreatedSuccess from '@/components/features/shipments/ShipmentCreatedSuccess.vue'
+import ShipmentLabels from '@/components/features/shipments/ShipmentLabels.vue'
+import ShipmentDetailPanel from '@/components/features/shipments/ShipmentDetailPanel.vue'
+
+// Modal components
+import PrintLabelModal from '@/components/modals/PrintLabelModal.vue'
+
+const route = useRoute()
+const router = useRouter()
+const appStore = useAppStore()
+const authStore = useAuthStore()
+const activeSection = computed(() => (route.meta.subSection as string) || '')
+const subMenuOpen = inject<import('vue').Ref<boolean>>('subMenuOpen', ref(false))
+
+function navigateTo(subSection: string) {
+  const routeInfo = subSectionRoutes[subSection]
+  if (routeInfo) router.push(routeInfo.path)
+}
+
+// ---------------------------------------------------------------------------
+// Injected from layout
+// ---------------------------------------------------------------------------
+const openBulkImport = inject<() => void>('openBulkImport', () => {})
+
+// ---------------------------------------------------------------------------
+// Section-local state
+// ---------------------------------------------------------------------------
+
+// Status tabs for ShipmentsList (counts derived from store)
+const statusTabs = computed(() => {
+  const s = appStore.shipments
+  const count = (status: string) => s.filter((sh: any) => sh.status === status).length
+  return [
+    { id: 'all', label: 'Tous', count: s.length },
+    { id: 'pending', label: 'En attente', count: count('Pending') },
+    { id: 'pickup-scheduled', label: 'Ramassage prévu', count: count('Pickup scheduled') },
+    { id: 'picked-up', label: 'Enlevé', count: count('Picked up') },
+    { id: 'in-transit', label: 'En transit', count: count('In transit') },
+    { id: 'out-for-delivery', label: 'En livraison', count: count('Out for delivery') },
+    { id: 'delivered', label: 'Livré', count: count('Delivered') },
+    { id: 'returned', label: 'Retourné', count: count('Returned') },
+    { id: 'cancelled', label: 'Annulé', count: count('Cancelled') },
+  ].filter(t => t.id === 'all' || t.count > 0)
+})
+
+// Shipment detail panel
+const selectedShipment = ref<any>(null)
+const showShipmentDetail = ref(false)
+
+// Create shipment
+const createdShipment = ref<any>(null)
+const stickyCarrier = ref('')
+
+async function handleCreateShipment(data: any) {
+  const carrier = appStore.carriers.find((c: any) => c.name === data.carrier)
+  const carrierId = carrier?.id || null
+  const userId = authStore.user?.id || null
+
+  const result = await appStore.shipmentsData.create(
+    data,
+    appStore.orgContext,
+    userId,
+    carrierId,
+    carrier?.apiStatus
+  )
+  if (result) {
+    createdShipment.value = result
+    stickyCarrier.value = data.carrier || ''
+  }
+}
+function resetShipmentForm() {
+  createdShipment.value = null
+  stickyCarrier.value = ''
+}
+function handleSuccessPrintLabel(_shipment: any) {
+  labelToPrint.value = _shipment
+  showPrintLabelModal.value = true
+}
+function handleCreateAnother() {
+  createdShipment.value = null
+}
+function handleViewShipments() {
+  createdShipment.value = null
+  navigateTo('all-shipments')
+}
+
+// Labels — open the real carrier label URL (same as sidebar) and mark as printed
+function openLabelPreview(shipment: any) {
+  if (shipment.labelUrl) {
+    window.open(shipment.labelUrl, '_blank')
+    appStore.shipmentsData.markAsPrinted([shipment.id])
+  }
+}
+
+function printSelectedLabels(ids: any[]) {
+  const shipments = appStore.shipments.filter((s: any) => ids.includes(s.id))
+  const printedIds: string[] = []
+  for (const s of shipments) {
+    if (s.labelUrl) {
+      window.open(s.labelUrl, '_blank')
+      printedIds.push(s.id)
+    }
+  }
+  if (printedIds.length > 0) {
+    appStore.shipmentsData.markAsPrinted(printedIds)
+  }
+}
+
+// Print label modal (used from shipment creation success screen)
+const showPrintLabelModal = ref(false)
+const labelToPrint = ref<any>(null)
+
+function closePrintModal() {
+  showPrintLabelModal.value = false
+  labelToPrint.value = null
+}
+function printLabel() {
+  if (labelToPrint.value?.labelUrl) {
+    window.open(labelToPrint.value.labelUrl, '_blank')
+  }
+}
+</script>

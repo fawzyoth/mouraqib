@@ -49,6 +49,22 @@ export function dbClientToUI(row: Client): UIClient {
   }
 }
 
+export function uiFormToUpdate(form: Record<string, any>): import('@/types/database').ClientUpdate {
+  return {
+    name: form.name,
+    phone: form.phone,
+    phone_secondary: form.phoneSecondary || null,
+    email: form.email || null,
+    address: form.address || null,
+    governorate: form.region || null,
+    delegation: form.delegation || null,
+    locality: form.locality || null,
+    postal_code: form.postalCode || null,
+    status: (form.status as 'active' | 'vip' | 'inactive' | 'blocked') || 'active',
+    notes: form.notes || null,
+  }
+}
+
 export function uiClientToInsert(form: Record<string, any>, orgId: string): ClientInsert {
   return {
     organization_id: orgId,

@@ -98,7 +98,7 @@ export const useAuthStore = defineStore('auth', () => {
           email: supabaseUser.email || '',
           organization: '',
           organizationId: null,
-          role: 'user',
+          role: 'agent_confirmation',
           isAdmin: false,
           avatarUrl: null
         }

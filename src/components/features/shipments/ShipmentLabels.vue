@@ -31,7 +31,7 @@
 
     <main class="flex-1 overflow-y-auto p-6">
       <!-- Stats Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
           <div class="flex items-center space-x-3">
             <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
@@ -62,17 +62,6 @@
             <div>
               <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ unprintedLabelsCount }}</p>
               <p class="text-sm text-gray-500">A imprimer</p>
-            </div>
-          </div>
-        </div>
-        <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
-          <div class="flex items-center space-x-3">
-            <div class="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-              <Banknote class="w-5 h-5 text-purple-600" />
-            </div>
-            <div>
-              <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ totalCOD.toLocaleString() }} TND</p>
-              <p class="text-sm text-gray-500">Total COD</p>
             </div>
           </div>
         </div>
@@ -201,7 +190,7 @@
                 </td>
                 <!-- Label Number -->
                 <td class="px-4 py-3" data-label="N Bordereau">
-                  <span class="font-mono text-sm font-semibold text-gray-900 dark:text-white">{{ shipment.labelNumber }}</span>
+                  <span class="font-mono text-sm font-semibold text-gray-900 dark:text-white">{{ shipment.labelNumber || shipment.trackingNumber || '—' }}</span>
                 </td>
                 <!-- Carrier -->
                 <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Transporteur">
@@ -221,12 +210,10 @@
                 <td class="px-4 py-3" data-label="Statut">
                   <span
                     :class="[
-                      'px-2 py-0.5 text-xs rounded font-medium',
+                      'px-2 py-0.5 text-xs rounded font-medium whitespace-nowrap',
                       shipment.labelPrinted ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
                     ]"
-                  >
-                    {{ shipment.labelPrinted ? 'Imprime' : 'A imprimer' }}
-                  </span>
+                  >{{ shipment.labelPrinted ? 'Imprimé' : 'A imprimer' }}</span>
                 </td>
                 <!-- COD -->
                 <td class="px-4 py-3 text-sm font-semibold text-orange-600" data-label="Montant COD">
@@ -287,7 +274,6 @@ import {
   Printer,
   FileText,
   Clock,
-  Banknote,
   Search,
   ArrowUpDown,
   ChevronLeft,
@@ -401,10 +387,6 @@ const printedLabelsCount = computed(() => {
 
 const unprintedLabelsCount = computed(() => {
   return props.shipments.filter(s => !s.labelPrinted).length
-})
-
-const totalCOD = computed(() => {
-  return props.shipments.reduce((sum, s) => sum + (s.cod || 0), 0)
 })
 
 // Filtered labels with column filters and sorting

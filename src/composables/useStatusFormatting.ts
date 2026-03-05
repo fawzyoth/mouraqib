@@ -2,6 +2,9 @@ export function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
     'Delivered': 'Livré',
     'Out for delivery': 'En livraison',
+    'In transit': 'En transit',
+    'Picked up': 'Ramassé',
+    'Returned': 'Retourné',
     'Pending': 'En attente',
     'Exception': 'Exception',
     'Failed attempt': 'Tentative échouée',
@@ -26,6 +29,9 @@ export function getStatusDotClass(status: string): string {
   const classes: Record<string, string> = {
     'Delivered': 'bg-green-500',
     'Out for delivery': 'bg-blue-500',
+    'In transit': 'bg-blue-400',
+    'Picked up': 'bg-indigo-500',
+    'Returned': 'bg-red-500',
     'Pending': 'bg-gray-400',
     'Exception': 'bg-red-500',
     'Failed attempt': 'bg-orange-500',

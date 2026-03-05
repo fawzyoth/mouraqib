@@ -1,6 +1,18 @@
 import { supabase } from '@/lib/supabase'
+import type { CarrierPaymentInsert } from '@/types/database'
 
 export const carrierPaymentsService = {
+  async create(payment: CarrierPaymentInsert) {
+    const { data, error } = await supabase
+      .from('carrier_payments')
+      .insert(payment)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
   async getAll(organizationId: string) {
     const { data, error } = await supabase
       .from('carrier_payments')

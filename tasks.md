@@ -1,19 +1,18 @@
-* [x] in  http://localhost:5180/#/clients when i click client i should see all their details in sidebar
-* [x]  in http://localhost:5180/#/clients in sidebar, i should be able to edit and save clients
-* [x] in http://localhost:5180/#/clients in sidebar i should be able to see client stats (their shipments, total price, total return rate)
-* [x] in http://localhost:5180/#/clients/add when adding client i should add address along with the sub adresses as structured in @zones-first.ts
-* [x] in http://localhost:5180/#/clients/add when adding client i should be able to add 2 optional phone numbers
-* [x] in http://localhost:5180/#/clients/add when adding client app should check if a client with that number already exists
-* [x] in http://localhost:5180/#/shipments remove "Exemple" from the column numero do suivi
-* [x] in http://localhost:5180/#/shipments , when i click a shipment i should be able to see all its details in sidebar, all details of entered in the shipment creation, client, and label
-* [x] in http://localhost:5180/#/shipments/labels, redesign it in list instead of grid and add sort and filtering as in http://localhost:5180/#/shipments
-* [x] in http://localhost:5180/#/shipments/labels, add carrier company and state (printed or not) to each entry
-* [x] in http://localhost:5180/#/shipments/labels, add mock pdf printing for now when print buttons are clicked, and update the shipment state in db
-* [x] in http://localhost:5180/#/shipments, fix the filters on top to show correct numbers  Tous (92) Exception (0) Tentative échouée (0) Expiré (0) En livraison (0) Livré (0) En attente (0)
-* [x] in http://localhost:5180/#/pickups when i see 6 colis en attente -- imprimez les bordereaux d'abord, make that clickable and lead to the labels page filtered by state "En attente"
-* [x] in http://localhost:5180/#/returns make Raisons des retours actually functional with real data
-
-
-interface en francais
-detection de blancs / cheating
-jwtap
+- [x] Add `tokenRetrieveMultiple` as a 4th config field for Navex in `src/data/carriers-catalog.ts` (TOKEN de Récupération Multiple)
+- [x] Create `supabase/functions/_shared/carriers/navex.ts` with `NavexAdapter` class implementing `CarrierAdapter` interface
+- [x] Implement `createShipment` — POST form-encoded body (`prix`, `nom`, `gouvernerat`, `ville`, `adresse`, `tel`, `tel2`, `designation`, `nb_article`, `msg`, `echange`, `article`, `nb_echange`, `ouvrir`) to `https://app.navex.tn/api/{tokenAdd}/v1/post.php`, parse tracking number from response `colis` field
+- [x] Implement `checkStatus` — POST `code={trackingNumber}` to `https://app.navex.tn/api/{tokenRetrieve}/v1/post.php`, return `etat` as status
+- [x] Implement `cancelShipments` — POST `delete_code={trackingNumber}` to `https://app.navex.tn/api/{tokenDelete}/v1/post.php` for each tracking number
+- [x] Implement `requestPickup` as a no-op — Navex auto-schedules pickup on shipment creation, so just return a generated pickupId without making any API call
+- [x] After `createShipment`, set initial status to `pickup_scheduled` since Navex automatically creates a pickup request for every shipment
+- [x] Skip the pickup request step in bulk import flow for Navex carriers (no need to call `request-pickup` action)
+- [x] Use `tokenRetrieveMultiple` for bulk status checks — POST `codes={comma-separated}` to `https://app.navex.tn/api/{tokenRetrieveMultiple}/v1/post.php`, parse `results` array
+- [x] All Navex API requests must use `application/x-www-form-urlencoded` content type (not JSON), matching the curl examples in the docs
+- [x] Add API call logging via `onApiCall` callback in every Navex HTTP call, same pattern as `FirstDeliveryAdapter`
+- [x] Add error handling using `CarrierApiError` for non-success responses from Navex API
+- [x] Register Navex in `supabase/functions/_shared/carriers/registry.ts` — add cases `'navex'`, `'navex delivery'` in `getCarrierAdapter` switch, map credentials `{ tokenAdd, tokenRetrieve, tokenRetrieveMultiple, tokenDelete }` to `NavexAdapter` constructor
+- [x] Update `isCarrierSupported` in `registry.ts` to include Navex aliases
+- [x] Update the error message in `getCarrierAdapter` default case to list Navex alongside First Delivery
+- [x] Update `carrier-credentials/index.ts` test action — replace the generic `hasKey` check with carrier-aware validation: for Navex check that `tokenAdd` exists, for First Delivery check `apiKey`
+- [x] Update bulk import logic in `src/views/AppLayoutView.vue` — generalize the `firstDeliveryCarrier` lookup to also match Navex carriers by name, so bulk import works for Navex too
+- [x] Map Navex status strings (`En attente`, `Livrer Paye`, `Retourné`, etc.) in the existing `mapCarrierStatus` function in `carrier-proxy/index.ts` if any are not already covered

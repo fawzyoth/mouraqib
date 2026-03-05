@@ -32,6 +32,7 @@ import {
 } from './analytics'
 import { demoTeamMembers, demoActiveSessions } from './team'
 import { demoFailedSearches, demoDelayedShipments, demoDelayedPatterns } from './search'
+import { demoAdminUsers, demoAdminTransactions } from './admin'
 
 /**
  * Seed all demo data into the component refs/reactives.
@@ -143,6 +144,10 @@ export function seedDemoData(
 
   // Part 43: Carrier Performance
   refs.carrierPerformance.value = demoCarrierPerformance
+
+  // Part 44: Admin Users & Transactions
+  if (refs.adminUsers) refs.adminUsers.value = demoAdminUsers
+  if (refs.adminTransactions) refs.adminTransactions.value = demoAdminTransactions
 
   // --- reactive types: Object.assign(refs.x, data) ---
 

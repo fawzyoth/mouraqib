@@ -21,6 +21,7 @@ export interface UIShipment {
   trackingNumber: string
   carrier: string
   carrierId: string | null
+  clientId: string | null
   client: string
   status: string
   latestEvent: string
@@ -32,6 +33,7 @@ export interface UIShipment {
   orderNumber: string
   customerName: string
   labelNumber: string | null
+  labelUrl: string | null
   labelPrinted: boolean
   labelPrintedAt: string | null
   weight: number | null
@@ -52,6 +54,8 @@ export interface UIShipment {
   totalPrice: number
   amount: number
   createdAt: string
+  pickupDate: string | null
+  updatedAt: string
   events: any[]
 }
 
@@ -61,7 +65,7 @@ interface OrgContext {
   phone: string
 }
 
-export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | null; client?: { name: string } | null }, org: OrgContext): UIShipment {
+export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | null; client?: { name: string } | null; pickup?: { scheduled_date: string } | null }, org: OrgContext): UIShipment {
   const carrierName = row.carrier?.name || 'Non assigné'
   const clientName = row.client?.name || '-'
   const uiStatus = STATUS_DB_TO_UI[row.status] || row.status
@@ -70,9 +74,10 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
 
   return {
     id: row.id,
-    trackingNumber: row.tracking_number,
+    trackingNumber: row.carrier_tracking_number || row.tracking_number,
     carrier: carrierName,
     carrierId: row.carrier_id,
+    clientId: row.client_id,
     client: clientName,
     status: uiStatus,
     latestEvent,
@@ -86,6 +91,7 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
     orderNumber: row.reference || '',
     customerName: row.recipient_name,
     labelNumber: row.label_number,
+    labelUrl: (row as any).label_url || null,
     labelPrinted: row.label_printed,
     labelPrintedAt: row.label_printed_at,
     weight: row.weight,
@@ -106,6 +112,8 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
     totalPrice: row.cod_amount,
     amount: row.cod_amount,
     createdAt: row.created_at,
+    pickupDate: row.pickup?.scheduled_date || null,
+    updatedAt: row.updated_at,
     events: [],
   }
 }

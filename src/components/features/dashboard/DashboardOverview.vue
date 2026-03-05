@@ -12,6 +12,13 @@
         </div>
       </div>
       <div class="flex items-center space-x-3">
+        <button
+          @click="router.push('/shipments/create')"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-primary-blue hover:bg-blue-700 rounded-lg transition-colors"
+        >
+          <Plus class="w-4 h-4" />
+          <span class="hidden sm:inline">Créer colis</span>
+        </button>
         <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors relative">
           <Bell class="w-5 h-5 text-gray-500" />
           <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
@@ -59,7 +66,7 @@
           <h3 class="font-semibold text-gray-900 dark:text-white">Actions urgentes</h3>
           <span class="px-2 py-0.5 bg-orange-100 text-orange-600 text-xs rounded-full font-medium">{{ urgentActions.length }}</span>
         </div>
-        <button class="text-sm text-orange-500 hover:text-orange-600 font-medium">Tout traiter</button>
+        <button @click="emit('handle-all-actions')" class="text-sm text-orange-500 hover:text-orange-600 font-medium">Tout traiter</button>
       </div>
       <div class="divide-y divide-gray-100 dark:divide-gray-800">
         <div v-for="action in urgentActions" :key="action.id" class="px-5 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
@@ -86,8 +93,8 @@
           </div>
           <div class="flex items-center space-x-2">
             <span class="text-xs text-gray-400">{{ action.time }}</span>
-            <button class="btn-primary btn-primary-sm">
-              {{ action.actionLabel }}
+            <button @click="emit('handle-action', action)" class="btn-primary btn-primary-sm">
+              Traiter
             </button>
           </div>
         </div>
@@ -155,14 +162,18 @@
 </template>
 
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
 import {
   ListFilter,
   Bell,
   Package,
   CheckCircle,
   Banknote,
-  AlertTriangle
+  AlertTriangle,
+  Plus
 } from 'lucide-vue-next'
+
+const router = useRouter()
 
 interface DashboardStats {
   todayDeliveries: number
@@ -197,7 +208,9 @@ interface Props {
 
 defineProps<Props>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'toggle-sub-menu'): void
+  (e: 'handle-action', action: UrgentAction): void
+  (e: 'handle-all-actions'): void
 }>()
 </script>

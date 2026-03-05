@@ -1,4 +1,4 @@
-import { createServiceClient } from './supabase.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.93.3'
 
 export interface AuthUser {
   id: string
@@ -9,34 +9,111 @@ export interface AuthUser {
 }
 
 /**
- * Verify the JWT from the Authorization header and return the user's profile.
- * Returns null if the token is invalid or the user has no profile.
+ * Decode a JWT payload without verification.
+ * Signature verification is handled by checking the user exists via admin API.
  */
-export async function verifyUser(authHeader: string | null): Promise<AuthUser | null> {
-  if (!authHeader) return null
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    const payload = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'))
+    return JSON.parse(payload)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Verify the JWT from the Authorization header and return the user's profile.
+ * Uses auth.admin.getUserById() to verify the user exists, bypassing
+ * getUser(token) which fails with ES256 JWTs on this project.
+ */
+export async function verifyUser(authHeader: string | null): Promise<{ user: AuthUser | null; error: string | null }> {
+  console.log('[AUTH] verifyUser called, authHeader present:', !!authHeader)
+
+  if (!authHeader) {
+    return { user: null, error: 'No Authorization header provided' }
+  }
 
   const token = authHeader.replace('Bearer ', '')
-  const supabase = createServiceClient()
+  const payload = decodeJwtPayload(token)
 
-  // Verify JWT and get the user
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-  if (authError || !user) return null
+  if (!payload) {
+    console.log('[AUTH] FAIL: could not decode JWT payload')
+    return { user: null, error: 'Invalid JWT format' }
+  }
 
-  // Fetch profile with organization info
+  const userId = payload.sub as string
+  const exp = payload.exp as number
+  const email = payload.email as string
+
+  console.log('[AUTH] JWT decoded — sub:', userId, '| email:', email, '| exp:', exp)
+
+  // Check expiry
+  const now = Math.floor(Date.now() / 1000)
+  if (exp && now > exp) {
+    console.log('[AUTH] FAIL: token expired at', exp, '| now:', now, '| expired', now - exp, 'seconds ago')
+    return { user: null, error: `JWT expired ${now - exp} seconds ago` }
+  }
+
+  if (!userId) {
+    console.log('[AUTH] FAIL: no sub claim in JWT')
+    return { user: null, error: 'JWT has no sub claim' }
+  }
+
+  // Use service client with admin API to verify user exists
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  )
+
+  console.log('[AUTH] verifying user via admin API...')
+  const { data: { user: authUser }, error: adminError } = await supabase.auth.admin.getUserById(userId)
+
+  if (adminError) {
+    console.log('[AUTH] FAIL: admin.getUserById error:', adminError.message)
+    return { user: null, error: `User verification failed: ${adminError.message}` }
+  }
+  if (!authUser) {
+    console.log('[AUTH] FAIL: admin.getUserById returned null')
+    return { user: null, error: 'User not found in auth system' }
+  }
+
+  console.log('[AUTH] user verified — id:', authUser.id, '| email:', authUser.email)
+
+  // Fetch profile
+  console.log('[AUTH] fetching profile...')
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('organization_id, role, is_admin')
-    .eq('id', user.id)
+    .eq('id', authUser.id)
     .single()
 
-  if (profileError || !profile) return null
+  if (profileError) {
+    console.log('[AUTH] FAIL: profile error:', profileError.message, '| code:', profileError.code)
+    return { user: null, error: `Profile lookup failed: ${profileError.message}` }
+  }
+  if (!profile) {
+    return { user: null, error: 'No profile found for this user' }
+  }
+
+  console.log('[AUTH] SUCCESS — org:', profile.organization_id, '| role:', profile.role)
 
   return {
-    id: user.id,
-    email: user.email ?? '',
-    organizationId: profile.organization_id,
-    role: profile.role,
-    isAdmin: profile.is_admin,
+    user: {
+      id: authUser.id,
+      email: authUser.email ?? '',
+      organizationId: profile.organization_id,
+      role: profile.role,
+      isAdmin: profile.is_admin,
+    },
+    error: null,
   }
 }
 

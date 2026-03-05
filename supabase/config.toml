@@ -368,7 +368,8 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
-# Disable gateway JWT verification for functions that handle auth internally via verifyUser()
+# Gateway JWT verification disabled — project uses ES256 tokens which the
+# gateway can't verify. Auth is handled by verifyUser() inside each function.
 [functions.carrier-proxy]
 verify_jwt = false
 

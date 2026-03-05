@@ -145,13 +145,10 @@
                   <span>{{ getStatusLabel(shipment.status) }}</span>
                 </span>
               </td>
-              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Evenement">{{ shipment.latestEvent }}</td>
-              <td class="px-4 py-3" data-label="Origine">
-                <div class="flex items-center space-x-2">
-                  <span class="text-lg">{{ shipment.originFlag }}</span>
-                  <span class="text-sm text-gray-600 dark:text-gray-400">{{ shipment.origin }}</span>
-                </div>
-              </td>
+              <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white" data-label="Prix">{{ shipment.amount ? shipment.amount.toFixed(2) + ' DT' : '-' }}</td>
+              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Création">{{ formatDate(shipment.createdAt) }}</td>
+              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Ramassage">{{ formatDate(shipment.pickupDate) }}</td>
+              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Livraison">{{ formatDate(shipment.deliveryDate) }}</td>
             </tr>
           </tbody>
         </table>
@@ -184,6 +181,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
   ListFilter,
   Upload,
@@ -212,9 +210,10 @@ interface Shipment {
   carrier: string
   client?: string
   status: string
-  latestEvent: string
-  originFlag: string
-  origin: string
+  amount: number
+  createdAt: string
+  pickupDate: string | null
+  deliveryDate: string | null
   [key: string]: any
 }
 
@@ -235,19 +234,30 @@ const columns = [
   { key: 'carrier', label: 'Transporteur', filterable: true },
   { key: 'client', label: 'Client', filterable: true },
   { key: 'status', label: 'Statut', filterable: true },
-  { key: 'latestEvent', label: 'Dernier evenement', filterable: false },
-  { key: 'origin', label: 'Origine', filterable: true },
+  { key: 'amount', label: 'Prix', filterable: false },
+  { key: 'createdAt', label: 'Création', filterable: false },
+  { key: 'pickupDate', label: 'Ramassage', filterable: false },
+  { key: 'deliveryDate', label: 'Livraison', filterable: false },
 ]
 
-const activeStatusTab = ref('all')
-const searchQuery = ref('')
-const currentPage = ref(1)
+const route = useRoute()
+const router = useRouter()
+
+// ---------------------------------------------------------------------------
+// Filter state — initialized from URL query params
+// ---------------------------------------------------------------------------
+const q = route.query
+const columnFilterKeys = ['trackingNumber', 'carrier', 'client', 'status']
+
+const activeStatusTab = ref((q.tab as string) || 'all')
+const searchQuery = ref((q.q as string) || '')
+const currentPage = ref(parseInt(q.page as string) || 1)
 const pageSizeOptions = [5, 10, 15, 20, 50, 100]
-const pageSize = ref(20)
+const pageSize = ref(parseInt(q.size as string) || 20)
 
 // Sort
-const sortKey = ref<string | null>(null)
-const sortDir = ref<'asc' | 'desc'>('asc')
+const sortKey = ref<string | null>((q.sort as string) || null)
+const sortDir = ref<'asc' | 'desc'>(((q.dir as string) || 'asc') as 'asc' | 'desc')
 
 function toggleSort(key: string) {
   if (sortKey.value === key) {
@@ -264,13 +274,9 @@ function toggleSort(key: string) {
 }
 
 // Column filters
-const columnFilters = reactive<Record<string, string>>({
-  trackingNumber: '',
-  carrier: '',
-  client: '',
-  status: '',
-  origin: '',
-})
+const columnFilters = reactive<Record<string, string>>(
+  Object.fromEntries(columnFilterKeys.map(k => [k, (q[`f_${k}`] as string) || '']))
+)
 const openFilter = ref<string | null>(null)
 const filterInputRef = ref<HTMLInputElement[] | null>(null)
 
@@ -296,18 +302,61 @@ function clearAllFilters() {
   openFilter.value = null
 }
 
+// ---------------------------------------------------------------------------
+// Bidirectional URL sync
+// ---------------------------------------------------------------------------
+let skipUrlSync = false
+
+function syncToUrl() {
+  if (skipUrlSync) return
+  const params: Record<string, string> = {}
+  if (activeStatusTab.value !== 'all') params.tab = activeStatusTab.value
+  if (searchQuery.value) params.q = searchQuery.value
+  if (sortKey.value) params.sort = sortKey.value
+  if (sortKey.value && sortDir.value !== 'asc') params.dir = sortDir.value
+  if (currentPage.value > 1) params.page = String(currentPage.value)
+  if (pageSize.value !== 20) params.size = String(pageSize.value)
+  for (const [key, val] of Object.entries(columnFilters)) {
+    if (val) params[`f_${key}`] = val
+  }
+  router.replace({ query: params })
+}
+
+watch(
+  [activeStatusTab, searchQuery, sortKey, sortDir, currentPage, pageSize, columnFilters],
+  syncToUrl,
+  { deep: true }
+)
+
+// Sync URL → filters (back/forward navigation)
+watch(() => route.query, (newQ) => {
+  skipUrlSync = true
+  activeStatusTab.value = (newQ.tab as string) || 'all'
+  searchQuery.value = (newQ.q as string) || ''
+  sortKey.value = (newQ.sort as string) || null
+  sortDir.value = ((newQ.dir as string) || 'asc') as 'asc' | 'desc'
+  currentPage.value = parseInt(newQ.page as string) || 1
+  pageSize.value = parseInt(newQ.size as string) || 20
+  for (const key of columnFilterKeys) {
+    columnFilters[key] = (newQ[`f_${key}`] as string) || ''
+  }
+  nextTick(() => { skipUrlSync = false })
+})
+
 const filteredShipments = computed(() => {
   let result = props.shipments
 
   // Status tab filter
   if (activeStatusTab.value !== 'all') {
     const statusMap: Record<string, string> = {
-      'exception': 'Exception',
-      'failed': 'Failed attempt',
-      'expired': 'Expired',
+      'pending': 'Pending',
+      'pickup-scheduled': 'Pickup scheduled',
+      'picked-up': 'Picked up',
+      'in-transit': 'In transit',
       'out-for-delivery': 'Out for delivery',
       'delivered': 'Delivered',
-      'pending': 'Pending'
+      'returned': 'Returned',
+      'cancelled': 'Cancelled',
     }
     result = result.filter(s => s.status === statusMap[activeStatusTab.value])
   }
@@ -357,4 +406,11 @@ const paginatedShipments = computed(() => {
 watch([activeStatusTab, searchQuery, pageSize, columnFilters], () => {
   currentPage.value = 1
 })
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-'
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return '-'
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+}
 </script>

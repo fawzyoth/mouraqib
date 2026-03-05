@@ -176,16 +176,16 @@
                   <div :class="[
                     'w-10 h-10 rounded-lg flex items-center justify-center',
                     role.id === 'owner' ? 'bg-purple-100 dark:bg-purple-900/30' :
-                    role.id === 'admin' ? 'bg-blue-100 dark:bg-blue-900/30' :
-                    role.id === 'manager' ? 'bg-green-100 dark:bg-green-900/30' :
-                    'bg-gray-100 dark:bg-gray-700'
+                    role.id === 'manager' ? 'bg-blue-100 dark:bg-blue-900/30' :
+                    role.id === 'agent_confirmation' ? 'bg-green-100 dark:bg-green-900/30' :
+                    'bg-orange-100 dark:bg-orange-900/30'
                   ]">
                     <Shield :class="[
                       'w-5 h-5',
                       role.id === 'owner' ? 'text-purple-600' :
-                      role.id === 'admin' ? 'text-blue-600' :
-                      role.id === 'manager' ? 'text-green-600' :
-                      'text-gray-500'
+                      role.id === 'manager' ? 'text-blue-600' :
+                      role.id === 'agent_confirmation' ? 'text-green-600' :
+                      'text-orange-500'
                     ]" />
                   </div>
                   <div>
@@ -419,10 +419,10 @@ const roleForm = ref({
 })
 
 const availableRoles = ref<Role[]>([
-  { id: 'owner', name: 'Owner', description: "Propriétaire de l'organisation. Toutes les permissions.", memberCount: 1, isDefault: true, isOwner: true, permissions: ['all'] },
-  { id: 'admin', name: 'Admin', description: "Peut gérer l'organisation, les paramètres et la facturation.", memberCount: 2, isDefault: true, isOwner: false, permissions: ['users.manage', 'settings.manage', 'billing.view', 'shipments.all', 'reports.view'] },
-  { id: 'manager', name: 'Manager', description: 'Peut gérer les colis et les clients.', memberCount: 3, isDefault: true, isOwner: false, permissions: ['shipments.all', 'clients.manage', 'reports.view'] },
-  { id: 'support', name: 'Support Agent', description: 'Peut voir et mettre à jour les colis.', memberCount: 1, isDefault: true, isOwner: false, permissions: ['shipments.view', 'shipments.update', 'clients.view'] },
+  { id: 'owner', name: 'Owner', description: "Propriétaire de l'organisation. Accès complet + suppression.", memberCount: 1, isDefault: true, isOwner: true, permissions: ['all'] },
+  { id: 'manager', name: 'Manager', description: "Accès complet sauf suppression.", memberCount: 0, isDefault: true, isOwner: false, permissions: ['users.manage', 'settings.manage', 'billing.view', 'shipments.all', 'clients.manage', 'reports.view'] },
+  { id: 'agent_confirmation', name: 'Agent Confirmation', description: 'Dashboard, Colis, Clients, Enlèvements, Retours.', memberCount: 0, isDefault: true, isOwner: false, permissions: ['shipments.view', 'shipments.create', 'shipments.update', 'clients.view', 'clients.manage'] },
+  { id: 'agent_warehouse', name: 'Agent Entrepôt', description: 'Dashboard, Colis, Enlèvements, Retours.', memberCount: 0, isDefault: true, isOwner: false, permissions: ['shipments.view', 'shipments.update'] },
 ])
 
 const permissionCategories: PermissionCategory[] = [
