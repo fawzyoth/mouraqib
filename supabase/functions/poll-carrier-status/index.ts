@@ -163,6 +163,7 @@ async function pollCarrier(
     .eq('carrier_id', carrier.id)
     .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
     .not('carrier_tracking_number', 'is', null)
+    .neq('carrier_tracking_number', '')
     .order('id', { ascending: true })
 
   if (shipmentsError) {
@@ -211,11 +212,20 @@ async function pollCarrier(
         if (newStatus !== shipment.status) {
           await supabase
             .from('shipments')
-            .update({ status: newStatus })
+            .update({ status: newStatus, last_synced_at: new Date().toISOString() })
             .eq('id', shipment.id)
-          await markEventSource(supabase, shipment.id, newStatus)
+          await markEventSource(supabase, shipment.id, newStatus, statusResult.description)
           updated++
         }
+      }
+
+      // Update last_synced_at for all checked shipments (including unchanged ones)
+      const checkedIds = toCheck.map(s => s.id)
+      if (checkedIds.length > 0) {
+        await supabase
+          .from('shipments')
+          .update({ last_synced_at: new Date().toISOString() })
+          .in('id', checkedIds)
       }
     } else {
       // First Delivery (and other carriers): sequential with 1s delay
@@ -231,13 +241,19 @@ async function pollCarrier(
           checked++
 
           const newStatus = mapCarrierStatus(statusResult.status)
+          const now = new Date().toISOString()
           if (newStatus !== shipment.status) {
             await supabase
               .from('shipments')
-              .update({ status: newStatus })
+              .update({ status: newStatus, last_synced_at: now })
               .eq('id', shipment.id)
             await markEventSource(supabase, shipment.id, newStatus)
             updated++
+          } else {
+            await supabase
+              .from('shipments')
+              .update({ last_synced_at: now })
+              .eq('id', shipment.id)
           }
         } catch (err) {
           console.error(`[poll] ${carrier.name}: checkStatus failed for ${shipment.carrier_tracking_number}:`, (err as Error).message)
@@ -301,10 +317,16 @@ async function markEventSource(
   supabase: ReturnType<typeof createServiceClient>,
   shipmentId: string,
   newStatus: string,
+  description?: string,
 ): Promise<void> {
+  const updatePayload: Record<string, unknown> = { source: 'poll' }
+  if (description) {
+    updatePayload.description = description
+  }
+
   await supabase
     .from('shipment_events')
-    .update({ source: 'poll' })
+    .update(updatePayload)
     .eq('shipment_id', shipmentId)
     .eq('status', newStatus)
     .eq('source', 'system')

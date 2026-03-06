@@ -107,22 +107,43 @@ export class NavexAdapter implements CarrierAdapter {
    * Uses the dedicated bulk-retrieve token.
    */
   async bulkCheckStatus(trackingNumbers: string[]): Promise<CheckStatusResult[]> {
-    if (trackingNumbers.length === 0) {
+    const filtered = trackingNumbers.filter(tn => tn.length > 0)
+    if (filtered.length === 0) {
       return []
     }
 
     const params = new URLSearchParams({
-      codes: trackingNumbers.join(','),
+      codes: filtered.join(','),
     })
 
     const data = await this.post(this.tokenRetrieveMultiple, params)
 
     const results = Array.isArray(data.results) ? data.results : []
 
-    return results.map((item: Record<string, unknown>, index: number) => ({
-      trackingNumber: String(item.code ?? trackingNumbers[index] ?? ''),
-      status: String(item.etat ?? 'unknown'),
-    }))
+    return results.map((item: Record<string, unknown>, index: number) => {
+      const motif = item.motif ? String(item.motif) : undefined
+      const livreur = item.livreur ? String(item.livreur) : undefined
+      const livreurTel = item.livreur_tel ? String(item.livreur_tel) : undefined
+
+      const description = [
+        motif ? `Motif: ${motif}` : null,
+        livreur ? `Livreur: ${livreur}${livreurTel ? ` (${livreurTel})` : ''}` : null,
+      ].filter(Boolean).join(' — ') || undefined
+
+      return {
+        trackingNumber: String(item.code ?? filtered[index] ?? ''),
+        status: String(item.etat ?? 'unknown'),
+        oldStatus: item.pre_etat ? String(item.pre_etat) : undefined,
+        description,
+        metadata: {
+          ...(motif != null && { motif }),
+          ...(livreur && { livreur }),
+          ...(livreurTel && { livreur_tel: livreurTel }),
+          ...(item.pre_etat != null && { pre_etat: String(item.pre_etat) }),
+          ...(item.pre_motif != null && { pre_motif: String(item.pre_motif) }),
+        },
+      }
+    })
   }
 
   async cancelShipments(trackingNumbers: string[]): Promise<CancelResult> {

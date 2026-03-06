@@ -65,6 +65,7 @@ export interface UIShipment {
   createdAt: string
   pickupDate: string | null
   updatedAt: string
+  lastSyncedAt: string | null
   events: UIShipmentEvent[]
 }
 
@@ -123,6 +124,7 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
     createdAt: row.created_at,
     pickupDate: row.pickup?.scheduled_date || null,
     updatedAt: row.updated_at,
+    lastSyncedAt: row.last_synced_at ?? null,
     events: (row.shipment_events ?? []).map((e: any) => ({
       id: e.id,
       status: STATUS_DB_TO_UI[e.status] || e.status,

@@ -202,6 +202,12 @@
             <span class="text-gray-500 dark:text-gray-400">Client</span>
             <span class="font-semibold text-gray-900 dark:text-white">{{ shipment.client }}</span>
           </div>
+          <div v-if="shipment.lastSyncedAt" class="flex justify-between text-sm">
+            <span class="text-gray-500 dark:text-gray-400">Dernier sync</span>
+            <span class="font-semibold text-gray-900 dark:text-white">
+              {{ new Date(shipment.lastSyncedAt).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) }}
+            </span>
+          </div>
         </div>
       </div>
 

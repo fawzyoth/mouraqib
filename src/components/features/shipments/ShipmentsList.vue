@@ -149,6 +149,7 @@
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Création">{{ formatDate(shipment.createdAt) }}</td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Ramassage">{{ formatDate(shipment.pickupDate) }}</td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Livraison">{{ formatDate(shipment.deliveryDate) }}</td>
+              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Sync">{{ formatDate(shipment.lastSyncedAt) }}</td>
             </tr>
           </tbody>
         </table>
@@ -238,6 +239,7 @@ const columns = [
   { key: 'createdAt', label: 'Création', filterable: false },
   { key: 'pickupDate', label: 'Ramassage', filterable: false },
   { key: 'deliveryDate', label: 'Livraison', filterable: false },
+  { key: 'lastSyncedAt', label: 'Sync', filterable: false },
 ]
 
 const route = useRoute()
