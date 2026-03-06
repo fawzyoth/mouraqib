@@ -315,7 +315,7 @@ export class FirstDeliveryAdapter implements CarrierAdapter {
       this.onApiCall({
         method: 'POST',
         url,
-        requestHeaders: { 'Content-Type': 'application/json' },
+        requestHeaders: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
         requestBody,
         httpStatus,
         responseBody,

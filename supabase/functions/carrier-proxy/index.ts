@@ -421,6 +421,7 @@ async function handleCheckStatus(
       .from('shipments')
       .update({
         status: mapCarrierStatus(carrierResult.status),
+        last_synced_at: new Date().toISOString(),
       })
       .eq('id', shipmentId)
   }
@@ -500,6 +501,7 @@ async function handleSyncShipments(
           cod_amount: shipment.price ? Number(shipment.price) : 0,
           exchange_allowed: shipment.exchange === '1',
           carrier_raw: shipment,
+          last_synced_at: new Date().toISOString(),
         })
 
         if (insertError) {

@@ -2,7 +2,6 @@ import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { createServiceClient } from '../_shared/supabase.ts'
 import { getCarrierAdapter } from '../_shared/carriers/registry.ts'
-import { mapCarrierStatus } from '../_shared/carriers/status-map.ts'
 import { mapNavexStatus } from '../_shared/carriers/navex-status-map.ts'
 import { createApiCallLogger } from '../_shared/carriers/logger.ts'
 import type { CheckStatusResult } from '../_shared/carriers/types.ts'
@@ -248,7 +247,7 @@ async function pollCarrier(
           const statusResult: CheckStatusResult = await adapter.checkStatus(shipment.carrier_tracking_number!)
           checked++
 
-          const newStatus = mapCarrierStatus(statusResult.status)
+          const newStatus = statusResult.status
           const now = new Date().toISOString()
           if (newStatus !== shipment.status) {
             await supabase
