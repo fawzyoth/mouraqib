@@ -67,6 +67,7 @@ import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { FileText, BarChart3, TrendingUp, PieChart } from 'lucide-vue-next'
+import { isReturnStatus, CANCELLED_STATUSES } from '@/utils/shipment-statuses'
 
 // Demo data
 import {
@@ -151,22 +152,22 @@ const analyticsKpis = computed(() => {
   const inRange = all.filter(s => new Date(s.createdAt) >= cutoff)
 
   const total = inRange.length
-  const delivered = inRange.filter(s => s.status === 'Delivered').length
-  const returned = inRange.filter(s => s.status === 'Returned').length
-  const cancelled = inRange.filter(s => s.status === 'Cancelled').length
+  const delivered = inRange.filter(s => s.status === 'Livré').length
+  const returned = inRange.filter(s => isReturnStatus(s.status)).length
+  const cancelled = inRange.filter(s => CANCELLED_STATUSES.includes(s.status)).length
   const deliveryRate = total > 0 ? r1((delivered / total) * 100) : 0
   const returnRate = total > 0 ? r1((returned / total) * 100) : 0
   const exceptionRate = total > 0 ? r1(((returned + cancelled) / total) * 100) : 0
 
   // Average transit time for delivered shipments
-  const deliveredShipments = inRange.filter(s => s.status === 'Delivered' && s.transitDays > 0)
+  const deliveredShipments = inRange.filter(s => s.status === 'Livré' && s.transitDays > 0)
   const avgTransitTime = deliveredShipments.length > 0
     ? r1(deliveredShipments.reduce((sum, s) => sum + s.transitDays, 0) / deliveredShipments.length)
     : 0
 
   // Revenue = sum of totalPrice for delivered shipments
   const totalRevenue = delivered > 0
-    ? inRange.filter(s => s.status === 'Delivered').reduce((sum, s) => sum + (s.totalPrice || 0), 0)
+    ? inRange.filter(s => s.status === 'Livré').reduce((sum, s) => sum + (s.totalPrice || 0), 0)
     : 0
 
   // Customer satisfaction estimate: based on delivery rate + on-time factor
@@ -210,13 +211,13 @@ const analyticsKpiComparison = computed(() => {
 
   function stats(list: typeof all) {
     const total = list.length
-    const delivered = list.filter(s => s.status === 'Delivered').length
-    const returned = list.filter(s => s.status === 'Returned').length
-    const deliveredWithTransit = list.filter(s => s.status === 'Delivered' && s.transitDays > 0)
+    const delivered = list.filter(s => s.status === 'Livré').length
+    const returned = list.filter(s => isReturnStatus(s.status)).length
+    const deliveredWithTransit = list.filter(s => s.status === 'Livré' && s.transitDays > 0)
     const avgTransit = deliveredWithTransit.length > 0
       ? r1(deliveredWithTransit.reduce((sum, s) => sum + s.transitDays, 0) / deliveredWithTransit.length)
       : 0
-    const revenue = list.filter(s => s.status === 'Delivered').reduce((sum, s) => sum + (s.totalPrice || 0), 0)
+    const revenue = list.filter(s => s.status === 'Livré').reduce((sum, s) => sum + (s.totalPrice || 0), 0)
     return {
       total,
       deliveryRate: total > 0 ? r1((delivered / total) * 100) : 0,
@@ -342,8 +343,8 @@ const deliveryPerformance = computed(() => {
   const cutoff = daysAgo(days)
   const inRange = all.filter(s => new Date(s.createdAt) >= cutoff)
 
-  const delivered = inRange.filter(s => s.status === 'Delivered')
-  const returned = inRange.filter(s => s.status === 'Returned')
+  const delivered = inRange.filter(s => s.status === 'Livré')
+  const returned = inRange.filter(s => isReturnStatus(s.status))
   const totalAttempts = delivered.length + returned.length
   const successfulDeliveries = delivered.length
 
@@ -368,7 +369,7 @@ const deliveryPerformance = computed(() => {
     if (!regionMap.has(region)) regionMap.set(region, { total: 0, delivered: 0, transitSum: 0, deliveredCount: 0 })
     const r = regionMap.get(region)!
     r.total++
-    if (s.status === 'Delivered') {
+    if (s.status === 'Livré') {
       r.delivered++
       if (s.transitDays > 0) {
         r.transitSum += s.transitDays
@@ -429,7 +430,7 @@ const returnIntelligence = computed(() => {
   const cutoff = daysAgo(days)
   const inRange = all.filter(s => new Date(s.createdAt) >= cutoff)
 
-  const returned = inRange.filter(s => s.status === 'Returned')
+  const returned = inRange.filter(s => isReturnStatus(s.status))
   const totalReturns = returned.length
   const lostRevenue = returned.reduce((sum, s) => sum + (s.totalPrice || 0), 0)
 
@@ -457,7 +458,7 @@ const returnIntelligence = computed(() => {
     const weekStart = daysAgo((i + 1) * 7)
     const weekEnd = daysAgo(i * 7)
     returnTrend.push(all.filter(s => {
-      if (s.status !== 'Returned') return false
+      if (!isReturnStatus(s.status)) return false
       const d = new Date(s.createdAt)
       return d >= weekStart && d < weekEnd
     }).length)
@@ -539,9 +540,9 @@ const riskZones = computed(() => {
     if (!zoneMap.has(zone)) zoneMap.set(zone, { total: 0, delivered: 0, returned: 0, cancelled: 0 })
     const z = zoneMap.get(zone)!
     z.total++
-    if (s.status === 'Delivered') z.delivered++
-    if (s.status === 'Returned') z.returned++
-    if (s.status === 'Cancelled') z.cancelled++
+    if (s.status === 'Livré') z.delivered++
+    if (isReturnStatus(s.status)) z.returned++
+    if (CANCELLED_STATUSES.includes(s.status)) z.cancelled++
   }
 
   const zones = Array.from(zoneMap.entries())
@@ -609,7 +610,7 @@ const anomalyDetection = computed(() => {
     if (!carrierMap.has(s.carrier)) carrierMap.set(s.carrier, { total: 0, returned: 0 })
     const c = carrierMap.get(s.carrier)!
     c.total++
-    if (s.status === 'Returned') c.returned++
+    if (isReturnStatus(s.status)) c.returned++
   }
   for (const [carrier, data] of carrierMap) {
     if (data.total >= 3) {
@@ -643,7 +644,7 @@ const anomalyDetection = computed(() => {
     if (!regionStats.has(region)) regionStats.set(region, { total: 0, failed: 0 })
     const r = regionStats.get(region)!
     r.total++
-    if (s.status === 'Returned' || s.status === 'Cancelled') r.failed++
+    if (isReturnStatus(s.status) || CANCELLED_STATUSES.includes(s.status)) r.failed++
   }
   for (const [region, data] of regionStats) {
     if (data.total >= 3 && (data.failed / data.total) > 0.3) {
@@ -765,7 +766,7 @@ const trends = computed(() => {
     })
     volumeTrend.push(bucketShipments.length)
 
-    const delivered = bucketShipments.filter(s => s.status === 'Delivered').length
+    const delivered = bucketShipments.filter(s => s.status === 'Livré').length
     deliveryRateTrend.push(bucketShipments.length > 0 ? Math.round((delivered / bucketShipments.length) * 100) : 0)
   }
 

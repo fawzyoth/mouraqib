@@ -212,10 +212,10 @@ async function handleCreateShipment(
   const carrierResult = await adapter.createShipment(createPayload)
 
   // Determine initial status based on carrier type
-  let status = 'pending'
+  let status = 'En attente'
   if (adapter.carrierId === 'navex') {
     // Navex auto-schedules pickup on shipment creation
-    status = 'pickup_scheduled'
+    status = "Demande d'enlèvement assignée"
   } else if (adapter.carrierId === 'first-delivery') {
     // First Delivery: auto-create pickup request after shipment creation
     status = await autoRequestPickup(adapter, supabase, shipmentId, carrierResult.trackingNumber, shipmentFields)
@@ -250,7 +250,7 @@ async function handleCreateShipment(
 /**
  * Auto-create a pickup request for a First Delivery shipment right after creation.
  * Creates the pickup_request record, calls the carrier API, and links the shipment.
- * Returns the shipment status to use ('pickup_scheduled' on success, 'pending' on failure).
+ * Returns the shipment status to use ("Demande d'enlèvement assignée" on success, "En attente" on failure).
  */
 async function autoRequestPickup(
   adapter: ReturnType<typeof getCarrierAdapter>,
@@ -269,7 +269,7 @@ async function autoRequestPickup(
 
     if (!shipment) {
       console.error(`[carrier-proxy] auto-pickup: shipment ${shipmentId} not found`)
-      return 'pending'
+      return 'En attente'
     }
 
     // Create pickup_request record
@@ -293,7 +293,7 @@ async function autoRequestPickup(
 
     if (pickupInsertError || !pickup) {
       console.error('[carrier-proxy] auto-pickup: failed to create pickup_request:', pickupInsertError?.message)
-      return 'pending'
+      return 'En attente'
     }
 
     // Link shipment to the pickup
@@ -315,10 +315,10 @@ async function autoRequestPickup(
       .eq('id', pickup.id)
 
     console.log(`[carrier-proxy] auto-pickup: confirmed for ${trackingNumber}, pickupId=${pickupResult.pickupId}`)
-    return 'pickup_scheduled'
+    return "Demande d'enlèvement assignée"
   } catch (err) {
     console.error('[carrier-proxy] auto-pickup failed:', (err as Error).message)
-    return 'pending'
+    return 'En attente'
   }
 }
 
@@ -385,13 +385,13 @@ async function handleCancel(
   if (carrierResult.cancelledBarCodes.length > 0) {
     await supabase
       .from('shipments')
-      .update({ status: 'cancelled' })
+      .update({ status: 'Supprimé' })
       .eq('id', shipmentId)
   }
 
   return {
     cancelledBarCodes: carrierResult.cancelledBarCodes,
-    status: carrierResult.cancelledBarCodes.length > 0 ? 'cancelled' : 'cancel_failed',
+    status: carrierResult.cancelledBarCodes.length > 0 ? 'Supprimé' : 'cancel_failed',
   }
 }
 

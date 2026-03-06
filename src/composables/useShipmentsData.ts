@@ -1,7 +1,7 @@
 import { ref, type Ref } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { shipmentsService } from '@/services'
-import { dbShipmentToUI, uiShipmentToInsert, STATUS_UI_TO_DB } from '@/mappers/shipments'
+import { dbShipmentToUI, uiShipmentToInsert } from '@/mappers/shipments'
 import type { UIShipment } from '@/mappers/shipments'
 import { useToast } from './useToast'
 import type { RealtimeChannel } from '@supabase/supabase-js'
@@ -47,7 +47,7 @@ export function useShipmentsData(orgId: Ref<string>) {
       const row = await shipmentsService.create(insert)
 
       // Add initial event
-      await shipmentsService.addEvent(row.id, 'pending', 'Commande en attente de ramassage', 'Tunisie')
+      await shipmentsService.addEvent(row.id, 'En attente', 'Commande en attente de ramassage', 'Tunisie')
 
       const uiShipment = dbShipmentToUI(row as any, orgContext)
       uiShipment.events = [{
@@ -140,9 +140,8 @@ export function useShipmentsData(orgId: Ref<string>) {
   }
 
   async function updateStatus(id: string, newUiStatus: string): Promise<boolean> {
-    const dbStatus = STATUS_UI_TO_DB[newUiStatus] || newUiStatus
     try {
-      await shipmentsService.updateStatus(id, dbStatus as any)
+      await shipmentsService.updateStatus(id, newUiStatus)
       const index = shipments.value.findIndex(s => s.id === id)
       if (index !== -1) {
         shipments.value[index] = { ...shipments.value[index], status: newUiStatus }

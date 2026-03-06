@@ -1,7 +1,7 @@
 export { dbCarrierToUI, uiCarrierToInsert, uiCarrierToUpdate } from './carriers'
 export type { UICarrier } from './carriers'
 
-export { dbShipmentToUI, uiShipmentToInsert, STATUS_DB_TO_UI, STATUS_UI_TO_DB } from './shipments'
+export { dbShipmentToUI, uiShipmentToInsert } from './shipments'
 export type { UIShipment } from './shipments'
 
 export { dbClientToUI, uiClientToInsert } from './clients'

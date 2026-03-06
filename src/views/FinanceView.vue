@@ -174,7 +174,7 @@ const paidCarrierIds = ref<Set<string>>(new Set())
 // manifestByCarrier — group delivered shipments by carrier for expected payments
 // ---------------------------------------------------------------------------
 const manifestByCarrier = computed(() => {
-  const shipments = appStore.shipments.filter((s: any) => s.status === 'Delivered')
+  const shipments = appStore.shipments.filter((s: any) => s.status === 'Livré')
   const result = buildManifestByCarrier(shipments)
 
   // Apply local paid overrides
@@ -642,7 +642,7 @@ const revenueStats = computed(() => {
     return demoRevenueStats
   }
   const shipments = appStore.shipments
-  const delivered = shipments.filter((s: any) => s.status === 'Delivered')
+  const delivered = shipments.filter((s: any) => s.status === 'Livré')
   const grossRevenue = delivered.reduce((sum, s: any) => sum + (s.totalPrice || s.codAmount || 0), 0)
   const shippingCosts = delivered.reduce((sum, s: any) => sum + (s.deliveryFee || 0), 0)
   const netRevenue = grossRevenue - shippingCosts
@@ -671,7 +671,7 @@ const revenueByRegion = computed(() => {
     }))
   }
   // Live mode: group delivered shipments by destination
-  const delivered = appStore.shipments.filter((s: any) => s.status === 'Delivered')
+  const delivered = appStore.shipments.filter((s: any) => s.status === 'Livré')
   const regionMap = new Map<string, { amount: number; orders: number }>()
   for (const s of delivered) {
     const region = (s as any).destination || (s as any).recipientCity || 'Autre'
@@ -708,7 +708,12 @@ const returnLossesStats = computed(() => {
     return demoReturnLossesStats
   }
   const shipments = appStore.shipments
-  const returned = shipments.filter((s: any) => s.status === 'Returned')
+  const returnStatuses = new Set([
+    'Retour Expéditeur', 'Rtn client/agence', 'Rtn dépôt',
+    'Retour reçu', 'Rtn définitif', 'Retour assigné',
+    "Retour en cours d'expédition", 'Retour enlevé', 'Retour Annulé',
+  ])
+  const returned = shipments.filter((s: any) => returnStatuses.has(s.status))
   const lost = shipments.filter((s: any) => s.status === 'Lost')
   const totalLoss = [...returned, ...lost].reduce((sum, s: any) => sum + (s.deliveryFee || 0) + (s.totalPrice || 0) * 0, 0)
   const shippingLoss = [...returned, ...lost].reduce((sum, s: any) => sum + (s.deliveryFee || 0), 0)

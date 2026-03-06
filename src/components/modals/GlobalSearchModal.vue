@@ -95,12 +95,12 @@
                         <span :class="[
                           'px-1.5 py-0.5 text-xs rounded-full font-medium',
                           selectedSearchIndex === idx ? 'bg-white/20 text-white' :
-                          result.status === 'Delivered' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
-                          result.status === 'Out for delivery' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
-                          result.status === 'Pending' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
+                          result.status === 'Livré' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                          result.status === 'En cours' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
+                          result.status === 'En attente' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
                           'bg-gray-100 dark:bg-gray-800 text-gray-600'
                         ]">
-                          {{ result.status === 'Delivered' ? 'Livré' : result.status === 'Out for delivery' ? 'En livraison' : result.status === 'Pending' ? 'En attente' : result.status }}
+                          {{ result.status }}
                         </span>
                       </div>
                       <p :class="['text-xs mt-0.5 truncate', selectedSearchIndex === idx ? 'text-white/70' : 'text-gray-500']">

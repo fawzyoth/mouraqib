@@ -112,6 +112,20 @@
                   </span>
                   <input v-model="newShipment.phone" type="tel" placeholder="XX XXX XXX" class="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-r-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                 </div>
+                <!-- Phone match suggestion -->
+                <button
+                  v-if="phoneMatchedClient && !selectedShipmentClient"
+                  @click="selectClientForShipment(phoneMatchedClient)"
+                  class="mt-1.5 w-full flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-left hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                >
+                  <div class="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-800 flex items-center justify-center text-xs font-semibold text-blue-600 dark:text-blue-300 flex-shrink-0">
+                    {{ phoneMatchedClient.name.charAt(0) }}
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-xs text-blue-700 dark:text-blue-300"><span class="font-medium">{{ phoneMatchedClient.name }}</span> &mdash; {{ phoneMatchedClient.region }}</p>
+                  </div>
+                  <span class="text-[10px] font-medium text-blue-600 dark:text-blue-400 flex-shrink-0">Remplir</span>
+                </button>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telephone secondaire</label>
@@ -494,6 +508,13 @@ const newShipment = reactive({
 const shipmentClientSearch = ref('')
 const showClientSuggestions = ref(false)
 const selectedShipmentClient = ref<Client | null>(null)
+
+// Phone-based client match
+const phoneMatchedClient = computed(() => {
+  const phone = newShipment.phone.replace(/\s/g, '')
+  if (phone.length < 4) return null
+  return props.clients.find(c => c.phone.replace(/\s/g, '') === phone) || null
+})
 
 const filteredShipmentClients = computed(() => {
   if (shipmentClientSearch.value.length < 1) return []

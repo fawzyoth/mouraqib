@@ -1,6 +1,9 @@
 import { supabase } from '@/lib/supabase'
 import type { Shipment, ShipmentInsert, ShipmentUpdate, ShipmentEvent } from '@/types/database'
 import type { RealtimeChannel } from '@supabase/supabase-js'
+import { RETURN_STATUSES } from '@/utils/shipment-statuses'
+
+const RETURN_STATUSES_SET = new Set(RETURN_STATUSES)
 
 export interface ShipmentFilters {
   status?: string
@@ -123,9 +126,9 @@ export const shipmentsService = {
   async updateStatus(id: string, status: string) {
     const updates: ShipmentUpdate = { status: status as any }
 
-    if (status === 'delivered') {
+    if (status === 'Livré') {
       updates.delivered_at = new Date().toISOString()
-    } else if (status === 'returned') {
+    } else if (RETURN_STATUSES_SET.has(status)) {
       updates.returned_at = new Date().toISOString()
     }
 
@@ -176,14 +179,6 @@ export const shipmentsService = {
 
     const stats: Record<string, number> = {
       total: 0,
-      pending: 0,
-      pickup_scheduled: 0,
-      picked_up: 0,
-      in_transit: 0,
-      out_for_delivery: 0,
-      delivered: 0,
-      returned: 0,
-      cancelled: 0
     }
 
     if (!error && data) {

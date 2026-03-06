@@ -3,13 +3,21 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { createServiceClient } from '../_shared/supabase.ts'
 import { getCarrierAdapter } from '../_shared/carriers/registry.ts'
 import { mapCarrierStatus } from '../_shared/carriers/status-map.ts'
+import { mapNavexStatus } from '../_shared/carriers/navex-status-map.ts'
 import { createApiCallLogger } from '../_shared/carriers/logger.ts'
 import type { CheckStatusResult } from '../_shared/carriers/types.ts'
 import { NavexAdapter } from '../_shared/carriers/navex.ts'
 
 const JSON_HEADERS = { ...corsHeaders, 'Content-Type': 'application/json' }
 const MAX_RUN_SECONDS = 55
-const TERMINAL_STATUSES = ['delivered', 'returned', 'cancelled']
+const TERMINAL_STATUSES = [
+  'Livré', 'Supprimé',
+  'Retour Expéditeur', 'Rtn client/agence', 'Rtn dépôt',
+  'Retour reçu', 'Rtn définitif',
+  "Demande d'enlèvement annulé",
+  'Retour assigné', "Retour en cours d'expédition",
+  'Retour enlevé', 'Retour Annulé',
+]
 const MAX_BACKOFF_MULTIPLIER = 32
 
 /**
@@ -208,7 +216,7 @@ async function pollCarrier(
         const shipment = toCheck.find(s => s.carrier_tracking_number === statusResult.trackingNumber)
         if (!shipment) continue
 
-        const newStatus = mapCarrierStatus(statusResult.status)
+        const newStatus = mapNavexStatus(statusResult.status)
         if (newStatus !== shipment.status) {
           await supabase
             .from('shipments')

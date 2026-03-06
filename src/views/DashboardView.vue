@@ -66,6 +66,7 @@
 import { computed, ref, inject, markRaw, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
+import { isReturnStatus, CANCELLED_STATUSES } from '@/utils/shipment-statuses'
 import { useAuthStore } from '@/stores/auth'
 import { subSectionRoutes } from '@/composables/useNavigation'
 
@@ -191,12 +192,12 @@ const dashboardStats = computed(() => {
 
   // Today's shipments: created today OR still active (in transit / out for delivery)
   const todayCreated = all.filter(s => new Date(s.createdAt) >= today)
-  const todayDelivered = all.filter(s => s.status === 'Delivered' && s.deliveryDate && new Date(s.deliveryDate) >= today)
-  const todayReturns = all.filter(s => s.status === 'Returned' && s.events?.[0]?.date && new Date(s.events[0].date) >= today)
+  const todayDelivered = all.filter(s => s.status === 'Livré' && s.deliveryDate && new Date(s.deliveryDate) >= today)
+  const todayReturns = all.filter(s => isReturnStatus(s.status) && s.events?.[0]?.date && new Date(s.events[0].date) >= today)
 
   // Active deliveries today = out for delivery + in transit
   const todayDeliveries = all.filter(s =>
-    s.status === 'Out for delivery' || s.status === 'In transit' || (s.status === 'Delivered' && s.deliveryDate && new Date(s.deliveryDate) >= today)
+    s.status === 'En cours' || (s.status === 'Livré' && s.deliveryDate && new Date(s.deliveryDate) >= today)
   ).length
 
   // Yesterday's stats
@@ -205,15 +206,15 @@ const dashboardStats = computed(() => {
     return d >= yesterday && d < today
   })
   const yesterdayDelivered = all.filter(s => {
-    if (s.status !== 'Delivered' || !s.deliveryDate) return false
+    if (s.status !== 'Livré' || !s.deliveryDate) return false
     const d = new Date(s.deliveryDate)
     return d >= yesterday && d < today
   })
 
   // Success rate: delivered / (delivered + returned) over last 30 days
   const last30 = all.filter(s => new Date(s.createdAt) >= daysAgo(30))
-  const last30Delivered = last30.filter(s => s.status === 'Delivered').length
-  const last30Terminal = last30.filter(s => s.status === 'Delivered' || s.status === 'Returned').length
+  const last30Delivered = last30.filter(s => s.status === 'Livré').length
+  const last30Terminal = last30.filter(s => s.status === 'Livré' || isReturnStatus(s.status)).length
   const successRate = last30Terminal > 0 ? Math.round((last30Delivered / last30Terminal) * 100) : 0
 
   // Last week success rate
@@ -221,14 +222,14 @@ const dashboardStats = computed(() => {
     const d = new Date(s.createdAt)
     return d >= daysAgo(14) && d < daysAgo(7)
   })
-  const lwDelivered = lastWeek.filter(s => s.status === 'Delivered').length
-  const lwTerminal = lastWeek.filter(s => s.status === 'Delivered' || s.status === 'Returned').length
+  const lwDelivered = lastWeek.filter(s => s.status === 'Livré').length
+  const lwTerminal = lastWeek.filter(s => s.status === 'Livré' || isReturnStatus(s.status)).length
   const lastWeekSuccessRate = lwTerminal > 0 ? Math.round((lwDelivered / lwTerminal) * 100) : 0
 
   // Expected COD: sum of cod for shipments not yet delivered/returned/cancelled
-  const pendingShipments = all.filter(s => !['Delivered', 'Returned', 'Cancelled'].includes(s.status))
+  const pendingShipments = all.filter(s => s.status !== 'Livré' && !isReturnStatus(s.status) && !CANCELLED_STATUSES.includes(s.status))
   const expectedCOD = pendingShipments.reduce((sum, s) => sum + (s.cod || 0), 0)
-  const pendingConfirmations = all.filter(s => s.status === 'Pending').length
+  const pendingConfirmations = all.filter(s => s.status === 'En attente').length
 
   // Orders change
   const todayOrdersCount = todayCreated.length
@@ -247,7 +248,7 @@ const dashboardStats = computed(() => {
   // Returns change (negative is good)
   const todayReturnsCount = todayReturns.length
   const yesterdayReturns = all.filter(s => {
-    if (s.status !== 'Returned') return false
+    if (!isReturnStatus(s.status)) return false
     const ev = s.events?.[0]
     if (!ev?.date) return false
     const d = new Date(ev.date)
@@ -289,7 +290,7 @@ const urgentActions = computed(() => {
   let id = 1
 
   // Pending confirmations
-  const pending = all.filter(s => s.status === 'Pending')
+  const pending = all.filter(s => s.status === 'En attente')
   if (pending.length > 0) {
     actions.push({
       id: id++,
@@ -304,7 +305,7 @@ const urgentActions = computed(() => {
   }
 
   // Delayed in transit (transitDays >= 3)
-  const delayed = all.filter(s => s.status === 'In transit' && s.transitDays >= 3)
+  const delayed = all.filter(s => s.status === 'En cours' && s.transitDays >= 3)
   if (delayed.length > 0) {
     // Show the most delayed one specifically
     const worst = delayed.sort((a, b) => b.transitDays - a.transitDays)[0]
@@ -321,7 +322,7 @@ const urgentActions = computed(() => {
   }
 
   // Stuck in transit >= 2 days
-  const stuck = all.filter(s => s.status === 'In transit' && s.transitDays >= 2)
+  const stuck = all.filter(s => s.status === 'En cours' && s.transitDays >= 2)
   if (stuck.length > 0 && stuck.length !== delayed.length) {
     actions.push({
       id: id++,
@@ -336,7 +337,7 @@ const urgentActions = computed(() => {
   }
 
   // Returns to process
-  const returned = all.filter(s => s.status === 'Returned')
+  const returned = all.filter(s => isReturnStatus(s.status))
   if (returned.length > 0) {
     actions.push({
       id: id++,
@@ -351,7 +352,7 @@ const urgentActions = computed(() => {
   }
 
   // Labels not printed
-  const unprinted = all.filter(s => s.status === 'Pending' && !s.labelPrinted)
+  const unprinted = all.filter(s => s.status === 'En attente' && !s.labelPrinted)
   if (unprinted.length > 0) {
     actions.push({
       id: id++,
@@ -453,7 +454,7 @@ watchEffect(() => {
   const categories: any[] = []
 
   // Orders to confirm
-  const pendingOrders = all.filter(s => s.status === 'Pending')
+  const pendingOrders = all.filter(s => s.status === 'En attente')
   if (pendingOrders.length > 0) {
     categories.push({
       id: 'orders',
@@ -473,7 +474,7 @@ watchEffect(() => {
   }
 
   // Labels to print
-  const toPrint = all.filter(s => s.status === 'Pending' && !s.labelPrinted)
+  const toPrint = all.filter(s => s.status === 'En attente' && !s.labelPrinted)
   if (toPrint.length > 0) {
     categories.push({
       id: 'labels',
@@ -493,7 +494,7 @@ watchEffect(() => {
   }
 
   // Packages to prepare (picked up shipments grouped by carrier)
-  const pickedUp = all.filter(s => s.status === 'Picked up')
+  const pickedUp = all.filter(s => s.status === 'Enlevé')
   if (pickedUp.length > 0) {
     const byCarrier = new Map<string, number>()
     for (const s of pickedUp) {
@@ -518,7 +519,7 @@ watchEffect(() => {
   }
 
   // Returns to process
-  const returned = all.filter(s => s.status === 'Returned')
+  const returned = all.filter(s => isReturnStatus(s.status))
   if (returned.length > 0) {
     categories.push({
       id: 'returns',
@@ -626,7 +627,7 @@ const delayedShipments = computed(() => {
   const all = appStore.shipments
   // Shipments in transit with transitDays >= 1 (overdue)
   return all
-    .filter(s => s.status === 'In transit' && s.transitDays >= 1)
+    .filter(s => s.status === 'En cours' && s.transitDays >= 1)
     .map(s => ({
       id: s.id,
       tracking: s.trackingNumber,
@@ -705,7 +706,7 @@ const returnAlerts = computed(() => {
   }
 
   const all = appStore.shipments
-  const returned = all.filter(s => s.status === 'Returned')
+  const returned = all.filter(s => isReturnStatus(s.status))
   const alerts: any[] = []
   let id = 1
 
@@ -742,7 +743,7 @@ const returnAlerts = computed(() => {
   }
 
   // Risk alerts: in-transit shipments with high transit days
-  const atRisk = all.filter(s => s.status === 'In transit' && s.transitDays >= 2)
+  const atRisk = all.filter(s => s.status === 'En cours' && s.transitDays >= 2)
   for (const s of atRisk) {
     const prevReturns = customerReturnCounts.get(s.customerName) || 0
     let riskScore = 30 + s.transitDays * 10
@@ -778,12 +779,12 @@ const financialSnapshot = computed(() => {
   const all = appStore.shipments
 
   // Pending COD: shipments not yet delivered/returned/cancelled
-  const activeShipments = all.filter(s => !['Delivered', 'Returned', 'Cancelled'].includes(s.status))
+  const activeShipments = all.filter(s => s.status !== 'Livré' && !isReturnStatus(s.status) && !CANCELLED_STATUSES.includes(s.status))
   const pendingCOD = activeShipments.reduce((sum, s) => sum + (s.cod || 0), 0)
   const pendingCODCount = activeShipments.length
 
   // Delivery fees this month
-  const delivered = all.filter(s => s.status === 'Delivered')
+  const delivered = all.filter(s => s.status === 'Livré')
   const deliveryFees = delivered.reduce((sum, s) => sum + (s.deliveryFee || 0), 0)
 
   // Revenue from delivered

@@ -36,11 +36,14 @@ serve(async (req) => {
 
     // 1. Map shipment status to notification event type
     const statusEventMap: Record<string, string> = {
-      picked_up: 'shipment_picked_up',
-      in_transit: 'shipment_in_transit',
-      out_for_delivery: 'shipment_out_for_delivery',
-      delivered: 'shipment_delivered',
-      returned: 'shipment_returned',
+      'Enlevé': 'shipment_picked_up',
+      'En cours': 'shipment_in_transit',
+      'Livré': 'shipment_delivered',
+      'Retour Expéditeur': 'shipment_returned',
+      'Rtn client/agence': 'shipment_returned',
+      'Rtn dépôt': 'shipment_returned',
+      'Retour reçu': 'shipment_returned',
+      'Rtn définitif': 'shipment_returned',
     }
 
     const eventType = statusEventMap[newStatus]
@@ -94,11 +97,14 @@ serve(async (req) => {
       if (resendKey) {
         try {
           const statusLabels: Record<string, string> = {
-            picked_up: 'ramassé',
-            in_transit: 'en transit',
-            out_for_delivery: 'en cours de livraison',
-            delivered: 'livré',
-            returned: 'retourné',
+            'Enlevé': 'enlevé',
+            'En cours': 'en cours',
+            'Livré': 'livré',
+            'Retour Expéditeur': 'retourné',
+            'Rtn client/agence': 'retourné',
+            'Rtn dépôt': 'retourné',
+            'Retour reçu': 'retourné',
+            'Rtn définitif': 'retourné',
           }
 
           await fetch('https://api.resend.com/emails', {

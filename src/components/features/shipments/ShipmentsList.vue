@@ -350,17 +350,18 @@ const filteredShipments = computed(() => {
 
   // Status tab filter
   if (activeStatusTab.value !== 'all') {
-    const statusMap: Record<string, string> = {
-      'pending': 'Pending',
-      'pickup-scheduled': 'Pickup scheduled',
-      'picked-up': 'Picked up',
-      'in-transit': 'In transit',
-      'out-for-delivery': 'Out for delivery',
-      'delivered': 'Delivered',
-      'returned': 'Returned',
-      'cancelled': 'Cancelled',
+    const statusGroups: Record<string, Set<string>> = {
+      'pending': new Set(['En attente', 'A vérifier']),
+      'pickup': new Set(["Demande d'enlèvement", "Demande d'enlèvement assignée", "En cours d'enlèvement", 'Enlevé']),
+      'in-progress': new Set(['En cours', 'Au magasin', 'Echange']),
+      'delivered': new Set(['Livré']),
+      'returned': new Set(['Retour Expéditeur', 'Rtn client/agence', 'Rtn dépôt', 'Retour reçu', 'Rtn définitif', 'Retour assigné', "Retour en cours d'expédition", 'Retour enlevé', 'Retour Annulé']),
+      'cancelled': new Set(['Supprimé', "Demande d'enlèvement annulé"]),
     }
-    result = result.filter(s => s.status === statusMap[activeStatusTab.value])
+    const group = statusGroups[activeStatusTab.value]
+    if (group) {
+      result = result.filter(s => group.has(s.status))
+    }
   }
 
   // Global search

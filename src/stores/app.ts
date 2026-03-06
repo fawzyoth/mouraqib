@@ -40,7 +40,7 @@ export const useAppStore = defineStore('app', () => {
 
   // Derived counts for AppShell sidebar
   const deliveredCount = computed(() =>
-    shipments.value.filter((s: any) => s.status === 'Delivered').length
+    shipments.value.filter((s: any) => s.status === 'Livré').length
   )
 
   // Loading state

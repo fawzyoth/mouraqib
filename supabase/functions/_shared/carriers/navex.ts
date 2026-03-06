@@ -96,9 +96,12 @@ export class NavexAdapter implements CarrierAdapter {
 
     const data = await this.post(this.tokenRetrieve, params)
 
+    // Navex single-retrieve returns { result: { state: "...", barCode: "..." }, ... }
+    const status = String(data.result?.state ?? data.etat ?? 'unknown')
+
     return {
       trackingNumber,
-      status: String(data.etat ?? 'unknown'),
+      status,
     }
   }
 
@@ -118,9 +121,18 @@ export class NavexAdapter implements CarrierAdapter {
 
     const data = await this.post(this.tokenRetrieveMultiple, params)
 
-    const results = Array.isArray(data.results) ? data.results : []
+    // Bulk endpoint returns an array (wrapped as { results: [...] } by post()),
+    // but may return a single object { result: { state, barCode } } when only one code is queried.
+    let items: Record<string, unknown>[]
+    if (Array.isArray(data.results)) {
+      items = data.results
+    } else if (data.result && typeof data.result === 'object' && !Array.isArray(data.result)) {
+      items = [data.result as Record<string, unknown>]
+    } else {
+      items = []
+    }
 
-    return results.map((item: Record<string, unknown>, index: number) => {
+    return items.map((item: Record<string, unknown>, index: number) => {
       const motif = item.motif ? String(item.motif) : undefined
       const livreur = item.livreur ? String(item.livreur) : undefined
       const livreurTel = item.livreur_tel ? String(item.livreur_tel) : undefined
@@ -131,8 +143,8 @@ export class NavexAdapter implements CarrierAdapter {
       ].filter(Boolean).join(' — ') || undefined
 
       return {
-        trackingNumber: String(item.code ?? filtered[index] ?? ''),
-        status: String(item.etat ?? 'unknown'),
+        trackingNumber: String(item.code ?? item.barCode ?? filtered[index] ?? ''),
+        status: String(item.etat ?? item.state ?? 'unknown'),
         oldStatus: item.pre_etat ? String(item.pre_etat) : undefined,
         description,
         metadata: {

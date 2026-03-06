@@ -286,7 +286,7 @@ export interface Database {
           pickup_id: string | null
           tracking_number: string
           carrier_tracking_number: string | null
-          status: 'pending' | 'pickup_scheduled' | 'picked_up' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'returned' | 'cancelled'
+          status: 'En attente' | 'En cours' | 'Livré' | 'Echange' | 'Retour Expéditeur' | 'Supprimé' | 'Rtn client/agence' | 'Au magasin' | 'Rtn dépôt' | 'A vérifier' | 'Retour reçu' | 'Rtn définitif' | "Demande d'enlèvement" | "Demande d'enlèvement assignée" | "En cours d'enlèvement" | 'Enlevé' | "Demande d'enlèvement annulé" | 'Retour assigné' | "Retour en cours d'expédition" | 'Retour enlevé' | 'Retour Annulé'
           recipient_name: string
           recipient_phone: string
           recipient_phone_secondary: string | null
@@ -328,7 +328,7 @@ export interface Database {
           pickup_id?: string | null
           tracking_number?: string
           carrier_tracking_number?: string | null
-          status?: 'pending' | 'pickup_scheduled' | 'picked_up' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'returned' | 'cancelled'
+          status?: 'En attente' | 'En cours' | 'Livré' | 'Echange' | 'Retour Expéditeur' | 'Supprimé' | 'Rtn client/agence' | 'Au magasin' | 'Rtn dépôt' | 'A vérifier' | 'Retour reçu' | 'Rtn définitif' | "Demande d'enlèvement" | "Demande d'enlèvement assignée" | "En cours d'enlèvement" | 'Enlevé' | "Demande d'enlèvement annulé" | 'Retour assigné' | "Retour en cours d'expédition" | 'Retour enlevé' | 'Retour Annulé'
           recipient_name: string
           recipient_phone: string
           recipient_phone_secondary?: string | null
@@ -370,7 +370,7 @@ export interface Database {
           pickup_id?: string | null
           tracking_number?: string
           carrier_tracking_number?: string | null
-          status?: 'pending' | 'pickup_scheduled' | 'picked_up' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'returned' | 'cancelled'
+          status?: 'En attente' | 'En cours' | 'Livré' | 'Echange' | 'Retour Expéditeur' | 'Supprimé' | 'Rtn client/agence' | 'Au magasin' | 'Rtn dépôt' | 'A vérifier' | 'Retour reçu' | 'Rtn définitif' | "Demande d'enlèvement" | "Demande d'enlèvement assignée" | "En cours d'enlèvement" | 'Enlevé' | "Demande d'enlèvement annulé" | 'Retour assigné' | "Retour en cours d'expédition" | 'Retour enlevé' | 'Retour Annulé'
           recipient_name?: string
           recipient_phone?: string
           recipient_phone_secondary?: string | null

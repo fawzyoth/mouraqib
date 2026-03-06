@@ -119,7 +119,7 @@ const pickupByCarrier = computed(() => {
 
   // Add unscanned candidates (not confirmed)
   for (const s of appStore.shipments) {
-    if (!s.labelPrinted || s.status === 'Picked up' || scannedIds.has(s.id)) continue
+    if (!s.labelPrinted || s.status === 'Enlevé' || scannedIds.has(s.id)) continue
     const carrier = s.carrier || 'Non assigné'
     if (!groups[carrier]) {
       groups[carrier] = { carrier, shipments: [], confirmedCount: 0 }
@@ -131,14 +131,14 @@ const pickupByCarrier = computed(() => {
 })
 
 const pendingPickupsCount = computed(() =>
-  appStore.shipments.filter((s: any) => !s.labelPrinted && s.status === 'Pending').length
+  appStore.shipments.filter((s: any) => !s.labelPrinted && s.status === 'En attente').length
 )
 
 // Merge session scans with DB picked-up shipments for history
 const allPickedUpShipments = computed(() => {
   const sessionIds = new Set(scannedShipments.value.map((s: any) => s.id))
   const fromDb = appStore.shipments
-    .filter((s: any) => s.status === 'Picked up' && !sessionIds.has(s.id))
+    .filter((s: any) => s.status === 'Enlevé' && !sessionIds.has(s.id))
     .map((s: any) => ({ ...s, scannedAt: s.updatedAt || s.createdAt }))
   return [...scannedShipments.value, ...fromDb]
 })
@@ -178,7 +178,7 @@ async function handleScan() {
   }
 
   // Already picked up in DB
-  if (shipment.status === 'Picked up') {
+  if (shipment.status === 'Enlevé') {
     scanFeedback.value = { type: 'warning', message: `Colis "${input}" déjà enlevé` }
     scanInput.value = ''
     autoHideFeedback()

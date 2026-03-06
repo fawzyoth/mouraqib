@@ -103,7 +103,7 @@ const enrichedClients = computed(() => {
       statsMap.set(s.clientId, entry)
     }
     entry.totalOrders++
-    if (s.status === 'Delivered') {
+    if (s.status === 'Livré') {
       entry.deliveredOrders++
       entry.totalSpent += s.cod || 0
     }

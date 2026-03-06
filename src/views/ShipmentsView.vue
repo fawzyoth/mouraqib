@@ -22,7 +22,7 @@
 
   <CreateShipment
     v-else-if="activeSection === 'create-shipment'"
-    :clients="appStore.clients"
+    :clients="enrichedClients"
     :carriers="appStore.carriers"
     :initial-carrier="stickyCarrier"
     @toggle-submenu="subMenuOpen = !subMenuOpen"
@@ -93,20 +93,43 @@ const openBulkImport = inject<() => void>('openBulkImport', () => {})
 // Section-local state
 // ---------------------------------------------------------------------------
 
+// Enrich clients with shipment-based delivery stats
+const enrichedClients = computed(() => {
+  const shipments = appStore.shipments
+  const statsMap = new Map<string, { totalOrders: number; deliveredOrders: number }>()
+  for (const s of shipments) {
+    if (!s.clientId) continue
+    let entry = statsMap.get(s.clientId)
+    if (!entry) {
+      entry = { totalOrders: 0, deliveredOrders: 0 }
+      statsMap.set(s.clientId, entry)
+    }
+    entry.totalOrders++
+    if (s.status === 'Livré') entry.deliveredOrders++
+  }
+  return appStore.clients.map((client: any) => {
+    const stats = statsMap.get(client.id)
+    if (!stats) return { ...client, totalOrders: 0, deliveredOrders: 0, deliveryRate: 0 }
+    const deliveryRate = stats.totalOrders > 0 ? Math.round((stats.deliveredOrders / stats.totalOrders) * 100) : 0
+    return { ...client, totalOrders: stats.totalOrders, deliveredOrders: stats.deliveredOrders, deliveryRate }
+  })
+})
+
 // Status tabs for ShipmentsList (counts derived from store)
 const statusTabs = computed(() => {
   const s = appStore.shipments
-  const count = (status: string) => s.filter((sh: any) => sh.status === status).length
+  const countIn = (statuses: string[]) => {
+    const set = new Set(statuses)
+    return s.filter((sh: any) => set.has(sh.status)).length
+  }
   return [
     { id: 'all', label: 'Tous', count: s.length },
-    { id: 'pending', label: 'En attente', count: count('Pending') },
-    { id: 'pickup-scheduled', label: 'Ramassage prévu', count: count('Pickup scheduled') },
-    { id: 'picked-up', label: 'Enlevé', count: count('Picked up') },
-    { id: 'in-transit', label: 'En transit', count: count('In transit') },
-    { id: 'out-for-delivery', label: 'En livraison', count: count('Out for delivery') },
-    { id: 'delivered', label: 'Livré', count: count('Delivered') },
-    { id: 'returned', label: 'Retourné', count: count('Returned') },
-    { id: 'cancelled', label: 'Annulé', count: count('Cancelled') },
+    { id: 'pending', label: 'En attente', count: countIn(['En attente', 'A vérifier']) },
+    { id: 'pickup', label: 'Enlèvement', count: countIn(["Demande d'enlèvement", "Demande d'enlèvement assignée", "En cours d'enlèvement", 'Enlevé']) },
+    { id: 'in-progress', label: 'En cours', count: countIn(['En cours', 'Au magasin', 'Echange']) },
+    { id: 'delivered', label: 'Livré', count: countIn(['Livré']) },
+    { id: 'returned', label: 'Retours', count: countIn(['Retour Expéditeur', 'Rtn client/agence', 'Rtn dépôt', 'Retour reçu', 'Rtn définitif', 'Retour assigné', "Retour en cours d'expédition", 'Retour enlevé', 'Retour Annulé']) },
+    { id: 'cancelled', label: 'Supprimé', count: countIn(['Supprimé', "Demande d'enlèvement annulé"]) },
   ].filter(t => t.id === 'all' || t.count > 0)
 })
 

@@ -263,7 +263,6 @@ import { ref, watch } from 'vue'
 import { X, User, Phone as PhoneIcon, MapPin, Globe, AlertTriangle, Printer } from 'lucide-vue-next'
 import { getStatusLabel, getStatusTextClass, getStatusDotClass } from '@/composables/useStatusFormatting'
 import { shipmentsService } from '@/services/shipments'
-import { STATUS_DB_TO_UI } from '@/mappers/shipments'
 import type { UIShipmentEvent } from '@/mappers/shipments'
 
 const props = defineProps<{
@@ -290,8 +289,8 @@ watch(
       const raw = await shipmentsService.getEvents(props.shipment!.id)
       events.value = (raw ?? []).map((e: any) => ({
         id: e.id,
-        status: STATUS_DB_TO_UI[e.status] || e.status,
-        oldStatus: e.old_status ? (STATUS_DB_TO_UI[e.old_status] || e.old_status) : null,
+        status: e.status,
+        oldStatus: e.old_status ?? null,
         description: e.description,
         source: e.source,
         createdAt: e.created_at,
