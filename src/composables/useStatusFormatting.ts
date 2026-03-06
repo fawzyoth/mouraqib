@@ -4,8 +4,10 @@ export function getStatusLabel(status: string): string {
     'Out for delivery': 'En livraison',
     'In transit': 'En transit',
     'Picked up': 'Ramassé',
+    'Pickup scheduled': 'Ramassage prévu',
     'Returned': 'Retourné',
     'Pending': 'En attente',
+    'Cancelled': 'Annulé',
     'Exception': 'Exception',
     'Failed attempt': 'Tentative échouée',
     'Expired': 'Expiré'
@@ -31,8 +33,10 @@ export function getStatusDotClass(status: string): string {
     'Out for delivery': 'bg-blue-500',
     'In transit': 'bg-blue-400',
     'Picked up': 'bg-indigo-500',
+    'Pickup scheduled': 'bg-indigo-400',
     'Returned': 'bg-red-500',
     'Pending': 'bg-gray-400',
+    'Cancelled': 'bg-gray-500',
     'Exception': 'bg-red-500',
     'Failed attempt': 'bg-orange-500',
     'Expired': 'bg-gray-400'

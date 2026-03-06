@@ -16,6 +16,15 @@ export const STATUS_UI_TO_DB: Record<string, string> = Object.fromEntries(
   Object.entries(STATUS_DB_TO_UI).map(([k, v]) => [v, k])
 )
 
+export interface UIShipmentEvent {
+  id: string
+  status: string
+  oldStatus: string | null
+  description: string | null
+  source: string | null
+  createdAt: string
+}
+
 export interface UIShipment {
   id: string
   trackingNumber: string
@@ -56,7 +65,7 @@ export interface UIShipment {
   createdAt: string
   pickupDate: string | null
   updatedAt: string
-  events: any[]
+  events: UIShipmentEvent[]
 }
 
 interface OrgContext {
@@ -65,7 +74,7 @@ interface OrgContext {
   phone: string
 }
 
-export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | null; client?: { name: string } | null; pickup?: { scheduled_date: string } | null }, org: OrgContext): UIShipment {
+export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | null; client?: { name: string } | null; pickup?: { scheduled_date: string } | null; shipment_events?: any[] | null }, org: OrgContext): UIShipment {
   const carrierName = row.carrier?.name || row.old_carrier_name || 'Non assigné'
   const clientName = row.client?.name || '-'
   const uiStatus = STATUS_DB_TO_UI[row.status] || row.status
@@ -114,7 +123,14 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
     createdAt: row.created_at,
     pickupDate: row.pickup?.scheduled_date || null,
     updatedAt: row.updated_at,
-    events: [],
+    events: (row.shipment_events ?? []).map((e: any) => ({
+      id: e.id,
+      status: STATUS_DB_TO_UI[e.status] || e.status,
+      oldStatus: e.old_status ? (STATUS_DB_TO_UI[e.old_status] || e.old_status) : null,
+      description: e.description,
+      source: e.source,
+      createdAt: e.created_at,
+    })),
   }
 }
 

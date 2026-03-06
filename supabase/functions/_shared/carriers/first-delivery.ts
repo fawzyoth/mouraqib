@@ -279,7 +279,6 @@ export class FirstDeliveryAdapter implements CarrierAdapter {
         throw err // Already logged above
       }
       // Network or unexpected error
-      const elapsed = Date.now() - startTime
       errorMessage = (err as Error).message
       this.logApiCall(url, body, null, null, startTime, false, errorMessage)
       throw err

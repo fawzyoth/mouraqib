@@ -61,7 +61,8 @@ export const shipmentsService = {
         *,
         boutique:boutiques(id, name, color),
         carrier:carriers(id, name),
-        client:clients(*)
+        client:clients(*),
+        shipment_events(*)
       `)
       .eq('id', id)
       .single()

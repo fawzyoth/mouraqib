@@ -195,38 +195,17 @@ async function pollCarrier(
   let checked = 0
   let updated = 0
 
-  // Carrier-specific polling strategy
-  if (adapter instanceof NavexAdapter) {
-    // Navex: bulk check in one call
-    const trackingNumbers = toCheck.map(s => s.carrier_tracking_number!)
-    const statusResults = await (adapter as NavexAdapter).bulkCheckStatus(trackingNumbers)
+  try {
+    // Carrier-specific polling strategy
+    if (adapter instanceof NavexAdapter) {
+      // Navex: bulk check in one call
+      const trackingNumbers = toCheck.map(s => s.carrier_tracking_number!)
+      const statusResults = await (adapter as NavexAdapter).bulkCheckStatus(trackingNumbers)
 
-    for (const statusResult of statusResults) {
-      checked++
-      const shipment = toCheck.find(s => s.carrier_tracking_number === statusResult.trackingNumber)
-      if (!shipment) continue
-
-      const newStatus = mapCarrierStatus(statusResult.status)
-      if (newStatus !== shipment.status) {
-        await supabase
-          .from('shipments')
-          .update({ status: newStatus })
-          .eq('id', shipment.id)
-        updated++
-      }
-    }
-  } else {
-    // First Delivery (and other carriers): sequential with 1s delay
-    for (let i = 0; i < toCheck.length; i++) {
-      if (elapsedSeconds(globalStartTime) >= MAX_RUN_SECONDS) {
-        console.log(`[poll] Timeout approaching, stopping ${carrier.name} early after ${checked} checks`)
-        break
-      }
-
-      const shipment = toCheck[i]
-      try {
-        const statusResult: CheckStatusResult = await adapter.checkStatus(shipment.carrier_tracking_number!)
+      for (const statusResult of statusResults) {
         checked++
+        const shipment = toCheck.find(s => s.carrier_tracking_number === statusResult.trackingNumber)
+        if (!shipment) continue
 
         const newStatus = mapCarrierStatus(statusResult.status)
         if (newStatus !== shipment.status) {
@@ -234,18 +213,46 @@ async function pollCarrier(
             .from('shipments')
             .update({ status: newStatus })
             .eq('id', shipment.id)
+          await markEventSource(supabase, shipment.id, newStatus)
           updated++
         }
-      } catch (err) {
-        console.error(`[poll] ${carrier.name}: checkStatus failed for ${shipment.carrier_tracking_number}:`, (err as Error).message)
-        checked++
       }
+    } else {
+      // First Delivery (and other carriers): sequential with 1s delay
+      for (let i = 0; i < toCheck.length; i++) {
+        if (elapsedSeconds(globalStartTime) >= MAX_RUN_SECONDS) {
+          console.log(`[poll] Timeout approaching, stopping ${carrier.name} early after ${checked} checks`)
+          break
+        }
 
-      // Rate limit: 1s delay between calls for sequential carriers
-      if (i < toCheck.length - 1) {
-        await sleep(1000)
+        const shipment = toCheck[i]
+        try {
+          const statusResult: CheckStatusResult = await adapter.checkStatus(shipment.carrier_tracking_number!)
+          checked++
+
+          const newStatus = mapCarrierStatus(statusResult.status)
+          if (newStatus !== shipment.status) {
+            await supabase
+              .from('shipments')
+              .update({ status: newStatus })
+              .eq('id', shipment.id)
+            await markEventSource(supabase, shipment.id, newStatus)
+            updated++
+          }
+        } catch (err) {
+          console.error(`[poll] ${carrier.name}: checkStatus failed for ${shipment.carrier_tracking_number}:`, (err as Error).message)
+          checked++
+        }
+
+        // Rate limit: 1s delay between calls for sequential carriers
+        if (i < toCheck.length - 1) {
+          await sleep(1000)
+        }
       }
     }
+  } finally {
+    // Always flush pending API log inserts, even if the loop threw
+    await apiCallLogger.flush()
   }
 
   // Advance cursor, stamp last run, reset errors
@@ -284,4 +291,23 @@ function elapsedSeconds(startTime: number): number {
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/**
+ * Tag the most recent auto-created shipment_event with source='poll'.
+ * The DB trigger fires on status change and defaults source to 'system'.
+ */
+async function markEventSource(
+  supabase: ReturnType<typeof createServiceClient>,
+  shipmentId: string,
+  newStatus: string,
+): Promise<void> {
+  await supabase
+    .from('shipment_events')
+    .update({ source: 'poll' })
+    .eq('shipment_id', shipmentId)
+    .eq('status', newStatus)
+    .eq('source', 'system')
+    .order('created_at', { ascending: false })
+    .limit(1)
 }

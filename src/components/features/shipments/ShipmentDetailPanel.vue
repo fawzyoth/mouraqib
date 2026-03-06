@@ -204,15 +204,63 @@
           </div>
         </div>
       </div>
+
+      <div class="border-t border-gray-200 dark:border-gray-800"></div>
+
+      <!-- Historique (Status Timeline) -->
+      <div>
+        <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Historique</p>
+
+        <!-- Loading state -->
+        <div v-if="loadingEvents" class="flex items-center gap-2 text-xs text-gray-400">
+          <div class="w-3 h-3 border-2 border-gray-300 border-t-[#4959b4] rounded-full animate-spin"></div>
+          Chargement...
+        </div>
+
+        <!-- Empty state -->
+        <p v-else-if="events.length === 0" class="text-xs text-gray-400 dark:text-gray-500">Aucun historique</p>
+
+        <!-- Timeline -->
+        <div v-else class="relative">
+          <div
+            v-for="(event, index) in events"
+            :key="event.id"
+            class="relative flex gap-3 pb-4 last:pb-0"
+          >
+            <!-- Vertical line -->
+            <div class="flex flex-col items-center">
+              <div :class="['w-2.5 h-2.5 rounded-full shrink-0 mt-0.5', getStatusDotClass(event.status)]"></div>
+              <div v-if="index < events.length - 1" class="w-px flex-1 bg-gray-200 dark:bg-gray-700 mt-1"></div>
+            </div>
+
+            <!-- Content -->
+            <div class="min-w-0 flex-1 -mt-0.5">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-sm font-medium text-gray-900 dark:text-white">{{ getStatusLabel(event.status) }}</span>
+                <span class="text-xs text-gray-400 dark:text-gray-500 shrink-0">{{ formatEventDate(event.createdAt) }}</span>
+              </div>
+              <div class="flex items-center gap-1.5 mt-0.5">
+                <span v-if="event.source && event.source !== 'system'" class="inline-block px-1.5 py-0.5 text-[10px] font-medium rounded bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                  {{ getSourceLabel(event.source) }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, watch } from 'vue'
 import { X, User, Phone as PhoneIcon, MapPin, Globe, AlertTriangle, Printer } from 'lucide-vue-next'
-import { getStatusLabel, getStatusTextClass } from '@/composables/useStatusFormatting'
+import { getStatusLabel, getStatusTextClass, getStatusDotClass } from '@/composables/useStatusFormatting'
+import { shipmentsService } from '@/services/shipments'
+import { STATUS_DB_TO_UI } from '@/mappers/shipments'
+import type { UIShipmentEvent } from '@/mappers/shipments'
 
-defineProps<{
+const props = defineProps<{
   show: boolean
   shipment: Record<string, any> | null
 }>()
@@ -220,4 +268,57 @@ defineProps<{
 defineEmits<{
   (e: 'close'): void
 }>()
+
+const events = ref<UIShipmentEvent[]>([])
+const loadingEvents = ref(false)
+
+watch(
+  () => props.show && props.shipment?.id,
+  async (shipmentId) => {
+    if (!shipmentId) {
+      events.value = []
+      return
+    }
+    loadingEvents.value = true
+    try {
+      const raw = await shipmentsService.getEvents(props.shipment!.id)
+      events.value = (raw ?? []).map((e: any) => ({
+        id: e.id,
+        status: STATUS_DB_TO_UI[e.status] || e.status,
+        oldStatus: e.old_status ? (STATUS_DB_TO_UI[e.old_status] || e.old_status) : null,
+        description: e.description,
+        source: e.source,
+        createdAt: e.created_at,
+      }))
+    } catch (err) {
+      console.error('[detail] Failed to load events:', err)
+      events.value = []
+    } finally {
+      loadingEvents.value = false
+    }
+  },
+  { immediate: true }
+)
+
+function formatEventDate(dateStr: string): string {
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function getSourceLabel(source: string): string {
+  const labels: Record<string, string> = {
+    poll: 'Auto',
+    manual: 'Manuel',
+    'carrier-proxy': 'API',
+    sync: 'Sync',
+    system: 'Système',
+  }
+  return labels[source] || source
+}
 </script>

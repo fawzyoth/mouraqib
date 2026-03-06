@@ -5,14 +5,19 @@ import type { ApiCallLog, ApiCallLogger } from './types.ts'
  *
  * Truncates response bodies larger than 50 KB to avoid bloating the DB.
  * Inserts are fire-and-forget so they don't block the calling code.
+ *
+ * Call `flush()` before the edge-function returns to ensure all pending
+ * inserts settle (Deno kills the isolate once the response is sent).
  */
 export function createApiCallLogger(
   supabase: { from: (table: string) => any },
   carrierId: string,
   organizationId: string,
   action: string,
-): ApiCallLogger {
-  return (log: ApiCallLog) => {
+): ApiCallLogger & { flush: () => Promise<void> } {
+  const pending: Promise<void>[] = []
+
+  const logger: ApiCallLogger = (log: ApiCallLog) => {
     let responseBody = log.responseBody
     try {
       const serialized = JSON.stringify(responseBody)
@@ -21,7 +26,7 @@ export function createApiCallLogger(
       }
     } catch { /* keep original */ }
 
-    supabase.from('carrier_api_logs').insert({
+    const p = supabase.from('carrier_api_logs').insert({
       organization_id: organizationId,
       carrier_id: carrierId,
       action,
@@ -37,5 +42,14 @@ export function createApiCallLogger(
     }).then(({ error: logError }: { error: { message: string } | null }) => {
       if (logError) console.error('[api-logger] Failed to log API call:', logError.message)
     })
+
+    pending.push(p)
   }
+
+  logger.flush = async () => {
+    await Promise.allSettled(pending)
+    pending.length = 0
+  }
+
+  return logger as ApiCallLogger & { flush: () => Promise<void> }
 }
