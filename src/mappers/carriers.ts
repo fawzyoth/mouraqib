@@ -67,6 +67,7 @@ export function uiCarrierToInsert(form: Record<string, any>, orgId: string): Car
     all_regions: form.allRegions ?? true,
     regions: form.regions?.length ? form.regions : null,
     is_active: true,
+    poll_interval_seconds: form.pollIntervalSeconds ?? null,
   }
 }
 

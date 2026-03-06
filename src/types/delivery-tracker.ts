@@ -26,6 +26,7 @@ export interface DeliveryCarrier {
   bgColor: string
   logo?: string
   configFields: CarrierConfigField[]
+  pollIntervalSeconds?: number
   enabled?: boolean
 }
 

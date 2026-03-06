@@ -223,6 +223,7 @@ export interface Database {
           all_regions: boolean
           regions: string[] | null
           is_active: boolean
+          poll_interval_seconds: number | null
           created_at: string
           updated_at: string
         }
@@ -245,6 +246,7 @@ export interface Database {
           all_regions?: boolean
           regions?: string[] | null
           is_active?: boolean
+          poll_interval_seconds?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -267,6 +269,7 @@ export interface Database {
           all_regions?: boolean
           regions?: string[] | null
           is_active?: boolean
+          poll_interval_seconds?: number | null
           created_at?: string
           updated_at?: string
         }
