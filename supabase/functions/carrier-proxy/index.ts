@@ -4,7 +4,9 @@ import { createServiceClient } from '../_shared/supabase.ts'
 import { verifyUser } from '../_shared/auth.ts'
 import { getCarrierAdapter } from '../_shared/carriers/registry.ts'
 import { CarrierApiError } from '../_shared/carriers/types.ts'
-import type { CreateShipmentPayload, ApiCallLog } from '../_shared/carriers/types.ts'
+import type { CreateShipmentPayload } from '../_shared/carriers/types.ts'
+import { mapCarrierStatus } from '../_shared/carriers/status-map.ts'
+import { createApiCallLogger } from '../_shared/carriers/logger.ts'
 
 type ProxyAction = 'create-shipment' | 'request-pickup' | 'cancel' | 'check-status' | 'sync-shipments'
 
@@ -96,33 +98,7 @@ serve(async (req) => {
     }
 
     // 5. Resolve the carrier adapter via the registry (with API call logger)
-    const apiCallLogger = (log: ApiCallLog) => {
-      // Truncate large response bodies to avoid bloating the DB
-      let responseBody = log.responseBody
-      try {
-        const serialized = JSON.stringify(responseBody)
-        if (serialized && serialized.length > 50_000) {
-          responseBody = { _truncated: true, preview: serialized.slice(0, 5000) }
-        }
-      } catch { /* keep original */ }
-
-      supabase.from('carrier_api_logs').insert({
-        organization_id: carrier.organization_id,
-        carrier_id: carrierId,
-        action,
-        method: log.method,
-        url: log.url,
-        request_headers: log.requestHeaders,
-        request_body: log.requestBody,
-        http_status: log.httpStatus,
-        response_body: responseBody,
-        response_time_ms: log.responseTimeMs,
-        success: log.success,
-        error_message: log.errorMessage,
-      }).then(({ error: logError }) => {
-        if (logError) console.error('[carrier-proxy] Failed to log API call:', logError.message)
-      })
-    }
+    const apiCallLogger = createApiCallLogger(supabase, carrierId, carrier.organization_id, action)
 
     let adapter
     try {
@@ -591,24 +567,3 @@ async function findOrCreateClient(
   return created.id
 }
 
-// ─── Helpers ─────────────────────────────────────────────────
-
-/**
- * Map carrier-specific status strings to our DB status enum.
- * DB allows: pending, pickup_scheduled, picked_up, in_transit, out_for_delivery, delivered, returned, cancelled
- */
-function mapCarrierStatus(carrierStatus: string): string {
-  const s = (carrierStatus || '').toLowerCase().trim()
-
-  if (s.includes('livr') && s.includes('pay')) return 'delivered'   // Navex: "Livrer Paye"
-  if (s.includes('livr')) return 'delivered'
-  if (s.includes('rtn') || s.includes('retour')) return 'returned'
-  if (s.includes('supprim') || s.includes('annul')) return 'cancelled'
-  if (s.includes('pickup') || s.includes('enlev') || s.includes('ramass')) return 'picked_up'
-  if (s.includes('transit') || s.includes('transfert') || s.includes('hub')) return 'in_transit'
-  if (s.includes('distribution') || s.includes('livraison en cours')) return 'out_for_delivery'
-  if (s.includes('créé') || s.includes('cree') || s.includes('nouveau')) return 'pending'
-  if (s.includes('attent')) return 'pending'                        // Navex: "En attente"
-
-  return 'in_transit'
-}

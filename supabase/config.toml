@@ -376,6 +376,9 @@ verify_jwt = false
 [functions.carrier-credentials]
 verify_jwt = false
 
+[functions.poll-carrier-status]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

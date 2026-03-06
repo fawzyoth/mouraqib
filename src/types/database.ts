@@ -278,6 +278,7 @@ export interface Database {
           boutique_id: string | null
           client_id: string | null
           carrier_id: string | null
+          old_carrier_name: string | null
           created_by: string | null
           pickup_id: string | null
           tracking_number: string
@@ -318,6 +319,7 @@ export interface Database {
           boutique_id?: string | null
           client_id?: string | null
           carrier_id?: string | null
+          old_carrier_name?: string | null
           created_by?: string | null
           pickup_id?: string | null
           tracking_number?: string
@@ -358,6 +360,7 @@ export interface Database {
           boutique_id?: string | null
           client_id?: string | null
           carrier_id?: string | null
+          old_carrier_name?: string | null
           created_by?: string | null
           pickup_id?: string | null
           tracking_number?: string

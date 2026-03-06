@@ -66,7 +66,7 @@ interface OrgContext {
 }
 
 export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | null; client?: { name: string } | null; pickup?: { scheduled_date: string } | null }, org: OrgContext): UIShipment {
-  const carrierName = row.carrier?.name || 'Non assigné'
+  const carrierName = row.carrier?.name || row.old_carrier_name || 'Non assigné'
   const clientName = row.client?.name || '-'
   const uiStatus = STATUS_DB_TO_UI[row.status] || row.status
   const createdDate = new Date(row.created_at)
