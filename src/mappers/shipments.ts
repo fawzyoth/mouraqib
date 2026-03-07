@@ -163,5 +163,6 @@ export function uiShipmentToInsert(
     product_price: form.productPrice || 0,
     delivery_fee: form.deliveryFee || 7,
     client_id: form.clientId || null,
+    status: 'En attente',
   }
 }

@@ -49,7 +49,12 @@ export function useShipmentsData(orgId: Ref<string>) {
       // Add initial event
       await shipmentsService.addEvent(row.id, 'En attente', 'Commande en attente de ramassage', 'Tunisie')
 
-      const uiShipment = dbShipmentToUI(row as any, orgContext)
+      const enrichedRow = {
+        ...row,
+        carrier: carrierId ? { name: form.carrier || 'Non assigné' } : null,
+        client: form.clientId ? { name: form.customerName || '-' } : null,
+      }
+      const uiShipment = dbShipmentToUI(enrichedRow as any, orgContext)
       uiShipment.events = [{
         status: 'Informations reçues',
         description: 'Commande en attente de ramassage',

@@ -419,9 +419,10 @@
           <button @click="resetForm" type="button" class="px-6 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
             Annuler
           </button>
-          <button @click="handleSubmit" :disabled="!newShipment.carrier" :class="['px-6 py-2.5 bg-[#4959b4] hover:bg-[#3a4791] text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2', !newShipment.carrier && 'opacity-50 cursor-not-allowed']">
-            <Plus class="w-4 h-4" />
-            Creer le colis
+          <button @click="handleSubmit" :disabled="!newShipment.carrier || loading" :class="['px-6 py-2.5 bg-[#4959b4] hover:bg-[#3a4791] text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2', (!newShipment.carrier || loading) && 'opacity-50 cursor-not-allowed']">
+            <Loader2 v-if="loading" class="w-4 h-4 animate-spin" />
+            <Plus v-else class="w-4 h-4" />
+            {{ loading ? 'Création...' : 'Creer le colis' }}
           </button>
         </div>
       </div>
@@ -440,7 +441,8 @@ import {
   Search,
   Plus,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  Loader2
 } from 'lucide-vue-next'
 import { carrierDeliveryFees } from '@/data/carriers-catalog'
 import zonesData from '@/data/zones-first'
@@ -466,11 +468,14 @@ interface DeliveryCarrier {
   [key: string]: any
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   clients: Client[]
   carriers: { id: number; name: string; [key: string]: any }[]
   initialCarrier?: string
-}>()
+  loading?: boolean
+}>(), {
+  loading: false,
+})
 
 const emit = defineEmits<{
   (e: 'toggle-submenu'): void

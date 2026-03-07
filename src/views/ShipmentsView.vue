@@ -25,6 +25,7 @@
     :clients="enrichedClients"
     :carriers="appStore.carriers"
     :initial-carrier="stickyCarrier"
+    :loading="creatingShipment"
     @toggle-submenu="subMenuOpen = !subMenuOpen"
     @submit="handleCreateShipment"
     @reset="resetShipmentForm"
@@ -142,23 +143,29 @@ const showShipmentDetail = ref(false)
 
 // Create shipment
 const createdShipment = ref<any>(null)
+const creatingShipment = ref(false)
 const stickyCarrier = ref('')
 
 async function handleCreateShipment(data: any) {
-  const carrier = appStore.carriers.find((c: any) => c.name === data.carrier)
-  const carrierId = carrier?.id || null
-  const userId = authStore.user?.id || null
+  creatingShipment.value = true
+  try {
+    const carrier = appStore.carriers.find((c: any) => c.name === data.carrier)
+    const carrierId = carrier?.id || null
+    const userId = authStore.user?.id || null
 
-  const result = await appStore.shipmentsData.create(
-    data,
-    appStore.orgContext,
-    userId,
-    carrierId,
-    carrier?.apiStatus
-  )
-  if (result) {
-    createdShipment.value = result
-    stickyCarrier.value = data.carrier || ''
+    const result = await appStore.shipmentsData.create(
+      data,
+      appStore.orgContext,
+      userId,
+      carrierId,
+      carrier?.apiStatus
+    )
+    if (result) {
+      createdShipment.value = result
+      stickyCarrier.value = data.carrier || ''
+    }
+  } finally {
+    creatingShipment.value = false
   }
 }
 function resetShipmentForm() {
