@@ -101,10 +101,11 @@ export class FirstDeliveryAdapter implements CarrierAdapter {
 
   async checkStatus(trackingNumber: string): Promise<CheckStatusResult> {
     const data = await this.post('/etat', { barCode: trackingNumber })
+    const result = data.result ?? data
 
     return {
-      trackingNumber: data.barCode ?? trackingNumber,
-      status: data.state ?? 'unknown',
+      trackingNumber: result.barCode ?? trackingNumber,
+      status: result.state ?? 'unknown',
     }
   }
 

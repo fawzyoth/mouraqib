@@ -205,7 +205,7 @@
           <div v-if="shipment.lastSyncedAt" class="flex justify-between text-sm">
             <span class="text-gray-500 dark:text-gray-400">Dernier sync</span>
             <span class="font-semibold text-gray-900 dark:text-white">
-              {{ new Date(shipment.lastSyncedAt).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) }}
+              {{ formatSyncDate(shipment.lastSyncedAt) }}
             </span>
           </div>
         </div>
@@ -259,7 +259,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { X, User, Phone as PhoneIcon, MapPin, Globe, AlertTriangle, Printer } from 'lucide-vue-next'
 import { getStatusLabel, getStatusTextClass, getStatusDotClass } from '@/composables/useStatusFormatting'
 import { shipmentsService } from '@/services/shipments'
@@ -314,6 +314,23 @@ function formatEventDate(dateStr: string): string {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+const now = ref(Date.now())
+let tickerInterval: ReturnType<typeof setInterval> | null = null
+onMounted(() => { tickerInterval = setInterval(() => { now.value = Date.now() }, 1000) })
+onUnmounted(() => { if (tickerInterval) clearInterval(tickerInterval) })
+
+function formatSyncDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-'
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return '-'
+  const diffSec = Math.floor((now.value - d.getTime()) / 1000)
+  if (diffSec < 100) return `il y a ${diffSec}s`
+  const today = new Date(now.value)
+  const isToday = d.toDateString() === today.toDateString()
+  if (isToday) return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
 function getSourceLabel(source: string): string {

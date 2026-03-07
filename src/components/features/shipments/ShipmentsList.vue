@@ -149,7 +149,7 @@
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Création">{{ formatDate(shipment.createdAt) }}</td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Ramassage">{{ formatDate(shipment.pickupDate) }}</td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Livraison">{{ formatDate(shipment.deliveryDate) }}</td>
-              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Sync">{{ formatDate(shipment.lastSyncedAt) }}</td>
+              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Sync">{{ formatSyncDate(shipment.lastSyncedAt) }}</td>
             </tr>
           </tbody>
         </table>
@@ -181,7 +181,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, nextTick } from 'vue'
+import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ListFilter,
@@ -415,5 +415,23 @@ function formatDate(dateStr: string | null | undefined): string {
   const d = new Date(dateStr)
   if (isNaN(d.getTime())) return '-'
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+// Reactive ticker for relative sync times
+const now = ref(Date.now())
+let tickerInterval: ReturnType<typeof setInterval> | null = null
+onMounted(() => { tickerInterval = setInterval(() => { now.value = Date.now() }, 1000) })
+onUnmounted(() => { if (tickerInterval) clearInterval(tickerInterval) })
+
+function formatSyncDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-'
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return '-'
+  const diffSec = Math.floor((now.value - d.getTime()) / 1000)
+  if (diffSec < 100) return `il y a ${diffSec}s`
+  const today = new Date(now.value)
+  const isToday = d.toDateString() === today.toDateString()
+  if (isToday) return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 </script>

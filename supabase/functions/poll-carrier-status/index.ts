@@ -249,18 +249,21 @@ async function pollCarrier(
 
           const newStatus = statusResult.status
           const now = new Date().toISOString()
+          console.log(`[poll] ${carrier.name}: ${shipment.carrier_tracking_number} db="${shipment.status}" carrier="${newStatus}" changed=${newStatus !== shipment.status}`)
           if (newStatus !== shipment.status) {
-            await supabase
+            const { error: updErr } = await supabase
               .from('shipments')
               .update({ status: newStatus, last_synced_at: now })
               .eq('id', shipment.id)
+            if (updErr) console.error(`[poll] update status failed for ${shipment.id}:`, updErr.message)
             await markEventSource(supabase, shipment.id, newStatus)
             updated++
           } else {
-            await supabase
+            const { error: syncErr } = await supabase
               .from('shipments')
               .update({ last_synced_at: now })
               .eq('id', shipment.id)
+            if (syncErr) console.error(`[poll] update last_synced_at failed for ${shipment.id}:`, syncErr.message)
           }
         } catch (err) {
           console.error(`[poll] ${carrier.name}: checkStatus failed for ${shipment.carrier_tracking_number}:`, (err as Error).message)
