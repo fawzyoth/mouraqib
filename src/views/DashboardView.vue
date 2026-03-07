@@ -114,11 +114,6 @@ const selectedUrgentAction = ref<any>(null)
 const urgentModal = useModal(() => { selectedUrgentAction.value = null })
 
 function onHandleAction(action: any) {
-  // Pending pickup confirmations must go through the scan page
-  if (action.type === 'confirm') {
-    router.push('/pickups')
-    return
-  }
   selectedUrgentAction.value = action
   urgentModal.open()
 }
@@ -296,8 +291,8 @@ const urgentActions = computed(() => {
       id: id++,
       type: 'confirm',
       icon: markRaw(FileCheck),
-      title: `${pending.length} commande${pending.length > 1 ? 's' : ''} en attente de confirmation`,
-      description: 'Commandes à confirmer',
+      title: `${pending.length} colis en attente de pickup`,
+      description: 'En attente de pickup',
       time: 'Maintenant',
       actionLabel: 'Scanner',
       shipmentIds: pending.map(s => s.id),
@@ -343,8 +338,8 @@ const urgentActions = computed(() => {
       id: id++,
       type: 'return',
       icon: markRaw(RotateCcw),
-      title: `${returned.length} retour${returned.length > 1 ? 's' : ''} à traiter`,
-      description: 'Retours en attente',
+      title: `${returned.length} retour${returned.length > 1 ? 's' : ''} a verifier`,
+      description: 'Retours a verifier',
       time: 'Récent',
       actionLabel: 'Traiter',
       shipmentIds: returned.map(s => s.id),
@@ -358,8 +353,8 @@ const urgentActions = computed(() => {
       id: id++,
       type: 'print',
       icon: markRaw(Package),
-      title: `Bordereau non imprimé pour ${unprinted.length} colis`,
-      description: 'Bordereaux à imprimer',
+      title: `${unprinted.length} bordereau${unprinted.length > 1 ? 'x' : ''} a imprimer`,
+      description: 'Bordereaux a imprimer',
       time: 'Récent',
       actionLabel: 'Imprimer',
       shipmentIds: unprinted.map(s => s.id),

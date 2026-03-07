@@ -91,12 +91,9 @@
               <p class="text-xs text-gray-500">{{ action.description }}</p>
             </div>
           </div>
-          <div class="flex items-center space-x-2">
-            <span class="text-xs text-gray-400">{{ action.time }}</span>
-            <button @click="emit('handle-action', action)" class="btn-primary btn-primary-sm">
-              Traiter
-            </button>
-          </div>
+          <button @click="emit('handle-action', action)" class="btn-primary btn-primary-sm">
+            Traiter
+          </button>
         </div>
         <div v-if="urgentActions.length === 0" class="px-5 py-8 text-center">
           <CheckCircle class="w-12 h-12 text-green-500 mx-auto mb-3" />
