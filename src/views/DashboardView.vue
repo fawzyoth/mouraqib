@@ -174,10 +174,38 @@ async function printAllLabels() {
 
     if (error) throw error
 
-    // data is a Blob (PDF response)
-    const blob = data instanceof Blob ? data : new Blob([data], { type: 'application/pdf' })
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank')
+    // Detect response type from the blob
+    const text = data instanceof Blob ? await data.text() : typeof data === 'string' ? data : JSON.stringify(data)
+
+    if (text.trimStart().startsWith('<!DOCTYPE') || text.trimStart().startsWith('<html')) {
+      // HTML response (Navex labels) — open in new tab with print dialog
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        printWindow.document.write(text)
+        printWindow.document.close()
+        printWindow.onload = () => printWindow.print()
+      }
+    } else if (text.startsWith('{') && text.includes('"pdf"')) {
+      // Mixed response — open both PDF and HTML
+      const json = JSON.parse(text)
+      if (json.pdf) {
+        const pdfBytes = Uint8Array.from(atob(json.pdf), c => c.charCodeAt(0))
+        const pdfBlob = new Blob([pdfBytes], { type: 'application/pdf' })
+        window.open(URL.createObjectURL(pdfBlob), '_blank')
+      }
+      if (json.html) {
+        const printWindow = window.open('', '_blank')
+        if (printWindow) {
+          printWindow.document.write(json.html)
+          printWindow.document.close()
+          printWindow.onload = () => printWindow.print()
+        }
+      }
+    } else {
+      // PDF response
+      const blob = data instanceof Blob ? data : new Blob([data], { type: 'application/pdf' })
+      window.open(URL.createObjectURL(blob), '_blank')
+    }
   } catch (e: any) {
     toast.error('Erreur fusion PDF: ' + (e.message || e))
   } finally {
