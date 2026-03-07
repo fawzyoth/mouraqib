@@ -148,6 +148,7 @@
               <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white" data-label="Prix">{{ shipment.amount ? shipment.amount.toFixed(2) + ' DT' : '-' }}</td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Création">{{ formatDate(shipment.createdAt) }}</td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Ramassage">{{ formatDate(shipment.pickupDate) }}</td>
+              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Scan Pickup">{{ formatDateTime(shipment.outScannedAt) }}</td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Livraison">{{ formatDate(shipment.deliveryDate) }}</td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Sync">{{ formatSyncDate(shipment.lastSyncedAt) }}</td>
             </tr>
@@ -238,6 +239,7 @@ const columns = [
   { key: 'amount', label: 'Prix', filterable: false },
   { key: 'createdAt', label: 'Création', filterable: false },
   { key: 'pickupDate', label: 'Ramassage', filterable: false },
+  { key: 'outScannedAt', label: 'Scan Pickup', filterable: false },
   { key: 'deliveryDate', label: 'Livraison', filterable: false },
   { key: 'lastSyncedAt', label: 'Sync', filterable: false },
 ]
@@ -415,6 +417,13 @@ function formatDate(dateStr: string | null | undefined): string {
   const d = new Date(dateStr)
   if (isNaN(d.getTime())) return '-'
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function formatDateTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-'
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return '-'
+  return d.toLocaleString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 // Reactive ticker for relative sync times

@@ -202,6 +202,14 @@
             <span class="text-gray-500 dark:text-gray-400">Client</span>
             <span class="font-semibold text-gray-900 dark:text-white">{{ shipment.client }}</span>
           </div>
+          <div v-if="shipment.outScannedAt" class="flex justify-between text-sm">
+            <span class="text-gray-500 dark:text-gray-400">Scan (Ramassage)</span>
+            <span class="font-semibold text-gray-900 dark:text-white">{{ formatEventDate(shipment.outScannedAt) }}</span>
+          </div>
+          <div v-if="shipment.inScannedAt" class="flex justify-between text-sm">
+            <span class="text-gray-500 dark:text-gray-400">Scan (Retour)</span>
+            <span class="font-semibold text-gray-900 dark:text-white">{{ formatEventDate(shipment.inScannedAt) }}</span>
+          </div>
           <div v-if="shipment.lastSyncedAt" class="flex justify-between text-sm">
             <span class="text-gray-500 dark:text-gray-400">Dernier sync</span>
             <span class="font-semibold text-gray-900 dark:text-white">

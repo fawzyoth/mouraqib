@@ -50,6 +50,8 @@ export interface UIShipment {
   pickupDate: string | null
   updatedAt: string
   lastSyncedAt: string | null
+  outScannedAt: string | null
+  inScannedAt: string | null
   events: UIShipmentEvent[]
 }
 
@@ -57,6 +59,17 @@ interface OrgContext {
   name: string
   address: string
   phone: string
+}
+
+/** Generate a fallback Navex label URL when label_url is not stored */
+function generateNavexLabelUrl(row: Shipment & { carrier?: { name: string; sender_id?: string | null } | null }): string | null {
+  const carrierName = (row.carrier?.name || '').toLowerCase().trim()
+  const isNavex = carrierName === 'navex' || carrierName === 'navex delivery'
+  if (!isNavex) return null
+  const senderId = row.carrier?.sender_id
+  if (!senderId) return null
+  const trackingNumber = row.carrier_tracking_number || row.tracking_number
+  return `https://app.navex.tn/print/imprimer.php?id=${encodeURIComponent(senderId)}&code=${encodeURIComponent(trackingNumber)}`
 }
 
 export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | null; client?: { name: string } | null; pickup?: { scheduled_date: string } | null; shipment_events?: any[] | null }, org: OrgContext): UIShipment {
@@ -85,7 +98,7 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
     orderNumber: row.reference || '',
     customerName: row.recipient_name,
     labelNumber: row.label_number,
-    labelUrl: (row as any).label_url || null,
+    labelUrl: (row as any).label_url || generateNavexLabelUrl(row) || null,
     labelPrinted: row.label_printed,
     labelPrintedAt: row.label_printed_at,
     weight: row.weight,
@@ -109,6 +122,8 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
     pickupDate: row.pickup?.scheduled_date || null,
     updatedAt: row.updated_at,
     lastSyncedAt: row.last_synced_at ?? null,
+    outScannedAt: row.out_scanned_at ?? null,
+    inScannedAt: row.in_scanned_at ?? null,
     events: (row.shipment_events ?? []).map((e: any) => ({
       id: e.id,
       status: e.status,

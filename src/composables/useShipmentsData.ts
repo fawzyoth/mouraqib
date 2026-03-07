@@ -153,6 +153,45 @@ export function useShipmentsData(orgId: Ref<string>) {
     }
   }
 
+  async function markAsOutScanned(ids: string[]): Promise<boolean> {
+    try {
+      const now = new Date().toISOString()
+      for (const id of ids) {
+        // Update DB
+        await shipmentsService.update(id, { out_scanned_at: now })
+        // Add event for history
+        await shipmentsService.addEvent(id, 'Colis scanné', 'Colis scanné et prêt pour pickup')
+        // Update local state
+        const index = shipments.value.findIndex(s => s.id === id)
+        if (index !== -1) {
+          shipments.value[index] = { ...shipments.value[index], outScannedAt: now }
+        }
+      }
+      return true
+    } catch (e: any) {
+      toast.error('Erreur lors du scan: ' + (e.message || e))
+      return false
+    }
+  }
+
+  async function markAsInScanned(ids: string[]): Promise<boolean> {
+    try {
+      const now = new Date().toISOString()
+      for (const id of ids) {
+        await shipmentsService.update(id, { in_scanned_at: now })
+        await shipmentsService.addEvent(id, 'Retour scanné', 'Colis scanné pour retour')
+        const index = shipments.value.findIndex(s => s.id === id)
+        if (index !== -1) {
+          shipments.value[index] = { ...shipments.value[index], inScannedAt: now }
+        }
+      }
+      return true
+    } catch (e: any) {
+      toast.error('Erreur lors du scan: ' + (e.message || e))
+      return false
+    }
+  }
+
   function subscribe(orgContext: OrgContext) {
     if (!orgId.value) return
     realtimeChannel = shipmentsService.subscribeToChanges(orgId.value, (payload: any) => {
@@ -193,5 +232,5 @@ export function useShipmentsData(orgId: Ref<string>) {
     }
   }
 
-  return { shipments, isLoading, load, create, markAsPrinted, updateStatus, subscribe, unsubscribe }
+  return { shipments, isLoading, load, create, markAsPrinted, markAsOutScanned, markAsInScanned, updateStatus, subscribe, unsubscribe }
 }

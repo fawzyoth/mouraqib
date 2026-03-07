@@ -284,18 +284,22 @@ const urgentActions = computed(() => {
   const actions: any[] = []
   let id = 1
 
-  // Pending confirmations
-  const pending = all.filter(s => s.status === 'En attente' || s.status === "Demande d'enlèvement" || s.status === "Demande d'enlèvement assignée")
-  if (pending.length > 0) {
+  // Pending confirmations (not yet out_scanned)
+  const allPendingPickup = all.filter(s =>
+    s.status === 'En attente' || s.status === "Demande d'enlèvement" || s.status === "Demande d'enlèvement assignée"
+  )
+  const pendingScans = allPendingPickup.filter(s => !s.outScannedAt)
+
+  if (pendingScans.length > 0) {
     actions.push({
       id: id++,
       type: 'confirm',
       icon: markRaw(FileCheck),
-      title: `${pending.length} colis en attente de pickup`,
-      description: 'En attente de pickup',
+      title: `${allPendingPickup.length} colis en attente de pickup`,
+      description: `${pendingScans.length} à scanner`,
       time: 'Maintenant',
       actionLabel: 'Scanner',
-      shipmentIds: pending.map(s => s.id),
+      shipmentIds: allPendingPickup.map(s => s.id),
     })
   }
 

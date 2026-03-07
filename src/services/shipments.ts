@@ -22,7 +22,7 @@ export const shipmentsService = {
       .select(`
         *,
         boutique:boutiques(id, name, color),
-        carrier:carriers(id, name),
+        carrier:carriers(id, name, sender_id),
         client:clients(id, name, phone),
         pickup:pickup_requests(scheduled_date)
       `)
@@ -63,7 +63,7 @@ export const shipmentsService = {
       .select(`
         *,
         boutique:boutiques(id, name, color),
-        carrier:carriers(id, name),
+        carrier:carriers(id, name, sender_id),
         client:clients(*),
         shipment_events(*)
       `)
@@ -80,7 +80,7 @@ export const shipmentsService = {
       .select(`
         *,
         boutique:boutiques(id, name, color),
-        carrier:carriers(id, name),
+        carrier:carriers(id, name, sender_id),
         events:shipment_events(*)
       `)
       .eq('tracking_number', trackingNumber)

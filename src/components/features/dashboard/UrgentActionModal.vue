@@ -52,7 +52,7 @@
             <div class="absolute inset-x-8 top-1/2 -translate-y-1/2 h-0.5 bg-green-400/60 rounded-full animate-pulse"></div>
           </div>
           <div class="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
-            {{ scannedIds.size }}/{{ filteredShipments.length }} scannés
+            {{ scannedCount }}/{{ filteredShipments.length }} scannés
           </div>
         </div>
         <div class="flex gap-2">
@@ -83,7 +83,7 @@
           :shipment="s"
           :action-type="action.type"
           :processing="processingIds.has(s.id)"
-          :scanned="scannedIds.has(s.id)"
+          :scanned="scannedIds.has(s.id) || !!s.outScannedAt"
           @confirm="handleConfirm(s)"
           @print="handlePrint(s)"
           @view="handleView(s)"
@@ -146,12 +146,18 @@ function showFeedback(message: string, isError = false) {
   setTimeout(() => { scanFeedback.value = '' }, 2000)
 }
 
-function onBarcodeDetected(code: string) {
+async function onBarcodeDetected(code: string) {
   const shipment = filteredShipments.value.find(s => s.trackingNumber === code)
   if (!shipment) return
   if (scannedIds.has(shipment.id)) return
   scannedIds.add(shipment.id)
   showFeedback(`${code} scanné !`)
+  processingIds.add(shipment.id)
+  try {
+    await appStore.shipmentsData.markAsOutScanned([shipment.id])
+  } finally {
+    processingIds.delete(shipment.id)
+  }
 }
 
 function detectionLoop() {
@@ -202,7 +208,7 @@ function stopScanner() {
   }
 }
 
-function handleManualScan() {
+async function handleManualScan() {
   const code = manualCode.value.trim()
   if (!code) return
   const shipment = filteredShipments.value.find(s => s.trackingNumber === code)
@@ -212,6 +218,12 @@ function handleManualScan() {
     } else {
       scannedIds.add(shipment.id)
       showFeedback(`${code} scanné !`)
+      processingIds.add(shipment.id)
+      try {
+        await appStore.shipmentsData.markAsOutScanned([shipment.id])
+      } finally {
+        processingIds.delete(shipment.id)
+      }
     }
   } else {
     showFeedback('Aucun colis correspondant', true)
@@ -243,7 +255,22 @@ const modalTitle = computed(() => {
 const filteredShipments = computed(() => {
   if (!props.action) return []
   const idSet = new Set(props.action.shipmentIds)
-  return appStore.shipments.filter(s => idSet.has(s.id))
+  const matches = appStore.shipments.filter(s => idSet.has(s.id))
+  
+  if (props.action.type === 'confirm') {
+    return matches.sort((a, b) => {
+      const aScanned = scannedIds.has(a.id) || !!a.outScannedAt
+      const bScanned = scannedIds.has(b.id) || !!b.outScannedAt
+      if (aScanned === bScanned) return 0
+      return aScanned ? 1 : -1
+    })
+  }
+  
+  return matches
+})
+
+const scannedCount = computed(() => {
+  return filteredShipments.value.filter(s => scannedIds.has(s.id) || !!s.outScannedAt).length
 })
 
 // For tout-traiter mode: group by action type

@@ -224,6 +224,7 @@ export interface Database {
           regions: string[] | null
           is_active: boolean
           poll_interval_seconds: number | null
+          sender_id: string | null
           created_at: string
           updated_at: string
         }
@@ -247,6 +248,7 @@ export interface Database {
           regions?: string[] | null
           is_active?: boolean
           poll_interval_seconds?: number | null
+          sender_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -270,6 +272,7 @@ export interface Database {
           regions?: string[] | null
           is_active?: boolean
           poll_interval_seconds?: number | null
+          sender_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -298,6 +301,8 @@ export interface Database {
           product_description: string | null
           weight: number | null
           is_fragile: boolean
+          out_scanned_at: string | null
+          in_scanned_at: string | null
           reference: string | null
           allow_open: boolean
           exchange_allowed: boolean
@@ -340,6 +345,8 @@ export interface Database {
           product_description?: string | null
           weight?: number | null
           is_fragile?: boolean
+          out_scanned_at?: string | null
+          in_scanned_at?: string | null
           reference?: string | null
           allow_open?: boolean
           exchange_allowed?: boolean
@@ -382,6 +389,8 @@ export interface Database {
           product_description?: string | null
           weight?: number | null
           is_fragile?: boolean
+          out_scanned_at?: string | null
+          in_scanned_at?: string | null
           reference?: string | null
           allow_open?: boolean
           exchange_allowed?: boolean
