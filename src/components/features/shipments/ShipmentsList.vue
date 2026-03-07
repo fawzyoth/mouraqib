@@ -146,9 +146,34 @@
                 </span>
               </td>
               <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white" data-label="Prix">{{ shipment.amount ? shipment.amount.toFixed(2) + ' DT' : '-' }}</td>
-              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Création">{{ formatDate(shipment.createdAt) }}</td>
-              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Ramassage">{{ formatDate(shipment.pickupDate) }}</td>
-              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Scan Pickup">{{ formatDateTime(shipment.outScannedAt) }}</td>
+              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap" data-label="Création">
+                <template v-if="shipment.createdAt">
+                  <div>{{ formatDateShort(shipment.createdAt) }}</div>
+                  <div class="text-xs text-gray-400">{{ formatTime(shipment.createdAt) }}</div>
+                </template>
+                <template v-else>-</template>
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap" data-label="Ramassage">
+                <template v-if="shipment.pickupDate">
+                  <div>{{ formatDateShort(shipment.pickupDate) }}</div>
+                  <div class="text-xs text-gray-400">{{ formatTime(shipment.pickupDate) }}</div>
+                </template>
+                <template v-else>-</template>
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap" data-label="Scan Pickup">
+                <template v-if="shipment.outScannedAt">
+                  <div>{{ formatDateShort(shipment.outScannedAt) }}</div>
+                  <div class="text-xs text-gray-400">{{ formatTime(shipment.outScannedAt) }}</div>
+                </template>
+                <template v-else>-</template>
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap" data-label="Scan Retour">
+                <template v-if="shipment.inScannedAt">
+                  <div>{{ formatDateShort(shipment.inScannedAt) }}</div>
+                  <div class="text-xs text-gray-400">{{ formatTime(shipment.inScannedAt) }}</div>
+                </template>
+                <template v-else>-</template>
+              </td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Livraison">{{ formatDate(shipment.deliveryDate) }}</td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Sync">{{ formatSyncDate(shipment.lastSyncedAt) }}</td>
             </tr>
@@ -240,6 +265,7 @@ const columns = [
   { key: 'createdAt', label: 'Création', filterable: false },
   { key: 'pickupDate', label: 'Ramassage', filterable: false },
   { key: 'outScannedAt', label: 'Scan Pickup', filterable: false },
+  { key: 'inScannedAt', label: 'Scan Retour', filterable: false },
   { key: 'deliveryDate', label: 'Livraison', filterable: false },
   { key: 'lastSyncedAt', label: 'Sync', filterable: false },
 ]
@@ -253,7 +279,7 @@ const router = useRouter()
 const q = route.query
 const columnFilterKeys = ['trackingNumber', 'carrier', 'client', 'status']
 
-const activeStatusTab = ref((q.tab as string) || 'all')
+const activeStatusTab = ref((q.tab as string) || 'active')
 const searchQuery = ref((q.q as string) || '')
 const currentPage = ref(parseInt(q.page as string) || 1)
 const pageSizeOptions = [5, 10, 15, 20, 50, 100]
@@ -335,7 +361,7 @@ watch(
 // Sync URL → filters (back/forward navigation)
 watch(() => route.query, (newQ) => {
   skipUrlSync = true
-  activeStatusTab.value = (newQ.tab as string) || 'all'
+  activeStatusTab.value = (newQ.tab as string) || 'active'
   searchQuery.value = (newQ.q as string) || ''
   sortKey.value = (newQ.sort as string) || null
   sortDir.value = ((newQ.dir as string) || 'asc') as 'asc' | 'desc'
@@ -351,7 +377,10 @@ const filteredShipments = computed(() => {
   let result = props.shipments
 
   // Status tab filter
-  if (activeStatusTab.value !== 'all') {
+  if (activeStatusTab.value === 'active') {
+    const deliveredSet = new Set(['Livré'])
+    result = result.filter(s => !deliveredSet.has(s.status) && !s.inScannedAt)
+  } else if (activeStatusTab.value !== 'all') {
     const statusGroups: Record<string, Set<string>> = {
       'pending': new Set(['En attente', 'A vérifier']),
       'pickup': new Set(["Demande d'enlèvement", "Demande d'enlèvement assignée", "En cours d'enlèvement", 'Enlevé']),
@@ -419,11 +448,18 @@ function formatDate(dateStr: string | null | undefined): string {
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-function formatDateTime(dateStr: string | null | undefined): string {
-  if (!dateStr) return '-'
+function formatDateShort(dateStr: string): string {
   const d = new Date(dateStr)
   if (isNaN(d.getTime())) return '-'
-  return d.toLocaleString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  const opts: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' }
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric'
+  return d.toLocaleDateString('fr-FR', opts)
+}
+
+function formatTime(dateStr: string): string {
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return ''
+  return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
 }
 
 // Reactive ticker for relative sync times

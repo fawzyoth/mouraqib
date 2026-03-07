@@ -1,7 +1,7 @@
 <template>
   <div :class="[
     'flex items-center justify-between p-3 rounded-lg transition-colors duration-300 relative',
-    scanned || shipment.outScannedAt
+    isRowScanned
       ? 'bg-green-50 dark:bg-green-900/20 ring-1 ring-green-200 dark:ring-green-800'
       : isOverdue
         ? 'bg-red-50 dark:bg-red-900/20 ring-1 ring-red-200 dark:ring-red-800'
@@ -33,15 +33,15 @@
 
         <!-- Contextual date action state -->
         <div
-          v-if="actionType === 'confirm' && (scanned || shipment.outScannedAt)"
+          v-if="(actionType === 'confirm' || actionType === 'return') && isRowScanned"
           class="flex flex-col items-end gap-0.5 text-xs text-green-600 dark:text-green-400 leading-none"
         >
           <span class="flex items-center gap-1 font-medium">
             <CheckCircle class="w-3.5 h-3.5" />
             Scanné
           </span>
-          <span v-if="shipment.outScannedAt" class="text-[10px] text-green-700/70 dark:text-green-300/70">
-            {{ formatDateTime(shipment.outScannedAt) }}
+          <span v-if="scannedAtDate" class="text-[10px] text-green-700/70 dark:text-green-300/70">
+            {{ formatDateTime(scannedAtDate) }}
           </span>
         </div>
         <div
@@ -71,7 +71,7 @@
         </button>
 
         <button
-          v-if="actionType === 'confirm' || actionType === 'print'"
+          v-if="actionType === 'confirm' || actionType === 'print' || actionType === 'return'"
           @click="$emit('view')"
           class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
           title="Voir détails"
@@ -109,9 +109,22 @@ defineEmits<{
   (e: 'view'): void
 }>()
 
+const isRowScanned = computed(() => {
+  if (props.scanned) return true
+  if (props.actionType === 'confirm') return !!props.shipment.outScannedAt
+  if (props.actionType === 'return') return !!props.shipment.inScannedAt
+  return false
+})
+
+const scannedAtDate = computed(() => {
+  if (props.actionType === 'confirm') return props.shipment.outScannedAt
+  if (props.actionType === 'return') return props.shipment.inScannedAt
+  return null
+})
+
 const isOverdue = computed(() => {
   if (props.actionType !== 'confirm') return false
-  if (props.scanned || props.shipment.outScannedAt) return false
+  if (isRowScanned.value) return false
   if (!props.shipment.createdAt) return false
   
   const createdTime = new Date(props.shipment.createdAt).getTime()

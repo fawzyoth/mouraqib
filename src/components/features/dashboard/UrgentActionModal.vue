@@ -35,8 +35,8 @@
 
     <!-- Single action view -->
     <template v-else>
-      <!-- Barcode scanner for confirm actions -->
-      <div v-if="action.type === 'confirm'" class="mb-4 space-y-3">
+      <!-- Barcode scanner for confirm/return actions -->
+      <div v-if="action.type === 'confirm' || action.type === 'return'" class="mb-4 space-y-3">
         <div class="relative rounded-xl overflow-hidden bg-black" style="height: 160px">
           <video
             ref="videoRef"
@@ -83,7 +83,7 @@
           :shipment="s"
           :action-type="action.type"
           :processing="processingIds.has(s.id)"
-          :scanned="scannedIds.has(s.id) || !!s.outScannedAt"
+          :scanned="isShipmentScanned(s)"
           @confirm="handleConfirm(s)"
           @print="handlePrint(s)"
           @view="handleView(s)"
@@ -146,18 +146,33 @@ function showFeedback(message: string, isError = false) {
   setTimeout(() => { scanFeedback.value = '' }, 2000)
 }
 
+function isShipmentScanned(s: UIShipment) {
+  if (scannedIds.has(s.id)) return true
+  if (props.action?.type === 'confirm') return !!s.outScannedAt
+  if (props.action?.type === 'return') return !!s.inScannedAt
+  return false
+}
+
+async function markScanned(shipment: UIShipment) {
+  processingIds.add(shipment.id)
+  try {
+    if (props.action?.type === 'return') {
+      await appStore.shipmentsData.markAsInScanned([shipment.id])
+    } else {
+      await appStore.shipmentsData.markAsOutScanned([shipment.id])
+    }
+  } finally {
+    processingIds.delete(shipment.id)
+  }
+}
+
 async function onBarcodeDetected(code: string) {
   const shipment = filteredShipments.value.find(s => s.trackingNumber === code)
   if (!shipment) return
   if (scannedIds.has(shipment.id)) return
   scannedIds.add(shipment.id)
   showFeedback(`${code} scanné !`)
-  processingIds.add(shipment.id)
-  try {
-    await appStore.shipmentsData.markAsOutScanned([shipment.id])
-  } finally {
-    processingIds.delete(shipment.id)
-  }
+  await markScanned(shipment)
 }
 
 function detectionLoop() {
@@ -218,12 +233,7 @@ async function handleManualScan() {
     } else {
       scannedIds.add(shipment.id)
       showFeedback(`${code} scanné !`)
-      processingIds.add(shipment.id)
-      try {
-        await appStore.shipmentsData.markAsOutScanned([shipment.id])
-      } finally {
-        processingIds.delete(shipment.id)
-      }
+      await markScanned(shipment)
     }
   } else {
     showFeedback('Aucun colis correspondant', true)
@@ -233,7 +243,8 @@ async function handleManualScan() {
 
 // Start/stop scanner based on modal visibility
 watch(() => props.show, (visible) => {
-  if (visible && props.action?.type === 'confirm') {
+  const type = props.action?.type
+  if (visible && (type === 'confirm' || type === 'return')) {
     scannedIds.clear()
     scanFeedback.value = ''
     startScanner()
@@ -257,20 +268,20 @@ const filteredShipments = computed(() => {
   const idSet = new Set(props.action.shipmentIds)
   const matches = appStore.shipments.filter(s => idSet.has(s.id))
   
-  if (props.action.type === 'confirm') {
+  if (props.action.type === 'confirm' || props.action.type === 'return') {
     return matches.sort((a, b) => {
-      const aScanned = scannedIds.has(a.id) || !!a.outScannedAt
-      const bScanned = scannedIds.has(b.id) || !!b.outScannedAt
+      const aScanned = isShipmentScanned(a)
+      const bScanned = isShipmentScanned(b)
       if (aScanned === bScanned) return 0
       return aScanned ? 1 : -1
     })
   }
-  
+
   return matches
 })
 
 const scannedCount = computed(() => {
-  return filteredShipments.value.filter(s => scannedIds.has(s.id) || !!s.outScannedAt).length
+  return filteredShipments.value.filter(s => isShipmentScanned(s)).length
 })
 
 // For tout-traiter mode: group by action type

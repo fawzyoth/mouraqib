@@ -122,7 +122,10 @@ const statusTabs = computed(() => {
     const set = new Set(statuses)
     return s.filter((sh: any) => set.has(sh.status)).length
   }
+  const deliveredSet = new Set(['Livré'])
+  const activeCount = s.filter((sh: any) => !deliveredSet.has(sh.status) && !sh.inScannedAt).length
   return [
+    { id: 'active', label: 'Actifs', count: activeCount },
     { id: 'all', label: 'Tous', count: s.length },
     { id: 'pending', label: 'En attente', count: countIn(['En attente', 'A vérifier']) },
     { id: 'pickup', label: 'Enlèvement', count: countIn(["Demande d'enlèvement", "Demande d'enlèvement assignée", "En cours d'enlèvement", 'Enlevé']) },
@@ -130,7 +133,7 @@ const statusTabs = computed(() => {
     { id: 'delivered', label: 'Livré', count: countIn(['Livré']) },
     { id: 'returned', label: 'Retours', count: countIn(['Retour Expéditeur', 'Rtn client/agence', 'Rtn dépôt', 'Retour reçu', 'Rtn définitif', 'Retour assigné', "Retour en cours d'expédition", 'Retour enlevé', 'Retour Annulé']) },
     { id: 'cancelled', label: 'Supprimé', count: countIn(['Supprimé', "Demande d'enlèvement annulé"]) },
-  ].filter(t => t.id === 'all' || t.count > 0)
+  ].filter(t => t.id === 'active' || t.id === 'all' || t.count > 0)
 })
 
 // Shipment detail panel
