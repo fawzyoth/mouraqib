@@ -153,13 +153,6 @@
                 </template>
                 <template v-else>-</template>
               </td>
-              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap" data-label="Ramassage">
-                <template v-if="shipment.pickupDate">
-                  <div>{{ formatDateShort(shipment.pickupDate) }}</div>
-                  <div class="text-xs text-gray-400">{{ formatTime(shipment.pickupDate) }}</div>
-                </template>
-                <template v-else>-</template>
-              </td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap" data-label="Scan Pickup">
                 <template v-if="shipment.outScannedAt">
                   <div>{{ formatDateShort(shipment.outScannedAt) }}</div>
@@ -167,7 +160,7 @@
                 </template>
                 <template v-else>-</template>
               </td>
-              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap" data-label="Scan Retour">
+              <td v-if="showScanRetourColumn" class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap" data-label="Scan Retour">
                 <template v-if="shipment.inScannedAt">
                   <div>{{ formatDateShort(shipment.inScannedAt) }}</div>
                   <div class="text-xs text-gray-400">{{ formatTime(shipment.inScannedAt) }}</div>
@@ -239,7 +232,6 @@ interface Shipment {
   status: string
   amount: number
   createdAt: string
-  pickupDate: string | null
   deliveryDate: string | null
   [key: string]: any
 }
@@ -256,19 +248,23 @@ defineEmits<{
   (e: 'select-shipment', shipment: Shipment): void
 }>()
 
-const columns = [
-  { key: 'trackingNumber', label: 'Numero de suivi', filterable: true },
-  { key: 'carrier', label: 'Transporteur', filterable: true },
-  { key: 'client', label: 'Client', filterable: true },
-  { key: 'status', label: 'Statut', filterable: true },
-  { key: 'amount', label: 'Prix', filterable: false },
-  { key: 'createdAt', label: 'Création', filterable: false },
-  { key: 'pickupDate', label: 'Ramassage', filterable: false },
-  { key: 'outScannedAt', label: 'Scan Pickup', filterable: false },
-  { key: 'inScannedAt', label: 'Scan Retour', filterable: false },
-  { key: 'deliveryDate', label: 'Livraison', filterable: false },
-  { key: 'lastSyncedAt', label: 'Sync', filterable: false },
-]
+const showScanRetourColumn = computed(() => activeStatusTab.value === 'all' || activeStatusTab.value === 'returned')
+
+const columns = computed(() => {
+  const base = [
+    { key: 'trackingNumber', label: 'Numero de suivi', filterable: true },
+    { key: 'carrier', label: 'Transporteur', filterable: true },
+    { key: 'client', label: 'Client', filterable: true },
+    { key: 'status', label: 'Statut', filterable: true },
+    { key: 'amount', label: 'Prix', filterable: false },
+    { key: 'createdAt', label: 'Création', filterable: false },
+    { key: 'outScannedAt', label: 'Scan Pickup', filterable: false },
+    ...(showScanRetourColumn.value ? [{ key: 'inScannedAt', label: 'Scan Retour', filterable: false }] : []),
+    { key: 'deliveryDate', label: 'Livraison', filterable: false },
+    { key: 'lastSyncedAt', label: 'Sync', filterable: false },
+  ]
+  return base
+})
 
 const route = useRoute()
 const router = useRouter()

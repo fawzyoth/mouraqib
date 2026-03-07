@@ -47,7 +47,6 @@ export interface UIShipment {
   totalPrice: number
   amount: number
   createdAt: string
-  pickupDate: string | null
   updatedAt: string
   lastSyncedAt: string | null
   outScannedAt: string | null
@@ -72,7 +71,7 @@ function generateNavexLabelUrl(row: Shipment & { carrier?: { name: string; sende
   return `https://app.navex.tn/print/imprimer.php?id=${encodeURIComponent(senderId)}&code=${encodeURIComponent(trackingNumber)}`
 }
 
-export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | null; client?: { name: string } | null; pickup?: { scheduled_date: string } | null; shipment_events?: any[] | null }, org: OrgContext): UIShipment {
+export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | null; client?: { name: string } | null; shipment_events?: any[] | null }, org: OrgContext): UIShipment {
   const carrierName = row.carrier?.name || row.old_carrier_name || 'Non assigné'
   const clientName = row.client?.name || '-'
   const uiStatus = row.status
@@ -119,7 +118,6 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
     totalPrice: row.cod_amount,
     amount: row.cod_amount,
     createdAt: row.created_at,
-    pickupDate: row.pickup?.scheduled_date || null,
     updatedAt: row.updated_at,
     lastSyncedAt: row.last_synced_at ?? null,
     outScannedAt: row.out_scanned_at ?? null,

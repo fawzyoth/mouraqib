@@ -305,14 +305,10 @@ async function handleBulkImport(payload: { type: 'excel' | 'manual'; rows: Parti
       if (barCodes.length > 0 && !isNavexCarrier) {
         try {
           // Create a pickup_request in DB
-          const tomorrow = new Date()
-          tomorrow.setDate(tomorrow.getDate() + 1)
-          const scheduledDate = tomorrow.toISOString().split('T')[0]
-
           const pickup = await pickupsService.create({
             organization_id: orgId,
             carrier_id: supportedCarrier.id,
-            scheduled_date: scheduledDate,
+            scheduled_date: new Date().toISOString().split('T')[0],
             time_slot: '08:00-10:00',
             address: appStore.orgContext.address || 'Adresse de ramassage',
             shipment_count: barCodes.length,
