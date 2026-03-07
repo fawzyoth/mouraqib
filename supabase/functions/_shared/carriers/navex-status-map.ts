@@ -31,6 +31,8 @@ const NAVEX_STATUS_MAP: Record<string, string> = {
   'retour recu': 'Retour reçu',
   // 31
   'rtn definitif': 'Rtn définitif',
+  // Pre-pickup
+  'a enlever': "Demande d'enlèvement",
   // 100
   "demande d'enlevement": "Demande d'enlèvement",
   // 101

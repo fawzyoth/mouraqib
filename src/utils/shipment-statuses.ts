@@ -25,6 +25,15 @@ export const PENDING_STATUSES = ['En attente', 'A vérifier']
 
 export const IN_PROGRESS_STATUSES = ['En cours', 'Au magasin', 'Echange']
 
+export const ALL_STATUSES = [
+  ...PENDING_STATUSES,
+  ...PICKUP_STATUSES,
+  ...IN_PROGRESS_STATUSES,
+  ...DELIVERED_STATUSES,
+  ...RETURN_STATUSES,
+  ...CANCELLED_STATUSES,
+]
+
 export const TERMINAL_STATUSES = [...DELIVERED_STATUSES, ...RETURN_STATUSES, ...CANCELLED_STATUSES]
 
 const RETURN_SET = new Set(RETURN_STATUSES)
