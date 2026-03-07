@@ -542,23 +542,48 @@ watchEffect(() => {
   const all = appStore.shipments
   const categories: any[] = []
 
-  // Orders to confirm
+  // Orders to confirm - split by scan status
   const pendingOrders = all.filter(s => s.status === 'En attente')
-  if (pendingOrders.length > 0) {
+  const unscannedOrders = pendingOrders.filter(s => !s.outScannedAt)
+  const scannedOrders = pendingOrders.filter(s => !!s.outScannedAt)
+
+  if (unscannedOrders.length > 0) {
     categories.push({
       id: 'orders',
       name: 'Pickups à scanner',
       icon: markRaw(FileCheck),
       bgColor: 'bg-blue-100 dark:bg-blue-900/30',
       iconColor: 'text-blue-600',
-      tasks: pendingOrders.map((s, i) => ({
+      tasks: unscannedOrders.map((s, i) => ({
         id: 100 + i,
         shipmentId: s.id,
-        title: `${s.orderNumber} - ${s.customerName} - ${s.destination}`,
+        title: s.customerName,
+        subtitle: s.destination,
+        meta: [s.trackingNumber, s.carrier, s.cod > 0 ? `${s.cod.toFixed(2)} TND` : null, s.recipientPhone].filter(Boolean).join(' · '),
         completed: false,
         completedAt: '',
         actionLabel: 'Scanner',
         action: true,
+      })),
+    })
+  }
+
+  if (scannedOrders.length > 0) {
+    categories.push({
+      id: 'pickup',
+      name: 'A ramasser',
+      icon: markRaw(Truck),
+      bgColor: 'bg-green-100 dark:bg-green-900/30',
+      iconColor: 'text-green-600',
+      tasks: scannedOrders.map((s, i) => ({
+        id: 150 + i,
+        shipmentId: s.id,
+        title: s.customerName,
+        subtitle: s.destination,
+        meta: [s.trackingNumber, s.carrier, s.cod > 0 ? `${s.cod.toFixed(2)} TND` : null, s.recipientPhone].filter(Boolean).join(' · '),
+        completed: true,
+        completedAt: new Date(s.outScannedAt!).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        action: false,
       })),
     })
   }
@@ -622,7 +647,9 @@ watchEffect(() => {
       tasks: returned.map((s, i) => ({
         id: 400 + i,
         shipmentId: s.id,
-        title: `Retour ${s.trackingNumber} - ${(s as any).return_reason || 'À vérifier'}`,
+        title: `${s.customerName} - ${(s as any).return_reason || 'À vérifier'}`,
+        subtitle: s.destination,
+        meta: [s.trackingNumber, s.carrier, s.cod > 0 ? `${s.cod.toFixed(2)} TND` : null].filter(Boolean).join(' · '),
         completed: false,
         completedAt: '',
         actionLabel: 'Scanner',

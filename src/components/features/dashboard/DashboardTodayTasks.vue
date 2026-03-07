@@ -39,16 +39,18 @@
         <div class="divide-y divide-gray-100 dark:divide-gray-800">
           <div v-for="task in category.tasks" :key="task.id"
             :class="['px-5 py-3 flex items-center justify-between transition-colors', task.completed ? 'bg-gray-50 dark:bg-gray-800/30' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50']">
-            <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-4 min-w-0 flex-1">
               <!-- Task Info -->
-              <div class="flex-1">
+              <div class="flex-1 min-w-0">
                 <div class="flex items-center space-x-2">
-                  <p :class="['text-sm font-medium', task.completed ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-white']">
+                  <p :class="['text-sm font-medium truncate', task.completed ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-white']">
                     {{ task.title }}
                   </p>
-                  <span v-if="task.priority === 'high'" class="px-1.5 py-0.5 bg-red-100 text-red-600 text-xs rounded font-medium">Urgent</span>
-                  <span v-if="task.count" class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded">{{ task.count }}</span>
+                  <span v-if="task.priority === 'high'" class="px-1.5 py-0.5 bg-red-100 text-red-600 text-xs rounded font-medium shrink-0">Urgent</span>
+                  <span v-if="task.count" class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded shrink-0">{{ task.count }}</span>
                 </div>
+                <p v-if="task.subtitle" class="text-xs text-gray-500 mt-0.5 truncate">{{ task.subtitle }}</p>
+                <p v-if="task.meta" class="text-xs text-gray-400 mt-0.5 truncate">{{ task.meta }}</p>
                 <p v-if="task.description" class="text-xs text-gray-500 mt-0.5">{{ task.description }}</p>
               </div>
             </div>
@@ -84,6 +86,8 @@ import {
 interface Task {
   id: number
   title: string
+  subtitle?: string
+  meta?: string
   description?: string
   completed: boolean
   completedAt?: string
