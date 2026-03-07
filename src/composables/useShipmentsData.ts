@@ -163,12 +163,22 @@ export function useShipmentsData(orgId: Ref<string>) {
           shipments.value.unshift(newShipment)
         }
       } else if (payload.eventType === 'UPDATE') {
-        const updated = dbShipmentToUI(payload.new as any, orgContext)
-        const index = shipments.value.findIndex(s => s.id === updated.id)
+        const raw = payload.new as any
+        const index = shipments.value.findIndex(s => s.id === raw.id)
         if (index !== -1) {
-          // Preserve events
-          updated.events = shipments.value[index].events
-          shipments.value[index] = updated
+          // Realtime payload is a flat row without joins (no carrier, client, boutique).
+          // Merge only scalar fields into the existing enriched object.
+          const existing = shipments.value[index]
+          const patched = dbShipmentToUI({ ...raw, carrier: null, client: null, boutique: null, pickup: null }, orgContext)
+          shipments.value[index] = {
+            ...existing,
+            status: patched.status,
+            lastSyncedAt: patched.lastSyncedAt,
+            updatedAt: patched.updatedAt,
+            deliveredAt: patched.deliveredAt,
+            returnedAt: patched.returnedAt,
+            billedAt: patched.billedAt,
+          }
         }
       } else if (payload.eventType === 'DELETE') {
         shipments.value = shipments.value.filter(s => s.id !== payload.old.id)

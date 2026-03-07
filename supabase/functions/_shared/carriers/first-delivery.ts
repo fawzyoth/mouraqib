@@ -103,9 +103,13 @@ export class FirstDeliveryAdapter implements CarrierAdapter {
     const data = await this.post('/etat', { barCode: trackingNumber })
     const result = data.result ?? data
 
+    if (!result.state) {
+      console.error(`[FirstDelivery] checkStatus: no state in response for ${trackingNumber}`)
+    }
+
     return {
       trackingNumber: result.barCode ?? trackingNumber,
-      status: result.state ?? 'unknown',
+      status: result.state ?? '',
     }
   }
 

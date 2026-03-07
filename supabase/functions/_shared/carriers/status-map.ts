@@ -1,19 +1,60 @@
 /**
- * Generic carrier status mapper (used for First Delivery and other carriers).
- * Returns French status labels matching the 21 canonical statuses.
+ * Generic carrier status mapper.
+ *
+ * If the status is already a known canonical label, return it as-is.
+ * Otherwise log the error to error_logs and fall back to raw carrier text.
  */
-export function mapCarrierStatus(carrierStatus: string): string {
-  const s = (carrierStatus || '').toLowerCase().trim()
 
-  if (s.includes('livr') && s.includes('pay')) return 'Livré'
-  if (s.includes('livr')) return 'Livré'
-  if (s.includes('rtn') || s.includes('retour')) return 'Retour Expéditeur'
-  if (s.includes('supprim') || s.includes('annul')) return 'Supprimé'
-  if (s.includes('pickup') || s.includes('enlev') || s.includes('ramass')) return 'Enlevé'
-  if (s.includes('transit') || s.includes('transfert') || s.includes('hub')) return 'En cours'
-  if (s.includes('distribution') || s.includes('livraison en cours')) return 'En cours'
-  if (s.includes('créé') || s.includes('cree') || s.includes('nouveau')) return 'En attente'
-  if (s.includes('attent')) return 'En attente'
+const CANONICAL_STATUSES = new Set([
+  'En attente',
+  'En cours',
+  'Livré',
+  'Echange',
+  'Retour Expéditeur',
+  'Supprimé',
+  'Rtn client/agence',
+  'Au magasin',
+  'Rtn dépôt',
+  'A vérifier',
+  'Retour reçu',
+  'Rtn définitif',
+  "Demande d'enlèvement",
+  "Demande d'enlèvement assignée",
+  "En cours d'enlèvement",
+  'Enlevé',
+  "Demande d'enlèvement annulé",
+  'Retour assigné',
+  "Retour en cours d'expédition",
+  'Retour enlevé',
+  'Retour Annulé',
+])
 
-  return 'En cours'
+interface ErrorLogContext {
+  supabase: { from: (table: string) => any }
+  organizationId: string
+  carrierId: string
+  trackingNumber?: string
+}
+
+export function mapCarrierStatus(carrierStatus: string, errorCtx?: ErrorLogContext): string {
+  const s = (carrierStatus || '').trim()
+  if (CANONICAL_STATUSES.has(s)) return s
+
+  const message = `Unknown carrier status: "${carrierStatus}"`
+  console.error(`[status-map] ${message}`)
+
+  if (errorCtx) {
+    errorCtx.supabase.from('error_logs').insert({
+      organization_id: errorCtx.organizationId,
+      carrier_id: errorCtx.carrierId,
+      source: 'status-map',
+      error_type: 'unknown_status',
+      message,
+      context: { carrierStatus, trackingNumber: errorCtx.trackingNumber },
+    }).then(({ error }: any) => {
+      if (error) console.error('[status-map] Failed to log error:', error.message)
+    })
+  }
+
+  return carrierStatus
 }

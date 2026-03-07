@@ -3,6 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { createServiceClient } from '../_shared/supabase.ts'
 import { getCarrierAdapter } from '../_shared/carriers/registry.ts'
 import { mapNavexStatus } from '../_shared/carriers/navex-status-map.ts'
+import { mapCarrierStatus } from '../_shared/carriers/status-map.ts'
 import { createApiCallLogger } from '../_shared/carriers/logger.ts'
 import type { CheckStatusResult } from '../_shared/carriers/types.ts'
 import { NavexAdapter } from '../_shared/carriers/navex.ts'
@@ -215,7 +216,8 @@ async function pollCarrier(
         const shipment = toCheck.find(s => s.carrier_tracking_number === statusResult.trackingNumber)
         if (!shipment) continue
 
-        const newStatus = mapNavexStatus(statusResult.status)
+        const errorCtx = { supabase, organizationId: carrier.organization_id, carrierId: carrier.id, trackingNumber: statusResult.trackingNumber }
+        const newStatus = mapNavexStatus(statusResult.status, errorCtx)
         if (newStatus !== shipment.status) {
           await supabase
             .from('shipments')
@@ -247,7 +249,8 @@ async function pollCarrier(
           const statusResult: CheckStatusResult = await adapter.checkStatus(shipment.carrier_tracking_number!)
           checked++
 
-          const newStatus = statusResult.status
+          const errorCtx = { supabase, organizationId: carrier.organization_id, carrierId: carrier.id, trackingNumber: shipment.carrier_tracking_number! }
+          const newStatus = mapCarrierStatus(statusResult.status, errorCtx)
           const now = new Date().toISOString()
           console.log(`[poll] ${carrier.name}: ${shipment.carrier_tracking_number} db="${shipment.status}" carrier="${newStatus}" changed=${newStatus !== shipment.status}`)
           if (newStatus !== shipment.status) {

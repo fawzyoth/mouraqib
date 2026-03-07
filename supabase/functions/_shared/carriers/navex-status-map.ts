@@ -57,11 +57,34 @@ function stripAccents(s: string): string {
   return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
-export function mapNavexStatus(carrierStatus: string): string {
+interface ErrorLogContext {
+  supabase: { from: (table: string) => any }
+  organizationId: string
+  carrierId: string
+  trackingNumber?: string
+}
+
+export function mapNavexStatus(carrierStatus: string, errorCtx?: ErrorLogContext): string {
   const key = stripAccents((carrierStatus || '').toLowerCase().trim())
   const mapped = NAVEX_STATUS_MAP[key]
   if (!mapped) {
-    console.warn(`[navex-status-map] Unknown Navex status: "${carrierStatus}" (normalized: "${key}")`)
+    const message = `Unknown Navex status: "${carrierStatus}" (normalized: "${key}")`
+    console.error(`[navex-status-map] ${message}`)
+
+    if (errorCtx) {
+      errorCtx.supabase.from('error_logs').insert({
+        organization_id: errorCtx.organizationId,
+        carrier_id: errorCtx.carrierId,
+        source: 'navex-status-map',
+        error_type: 'unknown_status',
+        message,
+        context: { carrierStatus, normalized: key, trackingNumber: errorCtx.trackingNumber },
+      }).then(({ error }: any) => {
+        if (error) console.error('[navex-status-map] Failed to log error:', error.message)
+      })
+    }
+
+    return carrierStatus
   }
-  return mapped ?? carrierStatus
+  return mapped
 }

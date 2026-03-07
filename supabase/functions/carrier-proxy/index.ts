@@ -114,16 +114,18 @@ serve(async (req) => {
     let result: Record<string, unknown>
 
     try {
+      const errorCtx = { supabase, organizationId: carrier.organization_id, carrierId }
+
       if (action === 'create-shipment') {
-        result = await handleCreateShipment(adapter, payload, supabase)
+        result = await handleCreateShipment(adapter, payload, supabase, errorCtx)
       } else if (action === 'request-pickup') {
         result = await handleRequestPickup(adapter, payload, supabase)
       } else if (action === 'cancel') {
         result = await handleCancel(adapter, payload, supabase)
       } else if (action === 'check-status') {
-        result = await handleCheckStatus(adapter, payload, supabase)
+        result = await handleCheckStatus(adapter, payload, supabase, errorCtx)
       } else if (action === 'sync-shipments') {
-        result = await handleSyncShipments(adapter, payload, supabase, carrier, user)
+        result = await handleSyncShipments(adapter, payload, supabase, carrier, user, errorCtx)
       } else {
         return new Response(
           JSON.stringify({ error: `Unknown action: ${action}. Supported: create-shipment, request-pickup, cancel, check-status, sync-shipments` }),
@@ -187,6 +189,7 @@ async function handleCreateShipment(
   adapter: ReturnType<typeof getCarrierAdapter>,
   payload: Record<string, any>,
   supabase: ReturnType<typeof createServiceClient>,
+  errorCtx: { supabase: any; organizationId: string; carrierId: string },
 ): Promise<Record<string, unknown>> {
   const { shipmentId, ...shipmentFields } = payload
 
@@ -223,7 +226,7 @@ async function handleCreateShipment(
     // Get the real status from the carrier right after creation
     try {
       const statusResult = await adapter.checkStatus(carrierResult.trackingNumber)
-      status = mapCarrierStatus(statusResult.status)
+      status = mapCarrierStatus(statusResult.status, { ...errorCtx, trackingNumber: carrierResult.trackingNumber })
     } catch {
       // If check-status fails, keep pending
       console.error(`[carrier-proxy] check-status failed after create for ${carrierResult.trackingNumber}`)
@@ -406,6 +409,7 @@ async function handleCheckStatus(
   adapter: ReturnType<typeof getCarrierAdapter>,
   payload: Record<string, any>,
   supabase: ReturnType<typeof createServiceClient>,
+  errorCtx: { supabase: any; organizationId: string; carrierId: string },
 ): Promise<Record<string, unknown>> {
   const { shipmentId, trackingNumber } = payload
 
@@ -420,7 +424,7 @@ async function handleCheckStatus(
     await supabase
       .from('shipments')
       .update({
-        status: mapCarrierStatus(carrierResult.status),
+        status: mapCarrierStatus(carrierResult.status, { ...errorCtx, trackingNumber }),
         last_synced_at: new Date().toISOString(),
       })
       .eq('id', shipmentId)
@@ -444,6 +448,7 @@ async function handleSyncShipments(
   supabase: ReturnType<typeof createServiceClient>,
   carrier: Record<string, any>,
   user: { organizationId: string },
+  errorCtx: { supabase: any; organizationId: string; carrierId: string },
 ): Promise<Record<string, unknown>> {
   // Only works if the adapter supports filterShipments
   if (!adapter.filterShipments) {
@@ -480,7 +485,7 @@ async function handleSyncShipments(
 
       if (!existing) {
         // Map carrier status to our DB enum
-        const mappedStatus = mapCarrierStatus(shipment.status)
+        const mappedStatus = mapCarrierStatus(shipment.status, { ...errorCtx, trackingNumber: shipment.trackingNumber })
 
         // Find or create client by phone number
         const clientId = await findOrCreateClient(supabase, user.organizationId, shipment)
