@@ -285,7 +285,7 @@ const urgentActions = computed(() => {
   let id = 1
 
   // Pending confirmations
-  const pending = all.filter(s => s.status === 'En attente')
+  const pending = all.filter(s => s.status === 'En attente' || s.status === "Demande d'enlèvement" || s.status === "Demande d'enlèvement assignée")
   if (pending.length > 0) {
     actions.push({
       id: id++,
