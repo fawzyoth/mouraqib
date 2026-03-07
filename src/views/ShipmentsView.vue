@@ -130,9 +130,9 @@ const statusTabs = computed(() => {
     { id: 'all', label: 'Tous', count: s.length },
     { id: 'pending', label: 'En attente', count: countIn(['En attente', 'A vérifier']) },
     { id: 'pickup', label: 'Enlèvement', count: countIn(["Demande d'enlèvement", "Demande d'enlèvement assignée", "En cours d'enlèvement", 'Enlevé']) },
-    { id: 'in-progress', label: 'En cours', count: countIn(['En cours', 'Au magasin', 'Echange']) },
+    { id: 'in-progress', label: 'En cours', count: countIn(['En cours', 'Au magasin', 'Echange', 'Rtn dépôt']) },
     { id: 'delivered', label: 'Livré', count: countIn(['Livré']) },
-    { id: 'returned', label: 'Retours', count: countIn(['Retour Expéditeur', 'Rtn client/agence', 'Rtn dépôt', 'Retour reçu', 'Rtn définitif', 'Retour assigné', "Retour en cours d'expédition", 'Retour enlevé', 'Retour Annulé']) },
+    { id: 'returned', label: 'Retours', count: countIn(['Retour Expéditeur', 'Rtn client/agence', 'Retour reçu', 'Rtn définitif', 'Retour assigné', "Retour en cours d'expédition", 'Retour enlevé', 'Retour Annulé']) },
     { id: 'cancelled', label: 'Supprimé', count: countIn(['Supprimé', "Demande d'enlèvement annulé"]) },
   ].filter(t => t.id === 'active' || t.id === 'all' || t.count > 0)
 })

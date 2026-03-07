@@ -41,7 +41,7 @@ serve(async (req) => {
       'Livré': 'shipment_delivered',
       'Retour Expéditeur': 'shipment_returned',
       'Rtn client/agence': 'shipment_returned',
-      'Rtn dépôt': 'shipment_returned',
+      'Rtn dépôt': 'shipment_in_transit',
       'Retour reçu': 'shipment_returned',
       'Rtn définitif': 'shipment_returned',
     }
@@ -102,7 +102,7 @@ serve(async (req) => {
             'Livré': 'livré',
             'Retour Expéditeur': 'retourné',
             'Rtn client/agence': 'retourné',
-            'Rtn dépôt': 'retourné',
+            'Rtn dépôt': 'en cours',
             'Retour reçu': 'retourné',
             'Rtn définitif': 'retourné',
           }

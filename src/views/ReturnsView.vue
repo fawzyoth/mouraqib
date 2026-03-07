@@ -274,7 +274,7 @@ watchEffect(() => {
     // ---- Live mode: derive from appStore.shipments ----
     const allShipments = appStore.shipments as any[]
     const returnStatuses = new Set([
-      'Retour Expéditeur', 'Rtn client/agence', 'Rtn dépôt',
+      'Retour Expéditeur', 'Rtn client/agence',
       'Retour reçu', 'Rtn définitif', 'Retour assigné',
       "Retour en cours d'expédition", 'Retour enlevé', 'Retour Annulé',
     ])

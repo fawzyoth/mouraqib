@@ -136,7 +136,7 @@ const isOverdue = computed(() => {
 const statusBadgeClass = computed(() => {
   const s = props.shipment.status
   if (s === 'Livré') return 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
-  if (s === 'En cours' || s === 'Au magasin') return 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+  if (s === 'En cours' || s === 'Au magasin' || s === 'Rtn dépôt') return 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
   if (s.includes('Retour') || s.includes('Rtn')) return 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
   if (s === 'Enlevé' || s.includes('enlèvement')) return 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400'
   return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'

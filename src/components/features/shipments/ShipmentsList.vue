@@ -384,9 +384,9 @@ const filteredShipments = computed(() => {
     const statusGroups: Record<string, Set<string>> = {
       'pending': new Set(['En attente', 'A vérifier']),
       'pickup': new Set(["Demande d'enlèvement", "Demande d'enlèvement assignée", "En cours d'enlèvement", 'Enlevé']),
-      'in-progress': new Set(['En cours', 'Au magasin', 'Echange']),
+      'in-progress': new Set(['En cours', 'Au magasin', 'Echange', 'Rtn dépôt']),
       'delivered': new Set(['Livré']),
-      'returned': new Set(['Retour Expéditeur', 'Rtn client/agence', 'Rtn dépôt', 'Retour reçu', 'Rtn définitif', 'Retour assigné', "Retour en cours d'expédition", 'Retour enlevé', 'Retour Annulé']),
+      'returned': new Set(['Retour Expéditeur', 'Rtn client/agence', 'Retour reçu', 'Rtn définitif', 'Retour assigné', "Retour en cours d'expédition", 'Retour enlevé', 'Retour Annulé']),
       'cancelled': new Set(['Supprimé', "Demande d'enlèvement annulé"]),
     }
     const group = statusGroups[activeStatusTab.value]

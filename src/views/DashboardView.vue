@@ -22,6 +22,7 @@
     @toggle-task="toggleDailyTask"
     @complete-all-in-category="completeAllInCategory"
     @execute-task-action="executeTaskAction"
+    @print-all-labels="printAllLabels"
   />
 
   <!-- Dashboard: Delayed Shipments -->
@@ -60,6 +61,15 @@
     :all-actions="urgentActions"
     @close="urgentModal.close()"
   />
+
+  <!-- Dashboard Scanner Modal (pickups / returns) -->
+  <DashboardScannerModal
+    :show="scannerModal.show"
+    :title="scannerModal.title"
+    :scan-type="scannerModal.scanType"
+    :shipment-ids="scannerModal.shipmentIds"
+    @close="closeScannerModal"
+  />
 </template>
 
 <script setup lang="ts">
@@ -92,7 +102,10 @@ import DashboardReturnAlerts from '@/components/features/dashboard/DashboardRetu
 import DashboardFinancialSnapshot from '@/components/features/dashboard/DashboardFinancialSnapshot.vue'
 import DashboardActivityLog from '@/components/features/dashboard/DashboardActivityLog.vue'
 import UrgentActionModal from '@/components/features/dashboard/UrgentActionModal.vue'
+import DashboardScannerModal from '@/components/features/dashboard/DashboardScannerModal.vue'
 import { useModal } from '@/composables/useModal'
+import { useToast } from '@/composables/useToast'
+import { supabase } from '@/lib/supabase'
 
 const route = useRoute()
 const router = useRouter()
@@ -121,6 +134,55 @@ function onHandleAction(action: any) {
 function onHandleAllActions() {
   selectedUrgentAction.value = null
   urgentModal.open()
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard Scanner Modal (for today tasks: pickups + returns)
+// ---------------------------------------------------------------------------
+
+const scannerModal = ref({ show: false, title: '', scanType: 'out' as 'out' | 'in', shipmentIds: [] as string[] })
+
+function openScannerModal(title: string, scanType: 'out' | 'in', shipmentIds: string[]) {
+  scannerModal.value = { show: true, title, scanType, shipmentIds }
+}
+
+function closeScannerModal() {
+  scannerModal.value.show = false
+}
+
+const toast = useToast()
+const printingAll = ref(false)
+
+async function printAllLabels() {
+  const labelsCategory = filteredTaskCategories.value.find(c => c.id === 'labels')
+  if (!labelsCategory) return
+
+  const urls = labelsCategory.tasks
+    .map((t: any) => t.labelUrl)
+    .filter((url: string | null | undefined) => !!url)
+
+  if (urls.length === 0) {
+    toast.error('Aucun bordereau avec URL disponible')
+    return
+  }
+
+  printingAll.value = true
+  try {
+    const { data, error } = await supabase.functions.invoke('merge-multiple-labels', {
+      body: { urls },
+    })
+
+    if (error) throw error
+
+    // data is a Blob (PDF response)
+    const blob = data instanceof Blob ? data : new Blob([data], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+  } catch (e: any) {
+    toast.error('Erreur fusion PDF: ' + (e.message || e))
+  } finally {
+    printingAll.value = false
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -405,7 +467,7 @@ watchEffect(() => {
     filteredTaskCategories.value = [
       {
         id: 'orders',
-        name: 'Confirmations',
+        name: 'Pickups à scanner',
         icon: markRaw(FileCheck),
         bgColor: 'bg-blue-100 dark:bg-blue-900/30',
         iconColor: 'text-blue-600',
@@ -457,16 +519,17 @@ watchEffect(() => {
   if (pendingOrders.length > 0) {
     categories.push({
       id: 'orders',
-      name: 'Confirmations',
+      name: 'Pickups à scanner',
       icon: markRaw(FileCheck),
       bgColor: 'bg-blue-100 dark:bg-blue-900/30',
       iconColor: 'text-blue-600',
       tasks: pendingOrders.map((s, i) => ({
         id: 100 + i,
+        shipmentId: s.id,
         title: `${s.orderNumber} - ${s.customerName} - ${s.destination}`,
         completed: false,
         completedAt: '',
-        actionLabel: 'Confirmer',
+        actionLabel: 'Scanner',
         action: true,
       })),
     })
@@ -483,6 +546,8 @@ watchEffect(() => {
       iconColor: 'text-purple-600',
       tasks: toPrint.map((s, i) => ({
         id: 200 + i,
+        shipmentId: s.id,
+        labelUrl: s.labelUrl,
         title: `${s.trackingNumber} - Imprimer bordereau`,
         completed: false,
         completedAt: '',
@@ -528,10 +593,11 @@ watchEffect(() => {
       iconColor: 'text-red-600',
       tasks: returned.map((s, i) => ({
         id: 400 + i,
+        shipmentId: s.id,
         title: `Retour ${s.trackingNumber} - ${(s as any).return_reason || 'À vérifier'}`,
         completed: false,
         completedAt: '',
-        actionLabel: 'Traiter',
+        actionLabel: 'Scanner',
         action: true,
       })),
     })
@@ -579,38 +645,38 @@ function completeAllInCategory(_categoryId: string) {
 function executeTaskAction(task: any) {
   const label: string = (task.actionLabel || '').toLowerCase()
 
-  // Navigation-based actions
-  if (label === 'confirmer') {
-    // Navigate to the shipments list so the user can confirm orders
-    router.push('/shipments')
+  if (label === 'scanner') {
+    // Determine scan type based on category (id range: 100s = orders/pickups, 400s = returns)
+    const category = filteredTaskCategories.value.find(c => c.tasks.some((t: any) => t.id === task.id))
+    if (category?.id === 'returns') {
+      const ids = category.tasks.map((t: any) => t.shipmentId).filter(Boolean)
+      openScannerModal('Scanner retours', 'in', ids)
+    } else {
+      const cat = filteredTaskCategories.value.find(c => c.id === 'orders')
+      const ids = cat ? cat.tasks.map((t: any) => t.shipmentId).filter(Boolean) : []
+      openScannerModal('Scanner pickups', 'out', ids)
+    }
     return
   }
 
   if (label === 'imprimer') {
-    // Navigate to the labels / print page
-    router.push('/shipments/labels')
-    return
-  }
-
-  if (label === 'traiter') {
-    // Navigate to active returns
-    router.push('/returns')
+    // Open the label directly in a new tab
+    if (task.labelUrl) {
+      window.open(task.labelUrl, '_blank')
+    }
     return
   }
 
   if (label === 'vérifier' || label === 'relancer') {
-    // Navigate to the finance expected-payments view
     router.push('/finance')
     return
   }
 
   if (label === 'marquer prêt') {
-    // Navigate to pickup scanning for package preparation
     router.push('/pickups/scan')
     return
   }
 
-  // Fallback: navigate to the main shipments view
   router.push('/shipments')
 }
 

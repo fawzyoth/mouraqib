@@ -11,6 +11,7 @@ export function getStatusTextClass(status: string): string {
     'En cours': 'text-blue-600',
     'Au magasin': 'text-blue-600',
     'Echange': 'text-amber-600',
+    'Rtn dépôt': 'text-blue-600',
     // Pickup flow
     "Demande d'enlèvement": 'text-indigo-600',
     "Demande d'enlèvement assignée": 'text-indigo-600',
@@ -22,7 +23,6 @@ export function getStatusTextClass(status: string): string {
     // Returns
     'Retour Expéditeur': 'text-red-600',
     'Rtn client/agence': 'text-red-600',
-    'Rtn dépôt': 'text-red-600',
     'Retour reçu': 'text-red-600',
     'Rtn définitif': 'text-red-600',
     'Retour assigné': 'text-orange-600',
@@ -44,6 +44,7 @@ export function getStatusDotClass(status: string): string {
     'En cours': 'bg-blue-400',
     'Au magasin': 'bg-blue-400',
     'Echange': 'bg-amber-500',
+    'Rtn dépôt': 'bg-blue-400',
     // Pickup flow
     "Demande d'enlèvement": 'bg-indigo-400',
     "Demande d'enlèvement assignée": 'bg-indigo-400',
@@ -55,7 +56,6 @@ export function getStatusDotClass(status: string): string {
     // Returns
     'Retour Expéditeur': 'bg-red-500',
     'Rtn client/agence': 'bg-red-500',
-    'Rtn dépôt': 'bg-red-500',
     'Retour reçu': 'bg-red-500',
     'Rtn définitif': 'bg-red-500',
     'Retour assigné': 'bg-orange-500',

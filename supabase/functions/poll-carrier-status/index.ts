@@ -10,14 +10,7 @@ import { NavexAdapter } from '../_shared/carriers/navex.ts'
 
 const JSON_HEADERS = { ...corsHeaders, 'Content-Type': 'application/json' }
 const MAX_RUN_SECONDS = 55
-const TERMINAL_STATUSES = [
-  'Livré', 'Supprimé',
-  'Retour Expéditeur', 'Rtn client/agence', 'Rtn dépôt',
-  'Retour reçu', 'Rtn définitif',
-  "Demande d'enlèvement annulé",
-  'Retour assigné', "Retour en cours d'expédition",
-  'Retour enlevé', 'Retour Annulé',
-]
+const STOP_POLL_STATUSES = ['Livré', 'Supprimé', "Demande d'enlèvement annulé"]
 const MAX_BACKOFF_MULTIPLIER = 32
 
 /**
@@ -165,11 +158,13 @@ async function pollCarrier(
   const adapter = getCarrierAdapter(carrier.name, credentials, apiCallLogger)
 
   // Get active shipments with a carrier tracking number
+  // Stop polling for: delivered, cancelled, or already scanned-in (returned and received)
   const { data: shipments, error: shipmentsError } = await supabase
     .from('shipments')
     .select('id, carrier_tracking_number, status')
     .eq('carrier_id', carrier.id)
-    .not('status', 'in', `(${TERMINAL_STATUSES.map(s => `"${s}"`).join(',')})`)
+    .not('status', 'in', `(${STOP_POLL_STATUSES.map(s => `"${s}"`).join(',')})`)
+    .is('in_scanned_at', null)
     .not('carrier_tracking_number', 'is', null)
     .neq('carrier_tracking_number', '')
     .order('id', { ascending: true })
