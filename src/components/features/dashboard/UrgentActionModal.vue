@@ -39,20 +39,27 @@
       <!-- Barcode scanner for confirm/return actions -->
       <div v-if="action.type === 'confirm' || action.type === 'return'" class="mb-4 space-y-3">
         <div class="relative rounded-xl overflow-hidden bg-black" style="height: 160px">
-          <video
-            ref="videoRef"
-            autoplay
-            playsinline
-            muted
-            class="w-full h-full object-cover"
-          />
+          <!-- Native BarcodeDetector mode -->
+          <template v-if="useNative">
+            <video
+              ref="videoRef"
+              autoplay
+              playsinline
+              muted
+              class="w-full h-full object-cover"
+            />
+          </template>
+          <!-- html5-qrcode fallback mode (iOS) -->
+          <template v-else>
+            <div id="urgent-barcode-scanner" class="urgent-scanner-container"></div>
+          </template>
           <div v-if="!scannerActive" class="absolute inset-0 flex items-center justify-center bg-gray-900/80">
             <Loader2 class="w-6 h-6 text-white animate-spin" />
           </div>
           <div v-if="scannerActive" class="absolute inset-0 pointer-events-none">
             <div class="absolute inset-x-8 top-1/2 -translate-y-1/2 h-0.5 bg-green-400/60 rounded-full animate-pulse"></div>
           </div>
-          <div class="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+          <div class="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full z-10">
             {{ scannedCount }}/{{ filteredShipments.length }} scannés
           </div>
         </div>
@@ -111,9 +118,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch, onUnmounted } from 'vue'
+import { computed, nextTick, reactive, ref, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { CheckCircle, Loader2 } from 'lucide-vue-next'
+import { Html5Qrcode } from 'html5-qrcode'
 import ModalShell from '@/components/shared/ModalShell.vue'
 import { useAppStore } from '@/stores/app'
 import { getStatusLabel, getStatusDotClass } from '@/composables/useStatusFormatting'
@@ -165,8 +173,11 @@ const scannerActive = ref(false)
 const manualCode = ref('')
 const scanFeedback = ref('')
 const scanFeedbackIsError = ref(false)
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+const useNative = ref(!isIOS)
 let animFrameId: number | null = null
 let lastDetectTime = 0
+let html5Qrcode: Html5Qrcode | null = null
 
 function showFeedback(message: string, isError = false) {
   scanFeedback.value = message
@@ -203,6 +214,7 @@ async function onBarcodeDetected(code: string) {
   await markScanned(shipment)
 }
 
+// --- Native BarcodeDetector path ---
 function detectionLoop() {
   if (!scannerActive.value || !videoRef.value) return
   const now = performance.now()
@@ -218,11 +230,7 @@ function detectionLoop() {
   animFrameId = requestAnimationFrame(detectionLoop)
 }
 
-async function startScanner() {
-  if (!('BarcodeDetector' in window)) {
-    showFeedback('BarcodeDetector non supporté par ce navigateur', true)
-    return
-  }
+async function startNativeScanner() {
   try {
     const mediaStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment' },
@@ -239,8 +247,7 @@ async function startScanner() {
   }
 }
 
-function stopScanner() {
-  scannerActive.value = false
+function stopNativeScanner() {
   if (animFrameId !== null) {
     cancelAnimationFrame(animFrameId)
     animFrameId = null
@@ -248,6 +255,64 @@ function stopScanner() {
   if (stream.value) {
     stream.value.getTracks().forEach(t => t.stop())
     stream.value = null
+  }
+}
+
+// --- html5-qrcode fallback path (iOS) ---
+async function startFallbackScanner() {
+  await nextTick()
+  try {
+    html5Qrcode = new Html5Qrcode('urgent-barcode-scanner')
+    await html5Qrcode.start(
+      { facingMode: 'environment' },
+      {
+        fps: 10,
+        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+          const w = Math.floor(viewfinderWidth * 0.8)
+          const h = Math.floor(viewfinderHeight * 0.4)
+          return { width: Math.max(w, 200), height: Math.max(h, 80) }
+        },
+      },
+      (decodedText) => {
+        onBarcodeDetected(decodedText)
+      },
+      () => {},
+    )
+    scannerActive.value = true
+  } catch {
+    showFeedback('Impossible d\'accéder à la caméra', true)
+  }
+}
+
+async function stopFallbackScanner() {
+  if (html5Qrcode) {
+    try {
+      const state = html5Qrcode.getState()
+      if (state === 2) {
+        await html5Qrcode.stop()
+      }
+    } catch {
+      // ignore stop errors
+    }
+    html5Qrcode = null
+  }
+}
+
+// --- Unified start/stop ---
+async function startScanner() {
+  if (useNative.value) {
+    await startNativeScanner()
+  } else {
+    await startFallbackScanner()
+  }
+}
+
+async function stopScanner() {
+  scannerActive.value = false
+  if (useNative.value) {
+    stopNativeScanner()
+  } else {
+    await stopFallbackScanner()
   }
 }
 
@@ -360,3 +425,28 @@ function handleView(shipment: UIShipment) {
   window.open(route.href, '_blank')
 }
 </script>
+
+<style scoped>
+.urgent-scanner-container {
+  width: 100%;
+  height: 100%;
+}
+.urgent-scanner-container :deep(video) {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  min-height: 100% !important;
+}
+.urgent-scanner-container :deep(#urgent-barcode-scanner__scan_region) {
+  min-height: 100% !important;
+}
+.urgent-scanner-container :deep(#urgent-barcode-scanner__scan_region > img) {
+  display: none !important;
+}
+.urgent-scanner-container :deep(#urgent-barcode-scanner__dashboard_section) {
+  display: none !important;
+}
+.urgent-scanner-container :deep(#urgent-barcode-scanner__header_message) {
+  display: none !important;
+}
+</style>
