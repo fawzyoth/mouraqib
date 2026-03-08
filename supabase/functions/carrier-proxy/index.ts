@@ -191,10 +191,16 @@ async function handleCreateShipment(
   supabase: ReturnType<typeof createServiceClient>,
   errorCtx: { supabase: any; organizationId: string; carrierId: string },
 ): Promise<Record<string, unknown>> {
-  const { shipmentId, ...shipmentFields } = payload
+  const { shipmentId, skipCarrierCreate, carrierTrackingNumber: existingTrackingNumber, ...shipmentFields } = payload
 
-  if (!shipmentId) {
-    throw new Error('create-shipment requires payload.shipmentId')
+  // ── Post-insert auto-pickup only (First Delivery) ──
+  if (skipCarrierCreate && shipmentId) {
+    const status = await autoRequestPickup(adapter, supabase, shipmentId, existingTrackingNumber, shipmentFields)
+    await supabase
+      .from('shipments')
+      .update({ status })
+      .eq('id', shipmentId)
+    return { carrierTrackingNumber: existingTrackingNumber, status }
   }
 
   const createPayload: CreateShipmentPayload = {
@@ -212,28 +218,71 @@ async function handleCreateShipment(
     exchangeCount: shipmentFields.exchangeCount,
   }
 
+  // ── Carrier-first path (no shipmentId) ──
+  if (!shipmentId) {
+    // Call carrier API — on failure, log to error_logs and rethrow
+    let carrierResult: { trackingNumber: string; printUrl?: string }
+    try {
+      carrierResult = await adapter.createShipment(createPayload)
+    } catch (err) {
+      // Log detailed error for the carrier-first path
+      if (err instanceof CarrierApiError) {
+        await supabase.from('error_logs').insert({
+          organization_id: errorCtx.organizationId,
+          carrier_id: errorCtx.carrierId,
+          source: 'create-shipment',
+          error_type: 'carrier_api_error',
+          message: err.message,
+          context: {
+            carrier: err.carrier,
+            endpoint: err.endpoint,
+            httpStatus: err.httpStatus,
+            responseBody: err.responseBody,
+            payload: createPayload,
+          },
+        })
+      }
+      throw err
+    }
+
+    // Determine initial status (no auto-pickup here — that happens post-insert)
+    let status = 'En attente'
+    if (adapter.carrierId === 'navex') {
+      status = "Demande d'enlèvement"
+    } else if (adapter.carrierId !== 'first-delivery') {
+      try {
+        const statusResult = await adapter.checkStatus(carrierResult.trackingNumber)
+        status = mapCarrierStatus(statusResult.status, { ...errorCtx, trackingNumber: carrierResult.trackingNumber })
+      } catch {
+        console.error(`[carrier-proxy] check-status failed after create for ${carrierResult.trackingNumber}`)
+      }
+    }
+
+    // Return carrier data without any DB operations
+    return {
+      carrierTrackingNumber: carrierResult.trackingNumber,
+      printUrl: carrierResult.printUrl,
+      status,
+    }
+  }
+
+  // ── Legacy path (with shipmentId — used by bulk import) ──
   const carrierResult = await adapter.createShipment(createPayload)
 
-  // Determine initial status based on carrier type
   let status = 'En attente'
   if (adapter.carrierId === 'navex') {
-    // Navex auto-schedules pickup on shipment creation
     status = "Demande d'enlèvement"
   } else if (adapter.carrierId === 'first-delivery') {
-    // First Delivery: auto-create pickup request after shipment creation
     status = await autoRequestPickup(adapter, supabase, shipmentId, carrierResult.trackingNumber, shipmentFields)
   } else {
-    // Get the real status from the carrier right after creation
     try {
       const statusResult = await adapter.checkStatus(carrierResult.trackingNumber)
       status = mapCarrierStatus(statusResult.status, { ...errorCtx, trackingNumber: carrierResult.trackingNumber })
     } catch {
-      // If check-status fails, keep pending
       console.error(`[carrier-proxy] check-status failed after create for ${carrierResult.trackingNumber}`)
     }
   }
 
-  // Persist the real carrier tracking number, label URL, and actual status
   await supabase
     .from('shipments')
     .update({

@@ -65,94 +65,99 @@ export function useShipmentsData(orgId: Ref<string>) {
         }
       }
 
-      const insert = uiShipmentToInsert(form, orgId.value, userId, carrierId)
-      const row = await shipmentsService.create(insert)
-
-      // Add initial event
-      await shipmentsService.addEvent(row.id, 'En attente', 'Commande en attente de ramassage', 'Tunisie')
-
-      const enrichedRow = {
-        ...row,
-        carrier: carrierId ? { name: form.carrier || 'Non assigné' } : null,
-        client: form.clientId ? { name: form.customerName || '-' } : null,
+      // Build carrier-proxy payload (shared between carrier-first and legacy paths)
+      const carrierPayload = {
+        clientName: form.customerName,
+        governorate: form.gouvernorat,
+        city: form.delegation || form.gouvernorat,
+        address: form.address,
+        phone: form.phone,
+        phone2: form.phoneSecondary || undefined,
+        price: (form.productPrice || 0) + (form.deliveryFee || 0),
+        designation: form.productName + (form.description ? ` - ${form.description}` : ''),
+        article: form.productName || undefined,
+        articleCount: 1,
+        comment: form.reference || undefined,
+        exchangeCount: form.type === 'exchange' ? (form.exchangeItemCount || 1) : undefined,
       }
-      const uiShipment = dbShipmentToUI(enrichedRow as any, orgContext)
-      uiShipment.events = [{
-        status: 'Informations reçues',
-        description: 'Commande en attente de ramassage',
-        location: 'Tunisie',
-        date: new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
-          + ' à ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-        completed: true,
-      }]
 
-      // Add to list immediately so realtime INSERT dedup check works
-      shipments.value.unshift(uiShipment)
-      toast.success('Colis créé')
+      // ── Carrier-first: call carrier API before DB insert ──
+      let carrierData: { carrier_tracking_number?: string; label_url?: string; status?: string } | undefined
+      const isFirstDelivery = (form.carrier || '').toLowerCase().includes('first delivery')
 
-      // If carrier API is connected, send to carrier-proxy to get real tracking number
       if (carrierId && carrierApiStatus === 'connected') {
         try {
           const { data, error } = await supabase.functions.invoke('carrier-proxy', {
             body: {
               carrierId,
               action: 'create-shipment',
-              payload: {
-                shipmentId: row.id,
-                clientName: form.customerName,
-                governorate: form.gouvernorat,
-                city: form.delegation || form.gouvernorat,
-                address: form.address,
-                phone: form.phone,
-                phone2: form.phoneSecondary || undefined,
-                price: (form.productPrice || 0) + (form.deliveryFee || 0),
-                designation: form.productName + (form.description ? ` - ${form.description}` : ''),
-                article: form.productName || undefined,
-                articleCount: 1,
-                comment: form.reference || undefined,
-                exchangeCount: form.type === 'exchange' ? (form.exchangeItemCount || 1) : undefined,
-              },
+              payload: carrierPayload, // no shipmentId → carrier-first path
             },
           })
 
-          if (!error && data?.result) {
-            const result = data.result
-            // Update the existing entry in-place
-            const idx = shipments.value.findIndex(s => s.id === uiShipment.id)
-            if (idx !== -1) {
-              if (result.carrierTrackingNumber) {
-                shipments.value[idx] = { ...shipments.value[idx], trackingNumber: result.carrierTrackingNumber }
-              }
-              if (result.printUrl) {
-                shipments.value[idx] = { ...shipments.value[idx], labelUrl: result.printUrl }
-              }
-            }
-            if (result.carrierTrackingNumber) {
-              uiShipment.trackingNumber = result.carrierTrackingNumber
-            }
-            if (result.printUrl) {
-              uiShipment.labelUrl = result.printUrl
-            }
-            toast.success('Colis envoyé au transporteur')
-          } else if (error) {
+          if (error || !data?.result) {
+            // Extract error detail for toast
             let detail = ''
             try {
-              const response = (error as any).context
+              const response = (error as any)?.context
               if (response && typeof response.json === 'function') {
                 const body = await response.json()
                 detail = body?.error || body?.detail || JSON.stringify(body)
               }
             } catch { /* ignore */ }
-            console.error('[carrier-proxy] create-shipment error:', error.message, detail)
-            toast.warning(detail || 'Colis créé localement, mais non envoyé au transporteur')
+            console.error('[carrier-proxy] create-shipment error:', error?.message, detail)
+            toast.error(detail || 'Erreur transporteur — colis non créé')
+            return null
+          }
+
+          const result = data.result
+          carrierData = {
+            carrier_tracking_number: result.carrierTrackingNumber,
+            label_url: result.printUrl || undefined,
+            status: result.status,
           }
         } catch (proxyErr: any) {
           console.error('[carrier-proxy] create-shipment failed:', proxyErr)
-          toast.warning('Colis créé localement, mais non envoyé au transporteur')
+          toast.error('Erreur transporteur — colis non créé')
+          return null
         }
       }
 
-      return uiShipment
+      // ── Insert into DB (with carrier data if available) ──
+      const insert = uiShipmentToInsert(form, orgId.value, userId, carrierId, carrierData)
+      const row = await shipmentsService.create(insert)
+
+      // Add initial event
+      const eventStatus = carrierData?.status || 'En attente'
+      shipmentsService.addEvent(row.id, eventStatus, 'Commande en attente de ramassage', 'Tunisie').catch(console.error)
+
+      toast.success('Colis créé')
+
+      // ── Post-insert: auto-pickup for First Delivery (fire-and-forget) ──
+      if (carrierId && carrierData && isFirstDelivery) {
+        supabase.functions.invoke('carrier-proxy', {
+          body: {
+            carrierId,
+            action: 'create-shipment',
+            payload: {
+              shipmentId: row.id,
+              skipCarrierCreate: true,
+              carrierTrackingNumber: carrierData.carrier_tracking_number,
+              ...carrierPayload,
+            },
+          },
+        }).catch((err: any) => {
+          console.error('[carrier-proxy] auto-pickup failed:', err)
+        })
+      }
+
+      // Return a UI shipment for the success screen (list is handled by realtime)
+      const enrichedRow = {
+        ...row,
+        carrier: carrierId ? { name: form.carrier || 'Non assigné' } : null,
+        client: form.clientId ? { name: form.customerName || '-' } : null,
+      }
+      return dbShipmentToUI(enrichedRow as any, orgContext)
     } catch (e: any) {
       toast.error('Erreur création colis: ' + (e.message || e))
       return null

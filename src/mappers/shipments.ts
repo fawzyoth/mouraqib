@@ -145,7 +145,8 @@ export function uiShipmentToInsert(
   form: Record<string, any>,
   orgId: string,
   userId: string | null,
-  carrierId: string | null
+  carrierId: string | null,
+  carrierData?: { carrier_tracking_number?: string; label_url?: string; status?: string },
 ): ShipmentInsert {
   return {
     organization_id: orgId,
@@ -169,6 +170,9 @@ export function uiShipmentToInsert(
     product_price: form.productPrice || 0,
     delivery_fee: form.deliveryFee || 7,
     client_id: form.clientId || null,
-    status: 'En attente',
+    status: (carrierData?.status as ShipmentInsert['status']) || 'En attente',
+    tracking_number: carrierData?.carrier_tracking_number || undefined,
+    carrier_tracking_number: carrierData?.carrier_tracking_number || null,
+    label_url: carrierData?.label_url || null,
   }
 }
