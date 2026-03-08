@@ -20,17 +20,21 @@ export function useClientsData(orgId: Ref<string>) {
     if (!orgId.value) return
     isLoading.value = true
     try {
-      const [rows, stats] = await Promise.all([
-        clientsService.getAll(orgId.value),
-        clientsService.getStats(orgId.value),
-      ])
+      const rows = await clientsService.getAll(orgId.value)
       clientsList.value = rows.map(dbClientToUI)
+      // Compute stats from fetched data instead of a separate query
+      const stats = { total: rows.length, active: 0, vip: 0, inactive: 0, blocked: 0 }
+      for (const c of rows) {
+        if (c.status in stats) {
+          stats[c.status as keyof typeof stats]++
+        }
+      }
       clientStats.value = {
-        totalClients: stats.total || 0,
-        activeClients: stats.active || 0,
-        vipClients: stats.vip || 0,
-        inactiveClients: stats.inactive || 0,
-        blockedClients: stats.blocked || 0,
+        totalClients: stats.total,
+        activeClients: stats.active,
+        vipClients: stats.vip,
+        inactiveClients: stats.inactive,
+        blockedClients: stats.blocked,
       }
     } catch (e: any) {
       toast.error('Erreur chargement clients: ' + (e.message || e))

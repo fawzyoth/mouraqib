@@ -186,10 +186,11 @@
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Transporteur">{{ shipment.carrier }}</td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Client">{{ shipment.client || '-' }}</td>
               <td class="px-4 py-3" data-label="Statut">
-                <span :class="['inline-flex items-center space-x-1 text-sm font-medium', getStatusTextClass(shipment.status)]">
-                  <span :class="['w-2 h-2 rounded-full', getStatusDotClass(shipment.status)]"></span>
+                <span :class="['inline-flex items-center space-x-1 text-sm font-medium whitespace-nowrap', getStatusTextClass(shipment.status)]">
+                  <span :class="['w-2 h-2 rounded-full flex-shrink-0', getStatusDotClass(shipment.status)]"></span>
                   <span>{{ getStatusLabel(shipment.status) }}</span>
                 </span>
+                <div v-if="shipment.outScannedAt && shipment.status === 'En attente'" class="text-xs text-green-600 dark:text-green-400">prêt et scanné</div>
               </td>
               <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white" data-label="Prix">{{ shipment.amount ? shipment.amount.toFixed(2) : '-' }}</td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap" data-label="Création">
