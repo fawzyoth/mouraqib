@@ -17,14 +17,7 @@
     @unconfirm-shipment="unconfirmShipment"
     @clear-scan-session="clearScanSession"
     @navigate-to-labels="navigateTo('labels')"
-  />
-
-  <!-- Pickups: Request Pickup -->
-  <RequestPickup
-    v-else-if="activeSection === 'request-pickup'"
-    :shipments="appStore.shipments"
-    @toggle-submenu="subMenuOpen = !subMenuOpen"
-    @request-pickup="handleRequestPickup"
+    @select-shipment="selectedShipment = $event"
   />
 
   <!-- Pickups: History -->
@@ -32,6 +25,13 @@
     v-else-if="activeSection === 'pickup-history'"
     :scanned-shipments="allPickedUpShipments"
     @toggle-submenu="subMenuOpen = !subMenuOpen"
+  />
+
+  <!-- Shipment Detail Panel -->
+  <ShipmentDetailPanel
+    :show="!!selectedShipment"
+    :shipment="selectedShipment"
+    @close="selectedShipment = null"
   />
 
   <!-- Pickup Confirm Modal -->
@@ -52,11 +52,11 @@ import { subSectionRoutes } from '@/composables/useNavigation'
 
 // Feature components
 import ScanPickup from '@/components/features/pickups/ScanPickup.vue'
-import RequestPickup from '@/components/features/pickups/RequestPickup.vue'
 import PickupHistory from '@/components/features/pickups/PickupHistory.vue'
 
 // Modal components
 import PickupConfirmModal from '@/components/modals/PickupConfirmModal.vue'
+import ShipmentDetailPanel from '@/components/features/shipments/ShipmentDetailPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -69,6 +69,9 @@ function navigateTo(subSection: string) {
   if (routeInfo) router.push(routeInfo.path)
 }
 
+// Shipment detail panel
+const selectedShipment = ref<any>(null)
+
 // ---------------------------------------------------------------------------
 // Scan state
 // ---------------------------------------------------------------------------
@@ -78,20 +81,29 @@ const scannedShipments = ref<any[]>([])
 const showPickupConfirmModal = ref(false)
 
 // Derived props for ScanPickup
-const confirmedShipments = computed(() => scannedShipments.value)
+// Shipments already scanned in DB (have outScannedAt but not yet picked up)
+const dbScannedShipments = computed(() =>
+  appStore.shipments.filter((s: any) => s.outScannedAt && s.status !== 'Enlevé')
+)
+
+const confirmedShipments = computed(() => {
+  const sessionIds = new Set(scannedShipments.value.map((s: any) => s.id))
+  const fromDb = dbScannedShipments.value.filter((s: any) => !sessionIds.has(s.id))
+  return [...scannedShipments.value, ...fromDb]
+})
 
 const pickupCandidates = computed(() => {
-  const scannedIds = new Set(scannedShipments.value.map((s: any) => s.id))
-  // Unscanned: label printed, not yet picked up, not already scanned this session
+  const confirmedIds = new Set(confirmedShipments.value.map((s: any) => s.id))
+  // Unscanned: label printed, not yet picked up, not already confirmed
   const unscanned = appStore.shipments.filter((s: any) =>
-    s.labelPrinted && s.status !== 'Picked up' && !scannedIds.has(s.id)
+    s.labelPrinted && s.status !== 'Picked up' && s.status !== 'Enlevé' && !confirmedIds.has(s.id)
   )
-  return [...scannedShipments.value, ...unscanned]
+  return [...confirmedShipments.value, ...unscanned]
 })
 
 const confirmedByCarrier = computed(() => {
   const groups: Record<string, any[]> = {}
-  for (const s of scannedShipments.value) {
+  for (const s of confirmedShipments.value) {
     const carrier = s.carrier || 'Non assigné'
     if (!groups[carrier]) groups[carrier] = []
     groups[carrier].push(s)
@@ -100,31 +112,31 @@ const confirmedByCarrier = computed(() => {
 })
 
 const confirmedTotalCOD = computed(() =>
-  scannedShipments.value.reduce((sum: number, s: any) => sum + (s.cod || s.totalPrice || 0), 0)
+  confirmedShipments.value.reduce((sum: number, s: any) => sum + (s.cod || s.totalPrice || 0), 0)
 )
 
 const pickupByCarrier = computed(() => {
-  const scannedIds = new Set(scannedShipments.value.map((s: any) => s.id))
+  const confirmedIds = new Set(confirmedShipments.value.map((s: any) => s.id))
   const groups: Record<string, any> = {}
 
-  // Add scanned shipments (confirmed)
-  for (const s of scannedShipments.value) {
+  // Add unscanned candidates first
+  for (const s of appStore.shipments) {
+    if (!s.labelPrinted || s.status === 'Enlevé' || confirmedIds.has(s.id)) continue
+    const carrier = s.carrier || 'Non assigné'
+    if (!groups[carrier]) {
+      groups[carrier] = { carrier, shipments: [], confirmedCount: 0 }
+    }
+    groups[carrier].shipments.push({ ...s, confirmed: false })
+  }
+
+  // Then add confirmed shipments (session-scanned + DB-scanned)
+  for (const s of confirmedShipments.value) {
     const carrier = s.carrier || 'Non assigné'
     if (!groups[carrier]) {
       groups[carrier] = { carrier, shipments: [], confirmedCount: 0 }
     }
     groups[carrier].shipments.push({ ...s, confirmed: true })
     groups[carrier].confirmedCount++
-  }
-
-  // Add unscanned candidates (not confirmed)
-  for (const s of appStore.shipments) {
-    if (!s.labelPrinted || s.status === 'Enlevé' || scannedIds.has(s.id)) continue
-    const carrier = s.carrier || 'Non assigné'
-    if (!groups[carrier]) {
-      groups[carrier] = { carrier, shipments: [], confirmedCount: 0 }
-    }
-    groups[carrier].shipments.push({ ...s, confirmed: false })
   }
 
   return Object.values(groups)
