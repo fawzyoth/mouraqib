@@ -19,7 +19,7 @@
     </header>
     <main class="flex-1 overflow-y-auto p-6">
       <!-- Statistics Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
           <div class="flex items-center justify-between">
             <div>
@@ -55,18 +55,6 @@
             </div>
           </div>
           <p class="text-xs text-gray-500 mt-2">Moyenne globale</p>
-        </div>
-        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm text-gray-500">Chiffre d'affaires</p>
-              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ (clientStats.totalRevenue ?? 0).toLocaleString() }} TND</p>
-            </div>
-            <div class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl flex items-center justify-center">
-              <Banknote class="w-6 h-6 text-yellow-600" />
-            </div>
-          </div>
-          <p class="text-xs text-gray-500 mt-2">Total des commandes</p>
         </div>
       </div>
 

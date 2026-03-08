@@ -24,35 +24,6 @@
   </header>
   <main class="flex-1 overflow-y-auto p-6">
     <!-- Performance Score & Weather -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-      <!-- Quick Stats -->
-      <div class="bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-200 dark:border-gray-800">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-sm text-gray-500">Livraisons aujourd'hui</span>
-          <Package class="w-4 h-4 text-gray-400" />
-        </div>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ dashboardStats.todayDeliveries }}</p>
-        <p class="text-xs text-green-600 mt-1">{{ dashboardStats.todayDelivered }} livrés</p>
-      </div>
-
-      <div class="bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-200 dark:border-gray-800">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-sm text-gray-500">Taux de succès</span>
-          <CheckCircle class="w-4 h-4 text-gray-400" />
-        </div>
-        <p class="text-2xl font-bold text-green-600">{{ dashboardStats.successRate }}%</p>
-        <p class="text-xs text-gray-500 mt-1">vs {{ dashboardStats.lastWeekSuccessRate }}% semaine dernière</p>
-      </div>
-
-      <div class="bg-white dark:bg-gray-900 rounded-xl p-5 border border-gray-200 dark:border-gray-800">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-sm text-gray-500">COD attendu</span>
-          <Banknote class="w-4 h-4 text-gray-400" />
-        </div>
-        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ dashboardStats.expectedCOD }} <span class="text-sm font-normal">TND</span></p>
-        <p class="text-xs text-blue-600 mt-1">{{ dashboardStats.pendingConfirmations }} à confirmer</p>
-      </div>
-    </div>
 
     <!-- Urgent Actions -->
     <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 mb-6">
