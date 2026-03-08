@@ -112,7 +112,8 @@ const scannerActive = ref(false)
 const manualCode = ref('')
 const scanFeedback = ref('')
 const scanFeedbackIsError = ref(false)
-const useNative = ref('BarcodeDetector' in window)
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+const useNative = ref(!isIOS)
 let animFrameId: number | null = null
 let lastDetectTime = 0
 let html5Qrcode: Html5Qrcode | null = null
