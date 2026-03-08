@@ -76,6 +76,7 @@ const router = createRouter({
     {
       path: '',
       component: () => import('@/views/AppLayoutView.vue'),
+      meta: { requiresAuth: true },
       children: appRoutes,
     },
     {
