@@ -21,10 +21,12 @@
   />
 
   <!-- Pickups: History -->
-  <PickupHistory
+  <ShipmentsList
     v-else-if="activeSection === 'pickup-history'"
-    :scanned-shipments="allPickedUpShipments"
+    :shipments="scannedOutShipments"
+    :status-tabs="historyStatusTabs"
     @toggle-submenu="subMenuOpen = !subMenuOpen"
+    @select-shipment="selectedShipment = $event"
   />
 
   <!-- Shipment Detail Panel -->
@@ -52,7 +54,7 @@ import { subSectionRoutes } from '@/composables/useNavigation'
 
 // Feature components
 import ScanPickup from '@/components/features/pickups/ScanPickup.vue'
-import PickupHistory from '@/components/features/pickups/PickupHistory.vue'
+import ShipmentsList from '@/components/features/shipments/ShipmentsList.vue'
 
 // Modal components
 import PickupConfirmModal from '@/components/modals/PickupConfirmModal.vue'
@@ -71,6 +73,28 @@ function navigateTo(subSection: string) {
 
 // Shipment detail panel
 const selectedShipment = ref<any>(null)
+
+// ---------------------------------------------------------------------------
+// History: all shipments with outScannedAt
+// ---------------------------------------------------------------------------
+const scannedOutShipments = computed(() =>
+  appStore.shipments.filter((s: any) => s.outScannedAt)
+)
+
+const historyStatusTabs = computed(() => {
+  const s = scannedOutShipments.value
+  const countIn = (statuses: string[]) => {
+    const set = new Set(statuses)
+    return s.filter((sh: any) => set.has(sh.status)).length
+  }
+  return [
+    { id: 'all', label: 'Tous', count: s.length },
+    { id: 'pending', label: 'En attente', count: countIn(['En attente', 'A vérifier']) },
+    { id: 'in-progress', label: 'En cours', count: countIn(['En cours', 'Au magasin', 'Echange', 'Rtn dépôt']) },
+    { id: 'delivered', label: 'Livré', count: countIn(['Livré']) },
+    { id: 'returned', label: 'Retours', count: countIn(['Retour Expéditeur', 'Rtn client/agence', 'Retour reçu', 'Rtn définitif', 'Retour assigné', "Retour en cours d'expédition", 'Retour enlevé', 'Retour Annulé']) },
+  ].filter(t => t.id === 'all' || t.count > 0)
+})
 
 // ---------------------------------------------------------------------------
 // Scan state
@@ -145,15 +169,6 @@ const pickupByCarrier = computed(() => {
 const pendingPickupsCount = computed(() =>
   appStore.shipments.filter((s: any) => !s.labelPrinted && s.status === 'En attente').length
 )
-
-// Merge session scans with DB picked-up shipments for history
-const allPickedUpShipments = computed(() => {
-  const sessionIds = new Set(scannedShipments.value.map((s: any) => s.id))
-  const fromDb = appStore.shipments
-    .filter((s: any) => s.status === 'Enlevé' && !sessionIds.has(s.id))
-    .map((s: any) => ({ ...s, scannedAt: s.updatedAt || s.createdAt }))
-  return [...scannedShipments.value, ...fromDb]
-})
 
 // ---------------------------------------------------------------------------
 // Scan logic
