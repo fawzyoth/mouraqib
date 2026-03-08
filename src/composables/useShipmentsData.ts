@@ -1,6 +1,6 @@
 import { ref, type Ref } from 'vue'
 import { supabase } from '@/lib/supabase'
-import { shipmentsService } from '@/services'
+import { shipmentsService, clientsService } from '@/services'
 import { dbShipmentToUI, uiShipmentToInsert } from '@/mappers/shipments'
 import type { UIShipment } from '@/mappers/shipments'
 import { useToast } from './useToast'
@@ -43,6 +43,28 @@ export function useShipmentsData(orgId: Ref<string>) {
       return null
     }
     try {
+      // Auto-create client if no existing client was selected
+      if (!form.clientId && form.phone) {
+        const existing = await clientsService.getByPhone(form.phone, orgId.value)
+        if (existing) {
+          form.clientId = existing.id
+        } else {
+          const newClient = await clientsService.create({
+            organization_id: orgId.value,
+            name: form.customerName,
+            phone: form.phone,
+            phone_secondary: form.phoneSecondary || null,
+            address: form.address || null,
+            governorate: form.gouvernorat || null,
+            delegation: form.delegation || null,
+            locality: form.locality || null,
+            postal_code: form.postalCode || null,
+            status: 'active',
+          })
+          form.clientId = newClient.id
+        }
+      }
+
       const insert = uiShipmentToInsert(form, orgId.value, userId, carrierId)
       const row = await shipmentsService.create(insert)
 
