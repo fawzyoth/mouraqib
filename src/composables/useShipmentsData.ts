@@ -276,11 +276,21 @@ export function useShipmentsData(orgId: Ref<string>) {
     }
   }
 
-  function subscribe(orgContext: OrgContext) {
+  function subscribe(orgContext: OrgContext, carriers?: Ref<{ id: string; name: string }[]>, clients?: Ref<{ id: string; name: string }[]>) {
     if (!orgId.value) return
     realtimeChannel = shipmentsService.subscribeToChanges(orgId.value, (payload: any) => {
       if (payload.eventType === 'INSERT') {
-        const newShipment = dbShipmentToUI(payload.new as any, orgContext)
+        const raw = payload.new as any
+        // Realtime payload is flat — enrich with carrier/client from existing frontend data
+        if (raw.carrier_id && carriers?.value) {
+          const c = carriers.value.find(c => c.id === raw.carrier_id)
+          if (c) raw.carrier = { id: c.id, name: c.name }
+        }
+        if (raw.client_id && clients?.value) {
+          const cl = clients.value.find(cl => cl.id === raw.client_id)
+          if (cl) raw.client = { id: cl.id, name: cl.name }
+        }
+        const newShipment = dbShipmentToUI(raw, orgContext)
         // Only add if not already present (avoid duplicate from own create)
         if (!shipments.value.find(s => s.id === newShipment.id)) {
           shipments.value.unshift(newShipment)

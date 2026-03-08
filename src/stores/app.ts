@@ -73,7 +73,7 @@ export const useAppStore = defineStore('app', () => {
 
   function subscribe() {
     if (!authStore.isDemoMode) {
-      shipmentsData.subscribe(orgContext.value)
+      shipmentsData.subscribe(orgContext.value, carriersData.carriers, clientsData.clientsList)
       financeData.subscribeToCredits()
     }
   }
