@@ -425,8 +425,8 @@ const urgentActions = computed(() => {
     })
   }
 
-  // Returns to process
-  const returned = all.filter(s => isReturnStatus(s.status))
+  // Returns to process (exclude already scanned-in returns)
+  const returned = all.filter(s => isReturnStatus(s.status) && !s.inScannedAt)
   if (returned.length > 0) {
     actions.push({
       id: id++,
@@ -635,8 +635,8 @@ watchEffect(() => {
     })
   }
 
-  // Returns to process
-  const returned = all.filter(s => isReturnStatus(s.status))
+  // Returns to process (exclude already scanned-in returns)
+  const returned = all.filter(s => isReturnStatus(s.status) && !s.inScannedAt)
   if (returned.length > 0) {
     categories.push({
       id: 'returns',

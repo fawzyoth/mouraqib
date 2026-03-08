@@ -13,17 +13,6 @@
           </div>
         </div>
         <div class="flex items-center space-x-2 sm:space-x-3">
-          <button class="hidden sm:flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors border border-gray-200 dark:border-gray-700">
-            <Upload class="w-4 h-4" />
-            <span>Exporter</span>
-          </button>
-          <button
-            @click="$emit('open-bulk-import')"
-            class="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors border border-gray-200 dark:border-gray-700"
-          >
-            <Download class="w-4 h-4" />
-            <span class="hidden sm:inline">Importer</span>
-          </button>
           <button
             @click="$emit('open-add-shipment')"
             class="btn-primary text-xs sm:text-sm px-3 sm:px-4 py-2"
@@ -96,7 +85,7 @@
         <table class="w-full">
           <thead class="bg-gray-50 dark:bg-gray-800/50">
             <tr>
-              <th v-for="col in columns" :key="col.key" class="px-4 py-0 text-left">
+              <th v-for="col in columns" :key="col.key" :class="['px-4 py-0 text-left', col.width]">
                 <div class="relative">
                   <!-- Sort button -->
                   <button
@@ -191,6 +180,7 @@
                   <span>{{ getStatusLabel(shipment.status) }}</span>
                 </span>
                 <div v-if="shipment.outScannedAt && shipment.status === 'En attente'" class="text-xs text-green-600 dark:text-green-400">prêt et scanné</div>
+                <div v-if="shipment.inScannedAt" class="text-xs text-green-600 dark:text-green-400">retour scanné</div>
               </td>
               <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white" data-label="Prix">{{ shipment.amount ? shipment.amount.toFixed(2) : '-' }}</td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap" data-label="Création">
@@ -322,7 +312,7 @@ const showScanRetourColumn = computed(() => activeStatusTab.value === 'all' || a
 const columns = computed(() => {
   const base = [
     { key: 'trackingNumber', label: 'Numero de suivi', filterable: true },
-    { key: 'carrier', label: 'Transporteur', filterable: true },
+    { key: 'carrier', label: 'Trans.', filterable: true, width: 'w-16' },
     { key: 'client', label: 'Client', filterable: true },
     { key: 'status', label: 'Statut', filterable: true },
     { key: 'amount', label: 'Prix', filterable: false },
@@ -330,7 +320,7 @@ const columns = computed(() => {
     { key: 'outScannedAt', label: 'Scan Pickup', filterable: true, type: 'date' },
     ...(showScanRetourColumn.value ? [{ key: 'inScannedAt', label: 'Scan Retour', filterable: true, type: 'date' }] : []),
     { key: 'deliveryDate', label: 'Livraison', filterable: true, type: 'date' },
-    { key: 'lastSyncedAt', label: 'Last Sync', filterable: true, type: 'date' },
+    { key: 'lastSyncedAt', label: 'Last Sync', filterable: true, type: 'date', width: 'w-24' },
   ]
   return base
 })
