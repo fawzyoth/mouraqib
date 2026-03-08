@@ -197,6 +197,48 @@ export function useShipmentsData(orgId: Ref<string>) {
     }
   }
 
+  async function requestDeletion(id: string, reason: string | null, userId: string, userName: string): Promise<boolean> {
+    try {
+      await shipmentsService.requestDeletion(id, reason, userId, userName)
+      const index = shipments.value.findIndex(s => s.id === id)
+      if (index !== -1) {
+        shipments.value[index] = {
+          ...shipments.value[index],
+          deletionRequestedAt: new Date().toISOString(),
+          deletionRequestedBy: userId,
+          deletionReason: reason,
+          deletionRequestedByName: userName,
+        }
+      }
+      toast.success('Demande de suppression envoyée')
+      return true
+    } catch (e: any) {
+      toast.error('Erreur demande de suppression: ' + (e.message || e))
+      return false
+    }
+  }
+
+  async function cancelDeletionRequest(id: string): Promise<boolean> {
+    try {
+      await shipmentsService.cancelDeletionRequest(id)
+      const index = shipments.value.findIndex(s => s.id === id)
+      if (index !== -1) {
+        shipments.value[index] = {
+          ...shipments.value[index],
+          deletionRequestedAt: null,
+          deletionRequestedBy: null,
+          deletionReason: null,
+          deletionRequestedByName: null,
+        }
+      }
+      toast.success('Demande de suppression annulée')
+      return true
+    } catch (e: any) {
+      toast.error('Erreur annulation: ' + (e.message || e))
+      return false
+    }
+  }
+
   function subscribe(orgContext: OrgContext) {
     if (!orgId.value) return
     realtimeChannel = shipmentsService.subscribeToChanges(orgId.value, (payload: any) => {
@@ -222,6 +264,10 @@ export function useShipmentsData(orgId: Ref<string>) {
             deliveredAt: patched.deliveredAt,
             returnedAt: patched.returnedAt,
             billedAt: patched.billedAt,
+            deletionRequestedAt: patched.deletionRequestedAt,
+            deletionRequestedBy: patched.deletionRequestedBy,
+            deletionReason: patched.deletionReason,
+            deletionRequestedByName: patched.deletionRequestedByName,
           }
         }
       } else if (payload.eventType === 'DELETE') {
@@ -237,5 +283,5 @@ export function useShipmentsData(orgId: Ref<string>) {
     }
   }
 
-  return { shipments, isLoading, load, create, markAsPrinted, markAsOutScanned, markAsInScanned, updateStatus, subscribe, unsubscribe }
+  return { shipments, isLoading, load, create, markAsPrinted, markAsOutScanned, markAsInScanned, updateStatus, requestDeletion, cancelDeletionRequest, subscribe, unsubscribe }
 }

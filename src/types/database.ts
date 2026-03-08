@@ -319,6 +319,10 @@ export interface Database {
           attempts: number
           billed_at: string | null
           last_synced_at: string | null
+          deletion_requested_at: string | null
+          deletion_requested_by: string | null
+          deletion_reason: string | null
+          deletion_requested_by_name: string | null
           created_at: string
           updated_at: string
         }
@@ -363,6 +367,10 @@ export interface Database {
           attempts?: number
           billed_at?: string | null
           last_synced_at?: string | null
+          deletion_requested_at?: string | null
+          deletion_requested_by?: string | null
+          deletion_reason?: string | null
+          deletion_requested_by_name?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -407,6 +415,10 @@ export interface Database {
           attempts?: number
           billed_at?: string | null
           last_synced_at?: string | null
+          deletion_requested_at?: string | null
+          deletion_requested_by?: string | null
+          deletion_reason?: string | null
+          deletion_requested_by_name?: string | null
           created_at?: string
           updated_at?: string
         }

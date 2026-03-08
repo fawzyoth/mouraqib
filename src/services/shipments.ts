@@ -143,6 +143,40 @@ export const shipmentsService = {
     if (error) throw error
   },
 
+  async requestDeletion(id: string, reason: string | null, requestedBy: string, requestedByName: string) {
+    const { data, error } = await supabase
+      .from('shipments')
+      .update({
+        deletion_requested_at: new Date().toISOString(),
+        deletion_requested_by: requestedBy,
+        deletion_reason: reason,
+        deletion_requested_by_name: requestedByName,
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async cancelDeletionRequest(id: string) {
+    const { data, error } = await supabase
+      .from('shipments')
+      .update({
+        deletion_requested_at: null,
+        deletion_requested_by: null,
+        deletion_reason: null,
+        deletion_requested_by_name: null,
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
   async getEvents(shipmentId: string) {
     const { data, error } = await supabase
       .from('shipment_events')

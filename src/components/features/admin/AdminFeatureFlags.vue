@@ -214,6 +214,7 @@ const FEATURE_TREE: FeatureNode[] = [
       { id: 'shipments.all-shipments', label: 'Tous les colis' },
       { id: 'shipments.create-shipment', label: 'Créer un colis' },
       { id: 'shipments.labels', label: 'Bordereaux' },
+      { id: 'shipments.deletion-requests', label: 'Demandes de suppression' },
     ],
   },
   {

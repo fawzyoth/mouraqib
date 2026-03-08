@@ -46,6 +46,28 @@
         </a>
       </div>
 
+      <!-- Deletion request banner -->
+      <div v-if="shipment.deletionRequestedAt" class="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+        <div class="flex items-start gap-2">
+          <Clock class="w-4 h-4 text-orange-500 mt-0.5 shrink-0" />
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-medium text-orange-800 dark:text-orange-300">Suppression demandee</p>
+            <p class="text-xs text-orange-600 dark:text-orange-400 mt-0.5">
+              Par {{ shipment.deletionRequestedByName || 'Inconnu' }} le {{ formatEventDate(shipment.deletionRequestedAt) }}
+            </p>
+            <p v-if="shipment.deletionReason" class="text-xs text-orange-600 dark:text-orange-400 mt-1">
+              Raison: {{ shipment.deletionReason }}
+            </p>
+            <button
+              @click="$emit('cancel-deletion-request', shipment)"
+              class="mt-2 text-xs font-medium text-orange-700 dark:text-orange-300 hover:text-orange-900 dark:hover:text-orange-100 underline"
+            >
+              Annuler la demande
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div class="border-t border-gray-200 dark:border-gray-800"></div>
 
       <!-- Destinataire (Recipient) -->
@@ -262,13 +284,24 @@
           </div>
         </div>
       </div>
+
+      <!-- Delete request button -->
+      <div v-if="!shipment.deletionRequestedAt" class="pt-2">
+        <button
+          @click="$emit('request-deletion', shipment)"
+          class="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+        >
+          <Trash2 class="w-4 h-4" />
+          Demander la suppression
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
-import { X, User, Phone as PhoneIcon, MapPin, Globe, AlertTriangle, Printer } from 'lucide-vue-next'
+import { X, User, Phone as PhoneIcon, MapPin, Globe, AlertTriangle, Printer, Trash2, Clock } from 'lucide-vue-next'
 import { getStatusLabel, getStatusTextClass, getStatusDotClass } from '@/composables/useStatusFormatting'
 import { shipmentsService } from '@/services/shipments'
 import type { UIShipmentEvent } from '@/mappers/shipments'
@@ -280,6 +313,8 @@ const props = defineProps<{
 
 defineEmits<{
   (e: 'close'): void
+  (e: 'request-deletion', shipment: Record<string, any>): void
+  (e: 'cancel-deletion-request', shipment: Record<string, any>): void
 }>()
 
 const events = ref<UIShipmentEvent[]>([])

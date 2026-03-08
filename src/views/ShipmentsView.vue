@@ -8,6 +8,7 @@
     @open-bulk-import="openBulkImport"
     @open-add-shipment="navigateTo('create-shipment')"
     @select-shipment="(s: any) => { selectedShipment = s; showShipmentDetail = true }"
+    @request-deletion="openDeletionModal"
   />
 
   <!-- Shipments: Create Shipment — success screen or form -->
@@ -31,6 +32,15 @@
     @reset="resetShipmentForm"
   />
 
+  <!-- Shipments: Deletion Requests -->
+  <DeletionRequests
+    v-else-if="activeSection === 'deletion-requests'"
+    :shipments="appStore.shipments"
+    @toggle-submenu="subMenuOpen = !subMenuOpen"
+    @cancel-deletion-request="handleCancelDeletionRequest"
+    @deletion-confirmed="handleDeletionConfirmed"
+  />
+
   <!-- Shipments: Labels -->
   <ShipmentLabels
     v-else-if="activeSection === 'labels'"
@@ -47,6 +57,16 @@
     :show="showShipmentDetail"
     :shipment="selectedShipment"
     @close="selectedShipment = null; showShipmentDetail = false"
+    @request-deletion="openDeletionModal"
+    @cancel-deletion-request="handleCancelDeletionRequest"
+  />
+
+  <!-- Request Deletion Modal -->
+  <RequestDeletionModal
+    :show="showDeletionModal"
+    :shipment="deletionTarget"
+    @close="showDeletionModal = false; deletionTarget = null"
+    @confirm="handleConfirmDeletionRequest"
   />
 
   <!-- Print Label Modal -->
@@ -71,9 +91,11 @@ import CreateShipment from '@/components/features/shipments/CreateShipment.vue'
 import ShipmentCreatedSuccess from '@/components/features/shipments/ShipmentCreatedSuccess.vue'
 import ShipmentLabels from '@/components/features/shipments/ShipmentLabels.vue'
 import ShipmentDetailPanel from '@/components/features/shipments/ShipmentDetailPanel.vue'
+import DeletionRequests from '@/components/features/shipments/DeletionRequests.vue'
 
 // Modal components
 import PrintLabelModal from '@/components/modals/PrintLabelModal.vue'
+import RequestDeletionModal from '@/components/modals/RequestDeletionModal.vue'
 
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/composables/useToast'
@@ -145,6 +167,34 @@ const statusTabs = computed(() => {
 // Shipment detail panel
 const selectedShipment = ref<any>(null)
 const showShipmentDetail = ref(false)
+
+// Deletion request
+const showDeletionModal = ref(false)
+const deletionTarget = ref<any>(null)
+
+function openDeletionModal(shipment: any) {
+  deletionTarget.value = shipment
+  showDeletionModal.value = true
+}
+
+async function handleConfirmDeletionRequest(reason: string | null) {
+  if (!deletionTarget.value) return
+  const userId = authStore.user?.id
+  const userName = authStore.user?.name
+  if (!userId || !userName) return
+  await appStore.shipmentsData.requestDeletion(deletionTarget.value.id, reason, userId, userName)
+  showDeletionModal.value = false
+  deletionTarget.value = null
+}
+
+async function handleCancelDeletionRequest(shipment: any) {
+  await appStore.shipmentsData.cancelDeletionRequest(shipment.id)
+}
+
+function handleDeletionConfirmed(shipmentId: string) {
+  const idx = appStore.shipments.findIndex((s: any) => s.id === shipmentId)
+  if (idx !== -1) appStore.shipments.splice(idx, 1)
+}
 
 // Create shipment
 const createdShipment = ref<any>(null)

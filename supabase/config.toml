@@ -382,6 +382,9 @@ verify_jwt = false
 [functions.merge-multiple-labels]
 verify_jwt = false
 
+[functions.confirm-deletion]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

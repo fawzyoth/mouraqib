@@ -193,7 +193,7 @@
                   </span>
                 </td>
                 <td class="px-4 py-4" data-label="Total">
-                  <p class="text-sm font-medium text-gray-900 dark:text-white">{{ (client.totalSpent ?? 0).toLocaleString() }} TND</p>
+                  <p class="text-sm font-medium text-gray-900 dark:text-white">{{ (client.totalSpent ?? 0).toLocaleString() }}</p>
                 </td>
                 <td class="px-4 py-4" data-label="Statut">
                   <span :class="[
@@ -321,7 +321,7 @@ const columns = [
   { key: 'address', label: 'Adresse', filterable: true },
   { key: 'totalOrders', label: 'Commandes', filterable: false },
   { key: 'deliveryRate', label: 'Taux', filterable: false },
-  { key: 'totalSpent', label: 'Total', filterable: false },
+  { key: 'totalSpent', label: 'Montant', filterable: false },
   { key: 'status', label: 'Statut', filterable: true, type: 'typeahead' },
 ]
 

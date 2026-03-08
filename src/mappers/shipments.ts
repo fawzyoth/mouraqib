@@ -51,6 +51,10 @@ export interface UIShipment {
   lastSyncedAt: string | null
   outScannedAt: string | null
   inScannedAt: string | null
+  deletionRequestedAt: string | null
+  deletionRequestedBy: string | null
+  deletionReason: string | null
+  deletionRequestedByName: string | null
   events: UIShipmentEvent[]
 }
 
@@ -122,6 +126,10 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
     lastSyncedAt: row.last_synced_at ?? null,
     outScannedAt: row.out_scanned_at ?? null,
     inScannedAt: row.in_scanned_at ?? null,
+    deletionRequestedAt: row.deletion_requested_at ?? null,
+    deletionRequestedBy: row.deletion_requested_by ?? null,
+    deletionReason: row.deletion_reason ?? null,
+    deletionRequestedByName: row.deletion_requested_by_name ?? null,
     events: (row.shipment_events ?? []).map((e: any) => ({
       id: e.id,
       status: e.status,

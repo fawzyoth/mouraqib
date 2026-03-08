@@ -179,7 +179,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
-            <tr v-for="shipment in paginatedShipments" :key="shipment.id" @click="$emit('select-shipment', shipment)" class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer">
+            <tr v-for="shipment in paginatedShipments" :key="shipment.id" @click="$emit('select-shipment', shipment)" class="group hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer">
               <td class="px-4 py-3" data-label="N Suivi">
                 <span class="font-mono text-sm text-gray-900 dark:text-white">{{ shipment.trackingNumber }}</span>
               </td>
@@ -215,6 +215,24 @@
               </td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Livraison">{{ formatDate(shipment.deliveryDate) }}</td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Sync">{{ formatSyncDate(shipment.lastSyncedAt) }}</td>
+              <td class="px-4 py-1" data-label="">
+                <button
+                  v-if="shipment.deletionRequestedAt"
+                  class="p-1.5 rounded-lg text-orange-500"
+                  title="Suppression demandee"
+                  @click.stop
+                >
+                  <Clock class="w-4 h-4" />
+                </button>
+                <button
+                  v-else
+                  class="p-1.5 rounded-lg text-gray-400 opacity-0 group-hover:opacity-100 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
+                  title="Demander la suppression"
+                  @click.stop="$emit('request-deletion', shipment)"
+                >
+                  <Trash2 class="w-4 h-4" />
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -260,7 +278,9 @@ import {
   ChevronUp,
   ChevronDown,
   Filter,
-  X
+  X,
+  Trash2,
+  Clock
 } from 'lucide-vue-next'
 import { getStatusLabel, getStatusTextClass, getStatusDotClass } from '@/composables/useStatusFormatting'
 import TypeaheadFilter from '@/components/shared/TypeaheadFilter.vue'
@@ -293,6 +313,7 @@ defineEmits<{
   (e: 'open-bulk-import'): void
   (e: 'open-add-shipment'): void
   (e: 'select-shipment', shipment: Shipment): void
+  (e: 'request-deletion', shipment: Shipment): void
 }>()
 
 const showScanRetourColumn = computed(() => activeStatusTab.value === 'all' || activeStatusTab.value === 'returned')
