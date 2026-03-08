@@ -1,20 +1,13 @@
 import type { Shipment, ShipmentInsert } from '@/types/database'
 
-// DB status ↔ UI status mapping
-export const STATUS_DB_TO_UI: Record<string, string> = {
-  pending: 'Pending',
-  pickup_scheduled: 'Pickup scheduled',
-  picked_up: 'Picked up',
-  in_transit: 'In transit',
-  out_for_delivery: 'Out for delivery',
-  delivered: 'Delivered',
-  returned: 'Returned',
-  cancelled: 'Cancelled',
+export interface UIShipmentEvent {
+  id: string
+  status: string
+  oldStatus: string | null
+  description: string | null
+  source: string | null
+  createdAt: string
 }
-
-export const STATUS_UI_TO_DB: Record<string, string> = Object.fromEntries(
-  Object.entries(STATUS_DB_TO_UI).map(([k, v]) => [v, k])
-)
 
 export interface UIShipment {
   id: string
@@ -54,9 +47,15 @@ export interface UIShipment {
   totalPrice: number
   amount: number
   createdAt: string
-  pickupDate: string | null
   updatedAt: string
-  events: any[]
+  lastSyncedAt: string | null
+  outScannedAt: string | null
+  inScannedAt: string | null
+  deletionRequestedAt: string | null
+  deletionRequestedBy: string | null
+  deletionReason: string | null
+  deletionRequestedByName: string | null
+  events: UIShipmentEvent[]
 }
 
 interface OrgContext {
@@ -65,10 +64,21 @@ interface OrgContext {
   phone: string
 }
 
-export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | null; client?: { name: string } | null; pickup?: { scheduled_date: string } | null }, org: OrgContext): UIShipment {
-  const carrierName = row.carrier?.name || 'Non assigné'
+/** Generate a fallback Navex label URL when label_url is not stored */
+function generateNavexLabelUrl(row: Shipment & { carrier?: { name: string; sender_id?: string | null } | null }): string | null {
+  const carrierName = (row.carrier?.name || '').toLowerCase().trim()
+  const isNavex = carrierName === 'navex' || carrierName === 'navex delivery'
+  if (!isNavex) return null
+  const senderId = row.carrier?.sender_id
+  if (!senderId) return null
+  const trackingNumber = row.carrier_tracking_number || row.tracking_number
+  return `https://app.navex.tn/print/imprimer.php?id=${encodeURIComponent(senderId)}&code=${encodeURIComponent(trackingNumber)}`
+}
+
+export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | null; client?: { name: string } | null; shipment_events?: any[] | null }, org: OrgContext): UIShipment {
+  const carrierName = row.carrier?.name || row.old_carrier_name || 'Non assigné'
   const clientName = row.client?.name || '-'
-  const uiStatus = STATUS_DB_TO_UI[row.status] || row.status
+  const uiStatus = row.status
   const createdDate = new Date(row.created_at)
   const latestEvent = `${createdDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} : Colis créé`
 
@@ -91,7 +101,7 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
     orderNumber: row.reference || '',
     customerName: row.recipient_name,
     labelNumber: row.label_number,
-    labelUrl: (row as any).label_url || null,
+    labelUrl: (row as any).label_url || generateNavexLabelUrl(row) || null,
     labelPrinted: row.label_printed,
     labelPrintedAt: row.label_printed_at,
     weight: row.weight,
@@ -112,9 +122,22 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
     totalPrice: row.cod_amount,
     amount: row.cod_amount,
     createdAt: row.created_at,
-    pickupDate: row.pickup?.scheduled_date || null,
     updatedAt: row.updated_at,
-    events: [],
+    lastSyncedAt: row.last_synced_at ?? null,
+    outScannedAt: row.out_scanned_at ?? null,
+    inScannedAt: row.in_scanned_at ?? null,
+    deletionRequestedAt: row.deletion_requested_at ?? null,
+    deletionRequestedBy: row.deletion_requested_by ?? null,
+    deletionReason: row.deletion_reason ?? null,
+    deletionRequestedByName: row.deletion_requested_by_name ?? null,
+    events: (row.shipment_events ?? []).map((e: any) => ({
+      id: e.id,
+      status: e.status,
+      oldStatus: e.old_status ?? null,
+      description: e.description,
+      source: e.source,
+      createdAt: e.created_at,
+    })),
   }
 }
 
@@ -122,7 +145,8 @@ export function uiShipmentToInsert(
   form: Record<string, any>,
   orgId: string,
   userId: string | null,
-  carrierId: string | null
+  carrierId: string | null,
+  carrierData?: { carrier_tracking_number?: string; label_url?: string; status?: string },
 ): ShipmentInsert {
   return {
     organization_id: orgId,
@@ -146,5 +170,9 @@ export function uiShipmentToInsert(
     product_price: form.productPrice || 0,
     delivery_fee: form.deliveryFee || 7,
     client_id: form.clientId || null,
+    status: (carrierData?.status as ShipmentInsert['status']) || 'En attente',
+    tracking_number: carrierData?.carrier_tracking_number || undefined,
+    carrier_tracking_number: carrierData?.carrier_tracking_number || null,
+    label_url: carrierData?.label_url || null,
   }
 }

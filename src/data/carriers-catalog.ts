@@ -8,88 +8,88 @@ export const standardConfigFields: CarrierConfigField[] = [
 
 export const deliveryCarriers: DeliveryCarrier[] = [
   // A
-  { id: 'abm', name: 'ABM', description: 'Service de livraison ABM', type: 'standard', deliveryTime: '24-48h', color: '#1E40AF', bgColor: '#DBEAFE', configFields: standardConfigFields },
-  { id: 'afex', name: 'Afex', description: 'Livraison express Afex', type: 'express', deliveryTime: '24h', color: '#DC2626', bgColor: '#FEE2E2', configFields: standardConfigFields },
+  { id: 'abm', name: 'ABM', description: 'Service de livraison ABM', type: 'standard', deliveryTime: '24-48h', color: '#1E40AF', bgColor: '#DBEAFE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'afex', name: 'Afex', description: 'Livraison express Afex', type: 'express', deliveryTime: '24h', color: '#DC2626', bgColor: '#FEE2E2', configFields: standardConfigFields, pollIntervalSeconds: 1 },
   {
     id: 'aramex', name: 'Aramex', description: 'Livraison express internationale', type: 'express', deliveryTime: '24-48h', color: '#E31837', bgColor: '#FEE2E2', configFields: [
       { key: 'accountNumber', label: 'Numéro de compte', type: 'text', placeholder: 'Votre numéro de compte Aramex', required: true },
       { key: 'username', label: 'Nom d\'utilisateur API', type: 'text', placeholder: 'Username', required: true },
       { key: 'password', label: 'Mot de passe API', type: 'password', placeholder: '••••••••', required: true },
       { key: 'accountPin', label: 'Code PIN', type: 'password', placeholder: 'PIN à 4 chiffres', required: true },
-    ]
+    ], pollIntervalSeconds: 1
   },
-  { id: 'aurex', name: 'Aurex', description: 'Livraison Aurex Tunisie', type: 'express', deliveryTime: '24-48h', color: '#F59E0B', bgColor: '#FEF3C7', configFields: standardConfigFields },
-  { id: 'axess-logistique', name: 'Axess Logistique', description: 'Solutions logistiques Axess', type: 'standard', deliveryTime: '48-72h', color: '#0891B2', bgColor: '#CFFAFE', configFields: standardConfigFields },
+  { id: 'aurex', name: 'Aurex', description: 'Livraison Aurex Tunisie', type: 'express', deliveryTime: '24-48h', color: '#F59E0B', bgColor: '#FEF3C7', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'axess-logistique', name: 'Axess Logistique', description: 'Solutions logistiques Axess', type: 'standard', deliveryTime: '48-72h', color: '#0891B2', bgColor: '#CFFAFE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // B
-  { id: 'b2c-delivery', name: 'B2C Delivery', description: 'Livraison B2C spécialisée', type: 'standard', deliveryTime: '24-48h', color: '#7C3AED', bgColor: '#EDE9FE', configFields: standardConfigFields },
-  { id: 'best-delivery', name: 'Best Delivery', description: 'Service de livraison Best', type: 'express', deliveryTime: '24h', color: '#059669', bgColor: '#D1FAE5', configFields: standardConfigFields },
-  { id: 'bestway', name: 'Bestway', description: 'Livraison Bestway', type: 'standard', deliveryTime: '24-48h', color: '#2563EB', bgColor: '#DBEAFE', configFields: standardConfigFields },
-  { id: 'bigboss', name: 'Bigboss', description: 'Livraison rapide Bigboss', type: 'express', deliveryTime: '24h', color: '#DC2626', bgColor: '#FEE2E2', configFields: standardConfigFields },
-  { id: 'bonjour-express', name: 'Bonjour Express', description: 'Service express Bonjour', type: 'express', deliveryTime: '24h', color: '#F97316', bgColor: '#FFEDD5', configFields: standardConfigFields },
-  { id: 'bouguerra-delivery', name: 'Bouguerra Delivery', description: 'Livraison Bouguerra', type: 'standard', deliveryTime: '24-48h', color: '#84CC16', bgColor: '#ECFCCB', configFields: standardConfigFields },
+  { id: 'b2c-delivery', name: 'B2C Delivery', description: 'Livraison B2C spécialisée', type: 'standard', deliveryTime: '24-48h', color: '#7C3AED', bgColor: '#EDE9FE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'best-delivery', name: 'Best Delivery', description: 'Service de livraison Best', type: 'express', deliveryTime: '24h', color: '#059669', bgColor: '#D1FAE5', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'bestway', name: 'Bestway', description: 'Livraison Bestway', type: 'standard', deliveryTime: '24-48h', color: '#2563EB', bgColor: '#DBEAFE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'bigboss', name: 'Bigboss', description: 'Livraison rapide Bigboss', type: 'express', deliveryTime: '24h', color: '#DC2626', bgColor: '#FEE2E2', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'bonjour-express', name: 'Bonjour Express', description: 'Service express Bonjour', type: 'express', deliveryTime: '24h', color: '#F97316', bgColor: '#FFEDD5', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'bouguerra-delivery', name: 'Bouguerra Delivery', description: 'Livraison Bouguerra', type: 'standard', deliveryTime: '24-48h', color: '#84CC16', bgColor: '#ECFCCB', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // C
-  { id: 'calirex-tunisie', name: 'Calirex Tunisie', description: 'Service Calirex Tunisie', type: 'standard', deliveryTime: '48-72h', color: '#0D9488', bgColor: '#CCFBF1', configFields: standardConfigFields },
-  { id: 'ciblex-express', name: 'Ciblex Express', description: 'Livraison express Ciblex', type: 'express', deliveryTime: '24h', color: '#6366F1', bgColor: '#E0E7FF', configFields: standardConfigFields },
-  { id: 'colis-express', name: 'Colis Express', description: 'Service Colis Express', type: 'express', deliveryTime: '24h', color: '#EC4899', bgColor: '#FCE7F3', configFields: standardConfigFields },
-  { id: 'colissimo', name: 'Colissimo', description: 'Service postal Colissimo', type: 'standard', deliveryTime: '48-72h', color: '#FFB800', bgColor: '#FEF3C7', configFields: standardConfigFields },
-  { id: 'cosmos', name: 'Cosmos', description: 'Livraison Cosmos', type: 'standard', deliveryTime: '24-48h', color: '#8B5CF6', bgColor: '#EDE9FE', configFields: standardConfigFields },
+  { id: 'calirex-tunisie', name: 'Calirex Tunisie', description: 'Service Calirex Tunisie', type: 'standard', deliveryTime: '48-72h', color: '#0D9488', bgColor: '#CCFBF1', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'ciblex-express', name: 'Ciblex Express', description: 'Livraison express Ciblex', type: 'express', deliveryTime: '24h', color: '#6366F1', bgColor: '#E0E7FF', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'colis-express', name: 'Colis Express', description: 'Service Colis Express', type: 'express', deliveryTime: '24h', color: '#EC4899', bgColor: '#FCE7F3', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'colissimo', name: 'Colissimo', description: 'Service postal Colissimo', type: 'standard', deliveryTime: '48-72h', color: '#FFB800', bgColor: '#FEF3C7', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'cosmos', name: 'Cosmos', description: 'Livraison Cosmos', type: 'standard', deliveryTime: '24-48h', color: '#8B5CF6', bgColor: '#EDE9FE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // D
-  { id: 'delivery-x', name: 'Delivery X', description: 'Service Delivery X', type: 'express', deliveryTime: '24h', color: '#1F2937', bgColor: '#F3F4F6', configFields: standardConfigFields },
-  { id: 'dropo', name: 'Dropo', description: 'Livraison Dropo', type: 'standard', deliveryTime: '24-48h', color: '#10B981', bgColor: '#D1FAE5', configFields: standardConfigFields },
-  { id: 'droppex', name: 'Droppex', description: 'Service Droppex', type: 'standard', deliveryTime: '24-48h', color: '#3B82F6', bgColor: '#DBEAFE', configFields: standardConfigFields },
-  { id: 'dsgo', name: 'DSGO', description: 'Livraison DSGO', type: 'standard', deliveryTime: '48-72h', color: '#14B8A6', bgColor: '#CCFBF1', configFields: standardConfigFields },
+  { id: 'delivery-x', name: 'Delivery X', description: 'Service Delivery X', type: 'express', deliveryTime: '24h', color: '#1F2937', bgColor: '#F3F4F6', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'dropo', name: 'Dropo', description: 'Livraison Dropo', type: 'standard', deliveryTime: '24-48h', color: '#10B981', bgColor: '#D1FAE5', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'droppex', name: 'Droppex', description: 'Service Droppex', type: 'standard', deliveryTime: '24-48h', color: '#3B82F6', bgColor: '#DBEAFE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'dsgo', name: 'DSGO', description: 'Livraison DSGO', type: 'standard', deliveryTime: '48-72h', color: '#14B8A6', bgColor: '#CCFBF1', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // E
-  { id: 'ecomness', name: 'Ecomness', description: 'Solutions e-commerce Ecomness', type: 'standard', deliveryTime: '24-48h', color: '#A855F7', bgColor: '#F3E8FF', configFields: standardConfigFields },
-  { id: 'essedik-smart', name: 'Essedik Smart Delivery', description: 'Livraison intelligente Essedik', type: 'express', deliveryTime: '24h', color: '#0EA5E9', bgColor: '#E0F2FE', configFields: standardConfigFields },
+  { id: 'ecomness', name: 'Ecomness', description: 'Solutions e-commerce Ecomness', type: 'standard', deliveryTime: '24-48h', color: '#A855F7', bgColor: '#F3E8FF', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'essedik-smart', name: 'Essedik Smart Delivery', description: 'Livraison intelligente Essedik', type: 'express', deliveryTime: '24h', color: '#0EA5E9', bgColor: '#E0F2FE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // F
-  { id: 'fakroun-express', name: 'FakrounExpress', description: 'Express Fakroun', type: 'express', deliveryTime: '24h', color: '#EF4444', bgColor: '#FEE2E2', configFields: standardConfigFields },
-  { id: 'fasthault', name: 'FastHaul', description: 'Service rapide FastHaul', type: 'express', deliveryTime: '24h', color: '#F59E0B', bgColor: '#FEF3C7', configFields: standardConfigFields },
-  { id: 'fasty', name: 'Fasty', description: 'Livraison ultra-rapide Fasty', type: 'express', deliveryTime: '24h', color: '#22C55E', bgColor: '#DCFCE7', configFields: standardConfigFields },
-  { id: 'fiabilo', name: 'Fiabilo', description: 'Service fiable Fiabilo', type: 'standard', deliveryTime: '24-48h', color: '#6366F1', bgColor: '#E0E7FF', configFields: standardConfigFields },
+  { id: 'fakroun-express', name: 'FakrounExpress', description: 'Express Fakroun', type: 'express', deliveryTime: '24h', color: '#EF4444', bgColor: '#FEE2E2', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'fasthault', name: 'FastHaul', description: 'Service rapide FastHaul', type: 'express', deliveryTime: '24h', color: '#F59E0B', bgColor: '#FEF3C7', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'fasty', name: 'Fasty', description: 'Livraison ultra-rapide Fasty', type: 'express', deliveryTime: '24h', color: '#22C55E', bgColor: '#DCFCE7', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'fiabilo', name: 'Fiabilo', description: 'Service fiable Fiabilo', type: 'standard', deliveryTime: '24-48h', color: '#6366F1', bgColor: '#E0E7FF', configFields: standardConfigFields, pollIntervalSeconds: 1 },
   {
     id: 'first', name: 'First', description: 'Livraison First', type: 'express', deliveryTime: '24h', color: '#1D4ED8', bgColor: '#DBEAFE', configFields: [
       { key: 'apiKey', label: 'Clé API', type: 'password', placeholder: 'Votre clé API First Delivery', required: true },
-    ], enabled: true
+    ], pollIntervalSeconds: 1, enabled: true
   },
 
   // G
-  { id: 'goodex', name: 'Goodex', description: 'Service Goodex', type: 'standard', deliveryTime: '24-48h', color: '#16A34A', bgColor: '#DCFCE7', configFields: standardConfigFields },
+  { id: 'goodex', name: 'Goodex', description: 'Service Goodex', type: 'standard', deliveryTime: '24-48h', color: '#16A34A', bgColor: '#DCFCE7', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // H
-  { id: 'high-delivery', name: 'High Delivery', description: 'Livraison premium High', type: 'express', deliveryTime: '24h', color: '#7C3AED', bgColor: '#EDE9FE', configFields: standardConfigFields },
+  { id: 'high-delivery', name: 'High Delivery', description: 'Livraison premium High', type: 'express', deliveryTime: '24h', color: '#7C3AED', bgColor: '#EDE9FE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // I
-  { id: 'instaia-delivery', name: 'Instaia Delivery', description: 'Livraison instantanée Instaia', type: 'express', deliveryTime: '24h', color: '#E11D48', bgColor: '#FFE4E6', configFields: standardConfigFields },
-  { id: 'intigo', name: 'Intigo', description: 'Service Intigo', type: 'standard', deliveryTime: '24-48h', color: '#0891B2', bgColor: '#CFFAFE', configFields: standardConfigFields },
+  { id: 'instaia-delivery', name: 'Instaia Delivery', description: 'Livraison instantanée Instaia', type: 'express', deliveryTime: '24h', color: '#E11D48', bgColor: '#FFE4E6', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'intigo', name: 'Intigo', description: 'Service Intigo', type: 'standard', deliveryTime: '24-48h', color: '#0891B2', bgColor: '#CFFAFE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // J
-  { id: 'jax', name: 'JAx', description: 'Livraison JAx', type: 'express', deliveryTime: '24h', color: '#DC2626', bgColor: '#FEE2E2', configFields: standardConfigFields },
-  { id: 'jetpack', name: 'JetPack', description: 'Livraison rapide JetPack', type: 'express', deliveryTime: '24h', color: '#2563EB', bgColor: '#DBEAFE', configFields: standardConfigFields },
+  { id: 'jax', name: 'JAx', description: 'Livraison JAx', type: 'express', deliveryTime: '24h', color: '#DC2626', bgColor: '#FEE2E2', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'jetpack', name: 'JetPack', description: 'Livraison rapide JetPack', type: 'express', deliveryTime: '24h', color: '#2563EB', bgColor: '#DBEAFE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // K
-  { id: 'kadex-delivery', name: 'Kadex Delivery', description: 'Service Kadex', type: 'standard', deliveryTime: '24-48h', color: '#059669', bgColor: '#D1FAE5', configFields: standardConfigFields },
-  { id: 'kamatchou', name: 'Kamatchou Services', description: 'Services Kamatchou', type: 'standard', deliveryTime: '48-72h', color: '#F97316', bgColor: '#FFEDD5', configFields: standardConfigFields },
+  { id: 'kadex-delivery', name: 'Kadex Delivery', description: 'Service Kadex', type: 'standard', deliveryTime: '24-48h', color: '#059669', bgColor: '#D1FAE5', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'kamatchou', name: 'Kamatchou Services', description: 'Services Kamatchou', type: 'standard', deliveryTime: '48-72h', color: '#F97316', bgColor: '#FFEDD5', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // L
-  { id: 'la-zajella', name: 'La Zajella', description: 'Livraison La Zajella', type: 'standard', deliveryTime: '24-48h', color: '#8B5CF6', bgColor: '#EDE9FE', configFields: standardConfigFields },
-  { id: 'larim-delivery', name: 'Larim Delivery', description: 'Service Larim', type: 'standard', deliveryTime: '24-48h', color: '#10B981', bgColor: '#D1FAE5', configFields: standardConfigFields },
-  { id: 'light-speed', name: 'Light Speed Delivery', description: 'Livraison ultra-rapide', type: 'express', deliveryTime: '24h', color: '#FBBF24', bgColor: '#FEF3C7', configFields: standardConfigFields },
-  { id: 'livra-lynx', name: 'Livra Lynx', description: 'Livraison rapide Lynx', type: 'express', deliveryTime: '24h', color: '#F59E0B', bgColor: '#FEF3C7', configFields: standardConfigFields },
-  { id: 'login', name: 'Login', description: 'Service Login', type: 'standard', deliveryTime: '24-48h', color: '#3B82F6', bgColor: '#DBEAFE', configFields: standardConfigFields },
+  { id: 'la-zajella', name: 'La Zajella', description: 'Livraison La Zajella', type: 'standard', deliveryTime: '24-48h', color: '#8B5CF6', bgColor: '#EDE9FE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'larim-delivery', name: 'Larim Delivery', description: 'Service Larim', type: 'standard', deliveryTime: '24-48h', color: '#10B981', bgColor: '#D1FAE5', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'light-speed', name: 'Light Speed Delivery', description: 'Livraison ultra-rapide', type: 'express', deliveryTime: '24h', color: '#FBBF24', bgColor: '#FEF3C7', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'livra-lynx', name: 'Livra Lynx', description: 'Livraison rapide Lynx', type: 'express', deliveryTime: '24h', color: '#F59E0B', bgColor: '#FEF3C7', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'login', name: 'Login', description: 'Service Login', type: 'standard', deliveryTime: '24-48h', color: '#3B82F6', bgColor: '#DBEAFE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // M
-  { id: 'macropost', name: 'Macropost', description: 'Service postal Macropost', type: 'standard', deliveryTime: '48-72h', color: '#0D9488', bgColor: '#CCFBF1', configFields: standardConfigFields },
-  { id: 'massar', name: 'Massar', description: 'Livraison Massar', type: 'standard', deliveryTime: '24-48h', color: '#6366F1', bgColor: '#E0E7FF', configFields: standardConfigFields },
-  { id: 'may-m', name: 'May M', description: 'Service May M', type: 'standard', deliveryTime: '24-48h', color: '#EC4899', bgColor: '#FCE7F3', configFields: standardConfigFields },
-  { id: 'mescolis-express', name: 'MesColis Express', description: 'Service express MesColis', type: 'express', deliveryTime: '24h', color: '#1E40AF', bgColor: '#DBEAFE', configFields: standardConfigFields },
-  { id: 'my-colis', name: 'My Colis', description: 'Service My Colis', type: 'standard', deliveryTime: '24-48h', color: '#7C3AED', bgColor: '#EDE9FE', configFields: standardConfigFields },
-  { id: 'mylerz', name: 'Mylerz', description: 'Livraison Mylerz', type: 'express', deliveryTime: '24h', color: '#2DD4BF', bgColor: '#CCFBF1', configFields: standardConfigFields },
-  { id: 'mz-logistic', name: 'MZ Logistic', description: 'Solutions logistiques MZ', type: 'standard', deliveryTime: '48-72h', color: '#0EA5E9', bgColor: '#E0F2FE', configFields: standardConfigFields },
+  { id: 'macropost', name: 'Macropost', description: 'Service postal Macropost', type: 'standard', deliveryTime: '48-72h', color: '#0D9488', bgColor: '#CCFBF1', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'massar', name: 'Massar', description: 'Livraison Massar', type: 'standard', deliveryTime: '24-48h', color: '#6366F1', bgColor: '#E0E7FF', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'may-m', name: 'May M', description: 'Service May M', type: 'standard', deliveryTime: '24-48h', color: '#EC4899', bgColor: '#FCE7F3', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'mescolis-express', name: 'MesColis Express', description: 'Service express MesColis', type: 'express', deliveryTime: '24h', color: '#1E40AF', bgColor: '#DBEAFE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'my-colis', name: 'My Colis', description: 'Service My Colis', type: 'standard', deliveryTime: '24-48h', color: '#7C3AED', bgColor: '#EDE9FE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'mylerz', name: 'Mylerz', description: 'Livraison Mylerz', type: 'express', deliveryTime: '24h', color: '#2DD4BF', bgColor: '#CCFBF1', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'mz-logistic', name: 'MZ Logistic', description: 'Solutions logistiques MZ', type: 'standard', deliveryTime: '48-72h', color: '#0EA5E9', bgColor: '#E0F2FE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // N
   {
@@ -98,43 +98,43 @@ export const deliveryCarriers: DeliveryCarrier[] = [
       { key: 'tokenRetrieve', label: 'TOKEN de récupération', type: 'password', placeholder: 'acc-etat-...', required: true },
       { key: 'tokenRetrieveMultiple', label: 'TOKEN de récupération multiple', type: 'password', placeholder: 'acc-etat-multi-...', required: true },
       { key: 'tokenDelete', label: 'TOKEN de suppression', type: 'password', placeholder: 'acc-delete-...', required: true },
-    ], enabled: true
+    ], pollIntervalSeconds: 1, enabled: true
   },
 
   // O
-  { id: 'oclock-delivery', name: 'Oclock Delivery', description: 'Livraison ponctuelle Oclock', type: 'express', deliveryTime: '24h', color: '#1D4ED8', bgColor: '#DBEAFE', configFields: standardConfigFields },
-  { id: 'onesta', name: 'Onesta', description: 'Service Onesta', type: 'standard', deliveryTime: '24-48h', color: '#059669', bgColor: '#D1FAE5', configFields: standardConfigFields },
-  { id: 'oppa', name: 'Oppa', description: 'Livraison Oppa', type: 'standard', deliveryTime: '24-48h', color: '#A855F7', bgColor: '#F3E8FF', configFields: standardConfigFields },
+  { id: 'oclock-delivery', name: 'Oclock Delivery', description: 'Livraison ponctuelle Oclock', type: 'express', deliveryTime: '24h', color: '#1D4ED8', bgColor: '#DBEAFE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'onesta', name: 'Onesta', description: 'Service Onesta', type: 'standard', deliveryTime: '24-48h', color: '#059669', bgColor: '#D1FAE5', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'oppa', name: 'Oppa', description: 'Livraison Oppa', type: 'standard', deliveryTime: '24-48h', color: '#A855F7', bgColor: '#F3E8FF', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // Q
-  { id: 'qwikpak', name: 'Qwikpak', description: 'Livraison rapide Qwikpak', type: 'express', deliveryTime: '24h', color: '#22C55E', bgColor: '#DCFCE7', configFields: standardConfigFields },
+  { id: 'qwikpak', name: 'Qwikpak', description: 'Livraison rapide Qwikpak', type: 'express', deliveryTime: '24h', color: '#22C55E', bgColor: '#DCFCE7', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // R
-  { id: 'rapi-colis', name: 'Rapi Colis', description: 'Service rapide Rapi Colis', type: 'express', deliveryTime: '24h', color: '#EF4444', bgColor: '#FEE2E2', configFields: standardConfigFields },
+  { id: 'rapi-colis', name: 'Rapi Colis', description: 'Service rapide Rapi Colis', type: 'express', deliveryTime: '24h', color: '#EF4444', bgColor: '#FEE2E2', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // S
-  { id: 'safexpress', name: 'SafExpress', description: 'Livraison sécurisée SafExpress', type: 'express', deliveryTime: '24h', color: '#0891B2', bgColor: '#CFFAFE', configFields: standardConfigFields },
-  { id: 'sari', name: 'Sari', description: 'Service Sari', type: 'standard', deliveryTime: '24-48h', color: '#8B5CF6', bgColor: '#EDE9FE', configFields: standardConfigFields },
-  { id: 'sellmax', name: 'Sellmax', description: 'Livraison Sellmax', type: 'standard', deliveryTime: '24-48h', color: '#F97316', bgColor: '#FFEDD5', configFields: standardConfigFields },
-  { id: 'sendex-delivery', name: 'Sendex Delivery', description: 'Service Sendex', type: 'standard', deliveryTime: '24-48h', color: '#10B981', bgColor: '#D1FAE5', configFields: standardConfigFields },
+  { id: 'safexpress', name: 'SafExpress', description: 'Livraison sécurisée SafExpress', type: 'express', deliveryTime: '24h', color: '#0891B2', bgColor: '#CFFAFE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'sari', name: 'Sari', description: 'Service Sari', type: 'standard', deliveryTime: '24-48h', color: '#8B5CF6', bgColor: '#EDE9FE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'sellmax', name: 'Sellmax', description: 'Livraison Sellmax', type: 'standard', deliveryTime: '24-48h', color: '#F97316', bgColor: '#FFEDD5', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'sendex-delivery', name: 'Sendex Delivery', description: 'Service Sendex', type: 'standard', deliveryTime: '24-48h', color: '#10B981', bgColor: '#D1FAE5', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // T
-  { id: 'tictac-delivery', name: 'Tictac Delivery', description: 'Livraison Tictac', type: 'express', deliveryTime: '24h', color: '#EC4899', bgColor: '#FCE7F3', configFields: standardConfigFields },
-  { id: 'tiktak-delivery', name: 'Tiktak Delivery', description: 'Service Tiktak', type: 'express', deliveryTime: '24h', color: '#6366F1', bgColor: '#E0E7FF', configFields: standardConfigFields },
-  { id: 'trd-express', name: 'TRD Express', description: 'Express TRD', type: 'express', deliveryTime: '24h', color: '#DC2626', bgColor: '#FEE2E2', configFields: standardConfigFields },
-  { id: 'trust', name: 'Trust', description: 'Livraison Trust', type: 'standard', deliveryTime: '24-48h', color: '#2563EB', bgColor: '#DBEAFE', configFields: standardConfigFields },
+  { id: 'tictac-delivery', name: 'Tictac Delivery', description: 'Livraison Tictac', type: 'express', deliveryTime: '24h', color: '#EC4899', bgColor: '#FCE7F3', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'tiktak-delivery', name: 'Tiktak Delivery', description: 'Service Tiktak', type: 'express', deliveryTime: '24h', color: '#6366F1', bgColor: '#E0E7FF', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'trd-express', name: 'TRD Express', description: 'Express TRD', type: 'express', deliveryTime: '24h', color: '#DC2626', bgColor: '#FEE2E2', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  { id: 'trust', name: 'Trust', description: 'Livraison Trust', type: 'standard', deliveryTime: '24-48h', color: '#2563EB', bgColor: '#DBEAFE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // W
-  { id: 'wr-delivery', name: 'WR Delivery', description: 'Service WR Delivery', type: 'standard', deliveryTime: '24-48h', color: '#7C3AED', bgColor: '#EDE9FE', configFields: standardConfigFields },
+  { id: 'wr-delivery', name: 'WR Delivery', description: 'Service WR Delivery', type: 'standard', deliveryTime: '24-48h', color: '#7C3AED', bgColor: '#EDE9FE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // X
-  { id: 'x-delivery', name: 'X Delivery', description: 'Livraison X Delivery', type: 'express', deliveryTime: '24h', color: '#1F2937', bgColor: '#F3F4F6', configFields: standardConfigFields },
+  { id: 'x-delivery', name: 'X Delivery', description: 'Livraison X Delivery', type: 'express', deliveryTime: '24h', color: '#1F2937', bgColor: '#F3F4F6', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // Y
-  { id: 'youssel', name: 'Youssel', description: 'Service Youssel', type: 'standard', deliveryTime: '24-48h', color: '#16A34A', bgColor: '#DCFCE7', configFields: standardConfigFields },
+  { id: 'youssel', name: 'Youssel', description: 'Service Youssel', type: 'standard', deliveryTime: '24-48h', color: '#16A34A', bgColor: '#DCFCE7', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 
   // Z
-  { id: 'zed-delivery', name: 'Zed Delivery', description: 'Livraison Zed', type: 'standard', deliveryTime: '24-48h', color: '#0D9488', bgColor: '#CCFBF1', configFields: standardConfigFields },
+  { id: 'zed-delivery', name: 'Zed Delivery', description: 'Livraison Zed', type: 'standard', deliveryTime: '24-48h', color: '#0D9488', bgColor: '#CCFBF1', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 ]
 
 export const carrierDeliveryFees: Record<string, number> = {

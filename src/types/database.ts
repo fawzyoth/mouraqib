@@ -223,6 +223,8 @@ export interface Database {
           all_regions: boolean
           regions: string[] | null
           is_active: boolean
+          poll_interval_seconds: number | null
+          sender_id: string | null
           created_at: string
           updated_at: string
         }
@@ -245,6 +247,8 @@ export interface Database {
           all_regions?: boolean
           regions?: string[] | null
           is_active?: boolean
+          poll_interval_seconds?: number | null
+          sender_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -267,6 +271,8 @@ export interface Database {
           all_regions?: boolean
           regions?: string[] | null
           is_active?: boolean
+          poll_interval_seconds?: number | null
+          sender_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -278,11 +284,12 @@ export interface Database {
           boutique_id: string | null
           client_id: string | null
           carrier_id: string | null
+          old_carrier_name: string | null
           created_by: string | null
           pickup_id: string | null
           tracking_number: string
           carrier_tracking_number: string | null
-          status: 'pending' | 'pickup_scheduled' | 'picked_up' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'returned' | 'cancelled'
+          status: 'En attente' | 'En cours' | 'Livré' | 'Echange' | 'Retour Expéditeur' | 'Supprimé' | 'Rtn client/agence' | 'Au magasin' | 'Rtn dépôt' | 'A vérifier' | 'Retour reçu' | 'Rtn définitif' | "Demande d'enlèvement" | "Demande d'enlèvement assignée" | "En cours d'enlèvement" | 'Enlevé' | "Demande d'enlèvement annulé" | 'Retour assigné' | "Retour en cours d'expédition" | 'Retour enlevé' | 'Retour Annulé'
           recipient_name: string
           recipient_phone: string
           recipient_phone_secondary: string | null
@@ -294,6 +301,8 @@ export interface Database {
           product_description: string | null
           weight: number | null
           is_fragile: boolean
+          out_scanned_at: string | null
+          in_scanned_at: string | null
           reference: string | null
           allow_open: boolean
           exchange_allowed: boolean
@@ -309,6 +318,11 @@ export interface Database {
           return_reason: string | null
           attempts: number
           billed_at: string | null
+          last_synced_at: string | null
+          deletion_requested_at: string | null
+          deletion_requested_by: string | null
+          deletion_reason: string | null
+          deletion_requested_by_name: string | null
           created_at: string
           updated_at: string
         }
@@ -318,11 +332,12 @@ export interface Database {
           boutique_id?: string | null
           client_id?: string | null
           carrier_id?: string | null
+          old_carrier_name?: string | null
           created_by?: string | null
           pickup_id?: string | null
           tracking_number?: string
           carrier_tracking_number?: string | null
-          status?: 'pending' | 'pickup_scheduled' | 'picked_up' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'returned' | 'cancelled'
+          status?: 'En attente' | 'En cours' | 'Livré' | 'Echange' | 'Retour Expéditeur' | 'Supprimé' | 'Rtn client/agence' | 'Au magasin' | 'Rtn dépôt' | 'A vérifier' | 'Retour reçu' | 'Rtn définitif' | "Demande d'enlèvement" | "Demande d'enlèvement assignée" | "En cours d'enlèvement" | 'Enlevé' | "Demande d'enlèvement annulé" | 'Retour assigné' | "Retour en cours d'expédition" | 'Retour enlevé' | 'Retour Annulé'
           recipient_name: string
           recipient_phone: string
           recipient_phone_secondary?: string | null
@@ -334,6 +349,8 @@ export interface Database {
           product_description?: string | null
           weight?: number | null
           is_fragile?: boolean
+          out_scanned_at?: string | null
+          in_scanned_at?: string | null
           reference?: string | null
           allow_open?: boolean
           exchange_allowed?: boolean
@@ -349,6 +366,11 @@ export interface Database {
           return_reason?: string | null
           attempts?: number
           billed_at?: string | null
+          last_synced_at?: string | null
+          deletion_requested_at?: string | null
+          deletion_requested_by?: string | null
+          deletion_reason?: string | null
+          deletion_requested_by_name?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -358,11 +380,12 @@ export interface Database {
           boutique_id?: string | null
           client_id?: string | null
           carrier_id?: string | null
+          old_carrier_name?: string | null
           created_by?: string | null
           pickup_id?: string | null
           tracking_number?: string
           carrier_tracking_number?: string | null
-          status?: 'pending' | 'pickup_scheduled' | 'picked_up' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'returned' | 'cancelled'
+          status?: 'En attente' | 'En cours' | 'Livré' | 'Echange' | 'Retour Expéditeur' | 'Supprimé' | 'Rtn client/agence' | 'Au magasin' | 'Rtn dépôt' | 'A vérifier' | 'Retour reçu' | 'Rtn définitif' | "Demande d'enlèvement" | "Demande d'enlèvement assignée" | "En cours d'enlèvement" | 'Enlevé' | "Demande d'enlèvement annulé" | 'Retour assigné' | "Retour en cours d'expédition" | 'Retour enlevé' | 'Retour Annulé'
           recipient_name?: string
           recipient_phone?: string
           recipient_phone_secondary?: string | null
@@ -374,6 +397,8 @@ export interface Database {
           product_description?: string | null
           weight?: number | null
           is_fragile?: boolean
+          out_scanned_at?: string | null
+          in_scanned_at?: string | null
           reference?: string | null
           allow_open?: boolean
           exchange_allowed?: boolean
@@ -389,6 +414,11 @@ export interface Database {
           return_reason?: string | null
           attempts?: number
           billed_at?: string | null
+          last_synced_at?: string | null
+          deletion_requested_at?: string | null
+          deletion_requested_by?: string | null
+          deletion_reason?: string | null
+          deletion_requested_by_name?: string | null
           created_at?: string
           updated_at?: string
         }

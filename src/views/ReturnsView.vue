@@ -97,7 +97,7 @@ async function syncReturns() {
       }))
     } else {
       // Live mode: fetch returned shipments from the database
-      const rows = await shipmentsService.getAll(appStore.orgId, { status: 'returned' })
+      const rows = await shipmentsService.getAll(appStore.orgId, { status: 'Retour Expéditeur' })
 
       filteredReturns.value = rows.map((row: any) => {
         const createdDate = new Date(row.created_at)
@@ -273,8 +273,13 @@ watchEffect(() => {
   } else {
     // ---- Live mode: derive from appStore.shipments ----
     const allShipments = appStore.shipments as any[]
+    const returnStatuses = new Set([
+      'Retour Expéditeur', 'Rtn client/agence',
+      'Retour reçu', 'Rtn définitif', 'Retour assigné',
+      "Retour en cours d'expédition", 'Retour enlevé', 'Retour Annulé',
+    ])
     const returnedShipments = allShipments.filter(
-      (s: any) => s.status === 'returned' || s.status === 'Returned'
+      (s: any) => returnStatuses.has(s.status)
     )
 
     // Initial list population (if syncReturns hasn't run yet)

@@ -36,9 +36,9 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'waiting-list',
-      component: () => import('@/views/WaitingListView.vue'),
-      meta: { public: true }
+      name: 'root',
+      component: () => import('@/views/WaitingListV2View.vue'),
+      meta: { public: true, rootRedirect: true },
     },
     {
       path: '/waitinglist',
@@ -139,6 +139,12 @@ router.beforeEach(async (to, _from, next) => {
   // If user is authenticated and trying to access auth pages
   if (authRedirect && isAuthenticated) {
     return next({ path: '/dashboard' })
+  }
+
+  // Root path: authenticated → dashboard, unauthenticated → waitinglist
+  if (to.meta.rootRedirect) {
+    if (isAuthenticated) return next({ path: '/dashboard' })
+    return next({ path: '/waitinglist' })
   }
 
   // If route requires admin and user is not a platform admin

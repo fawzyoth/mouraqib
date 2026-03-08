@@ -15,43 +15,6 @@
   </header>
 
   <main class="flex-1 overflow-y-auto p-6">
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
-        <div class="flex items-center space-x-3">
-          <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-            <CheckCircle class="w-5 h-5 text-green-600" />
-          </div>
-          <div>
-            <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ scannedShipments.length }}</p>
-            <p class="text-sm text-gray-500">Total enleves</p>
-          </div>
-        </div>
-      </div>
-      <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
-        <div class="flex items-center space-x-3">
-          <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-            <Clock class="w-5 h-5 text-blue-600" />
-          </div>
-          <div>
-            <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ todayCount }}</p>
-            <p class="text-sm text-gray-500">Aujourd'hui</p>
-          </div>
-        </div>
-      </div>
-      <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
-        <div class="flex items-center space-x-3">
-          <div class="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-            <Wallet class="w-5 h-5 text-orange-600" />
-          </div>
-          <div>
-            <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ totalCOD.toLocaleString() }}</p>
-            <p class="text-sm text-gray-500">COD Total (TND)</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Shipments Table -->
     <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
       <div class="p-4 border-b border-gray-200 dark:border-gray-800">

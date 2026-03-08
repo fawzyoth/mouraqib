@@ -101,10 +101,15 @@ export class FirstDeliveryAdapter implements CarrierAdapter {
 
   async checkStatus(trackingNumber: string): Promise<CheckStatusResult> {
     const data = await this.post('/etat', { barCode: trackingNumber })
+    const result = data.result ?? data
+
+    if (!result.state) {
+      console.error(`[FirstDelivery] checkStatus: no state in response for ${trackingNumber}`)
+    }
 
     return {
-      trackingNumber: data.barCode ?? trackingNumber,
-      status: data.state ?? 'unknown',
+      trackingNumber: result.barCode ?? trackingNumber,
+      status: result.state ?? '',
     }
   }
 
@@ -279,7 +284,6 @@ export class FirstDeliveryAdapter implements CarrierAdapter {
         throw err // Already logged above
       }
       // Network or unexpected error
-      const elapsed = Date.now() - startTime
       errorMessage = (err as Error).message
       this.logApiCall(url, body, null, null, startTime, false, errorMessage)
       throw err
@@ -316,7 +320,7 @@ export class FirstDeliveryAdapter implements CarrierAdapter {
       this.onApiCall({
         method: 'POST',
         url,
-        requestHeaders: { 'Content-Type': 'application/json' },
+        requestHeaders: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.token}` },
         requestBody,
         httpStatus,
         responseBody,

@@ -43,28 +43,11 @@
                   class="w-full pl-10 pr-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
-              <!-- Client Suggestions Dropdown -->
-              <div v-if="showClientSuggestions && filteredShipmentClients.length > 0" class="absolute z-20 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-52 overflow-y-auto">
-                <button
-                  v-for="client in filteredShipmentClients"
-                  :key="client.id"
-                  @click="selectClientForShipment(client)"
-                  class="w-full px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-3 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0"
-                >
-                  <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0" :class="client.status === 'vip' ? 'bg-purple-100 text-purple-600' : client.status === 'blocked' ? 'bg-red-100 text-red-600' : 'bg-primary-blue/10 text-primary-blue'">
-                    {{ client.name.charAt(0) }}
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ client.name }}</p>
-                    <p class="text-xs text-gray-500 truncate">{{ client.phone }} &bull; {{ client.region }}</p>
-                  </div>
-                  <div class="flex items-center space-x-2 flex-shrink-0">
-                    <span v-if="client.status === 'vip'" class="px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 text-purple-700 rounded">VIP</span>
-                    <span v-if="client.status === 'blocked'" class="px-1.5 py-0.5 text-[10px] font-medium bg-red-100 text-red-700 rounded flex items-center"><AlertTriangle class="w-3 h-3 mr-0.5" />Bloque</span>
-                    <span class="text-xs" :class="client.deliveryRate >= 80 ? 'text-green-600' : client.deliveryRate >= 50 ? 'text-yellow-600' : 'text-red-600'">{{ client.deliveryRate }}%</span>
-                  </div>
-                </button>
-              </div>
+              <ClientSuggestionsDropdown
+                v-if="showClientSuggestions"
+                :clients="filteredShipmentClients"
+                @select="selectClientForShipment"
+              />
               <!-- No results - option to create new -->
               <div v-if="showClientSuggestions && shipmentClientSearch.length >= 2 && filteredShipmentClients.length === 0" class="absolute z-20 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
                 <p class="text-sm text-gray-500 text-center mb-2">Aucun client trouve</p>
@@ -102,7 +85,7 @@
 
             <!-- Telephones -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+              <div class="relative">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Telephone <span class="text-red-500">*</span>
                 </label>
@@ -110,8 +93,21 @@
                   <span class="inline-flex items-center px-3 py-2 rounded-l-lg border border-r-0 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-sm">
                     +216
                   </span>
-                  <input v-model="newShipment.phone" type="tel" placeholder="XX XXX XXX" class="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-r-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                  <input
+                    v-model="newShipment.phone"
+                    @input="onPhoneInput"
+                    @focus="showPhoneSuggestions = true"
+                    type="tel"
+                    placeholder="XX XXX XXX"
+                    class="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-r-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  />
                 </div>
+                <ClientSuggestionsDropdown
+                  v-if="showPhoneSuggestions && !selectedShipmentClient"
+                  :clients="filteredPhoneClients"
+                  :wide="true"
+                  @select="selectClientFromPhone"
+                />
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telephone secondaire</label>
@@ -405,9 +401,10 @@
           <button @click="resetForm" type="button" class="px-6 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
             Annuler
           </button>
-          <button @click="handleSubmit" :disabled="!newShipment.carrier" :class="['px-6 py-2.5 bg-[#4959b4] hover:bg-[#3a4791] text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2', !newShipment.carrier && 'opacity-50 cursor-not-allowed']">
-            <Plus class="w-4 h-4" />
-            Creer le colis
+          <button @click="handleSubmit" :disabled="!newShipment.carrier || loading" :class="['px-6 py-2.5 bg-[#4959b4] hover:bg-[#3a4791] text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2', (!newShipment.carrier || loading) && 'opacity-50 cursor-not-allowed']">
+            <Loader2 v-if="loading" class="w-4 h-4 animate-spin" />
+            <Plus v-else class="w-4 h-4" />
+            {{ loading ? 'Création...' : 'Creer le colis' }}
           </button>
         </div>
       </div>
@@ -416,7 +413,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import {
   ListFilter,
   Package,
@@ -426,8 +423,10 @@ import {
   Search,
   Plus,
   AlertTriangle,
-  CheckCircle
+  CheckCircle,
+  Loader2
 } from 'lucide-vue-next'
+import ClientSuggestionsDropdown from './ClientSuggestionsDropdown.vue'
 import { carrierDeliveryFees } from '@/data/carriers-catalog'
 import zonesData from '@/data/zones-first'
 
@@ -452,11 +451,14 @@ interface DeliveryCarrier {
   [key: string]: any
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   clients: Client[]
   carriers: { id: number; name: string; [key: string]: any }[]
   initialCarrier?: string
-}>()
+  loading?: boolean
+}>(), {
+  loading: false,
+})
 
 const emit = defineEmits<{
   (e: 'toggle-submenu'): void
@@ -494,6 +496,32 @@ const newShipment = reactive({
 const shipmentClientSearch = ref('')
 const showClientSuggestions = ref(false)
 const selectedShipmentClient = ref<Client | null>(null)
+
+// Phone-based client match (exact)
+const phoneMatchedClient = computed(() => {
+  const phone = newShipment.phone.replace(/\s/g, '')
+  if (phone.length < 4) return null
+  return props.clients.find(c => c.phone.replace(/\s/g, '') === phone) || null
+})
+
+// Phone typeahead (partial match)
+const showPhoneSuggestions = ref(false)
+const filteredPhoneClients = computed(() => {
+  const phone = newShipment.phone.replace(/\s/g, '')
+  if (phone.length < 3 || selectedShipmentClient.value) return []
+  return props.clients.filter(c =>
+    c.phone.replace(/\s/g, '').includes(phone)
+  ).slice(0, 5)
+})
+
+function onPhoneInput() {
+  showPhoneSuggestions.value = true
+}
+
+function selectClientFromPhone(client: Client) {
+  showPhoneSuggestions.value = false
+  selectClientForShipment(client)
+}
 
 const filteredShipmentClients = computed(() => {
   if (shipmentClientSearch.value.length < 1) return []
@@ -628,6 +656,17 @@ onMounted(() => {
     }
   }
 })
+
+// Close dropdowns on outside click
+function onDocumentClick(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (!target.closest('.relative')) {
+    showClientSuggestions.value = false
+    showPhoneSuggestions.value = false
+  }
+}
+onMounted(() => document.addEventListener('click', onDocumentClick))
+onUnmounted(() => document.removeEventListener('click', onDocumentClick))
 
 function handleExchangeImageUpload(event: Event) {
   const target = event.target as HTMLInputElement

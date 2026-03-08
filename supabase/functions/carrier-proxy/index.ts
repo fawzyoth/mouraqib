@@ -4,7 +4,9 @@ import { createServiceClient } from '../_shared/supabase.ts'
 import { verifyUser } from '../_shared/auth.ts'
 import { getCarrierAdapter } from '../_shared/carriers/registry.ts'
 import { CarrierApiError } from '../_shared/carriers/types.ts'
-import type { CreateShipmentPayload, ApiCallLog } from '../_shared/carriers/types.ts'
+import type { CreateShipmentPayload } from '../_shared/carriers/types.ts'
+import { mapCarrierStatus } from '../_shared/carriers/status-map.ts'
+import { createApiCallLogger } from '../_shared/carriers/logger.ts'
 
 type ProxyAction = 'create-shipment' | 'request-pickup' | 'cancel' | 'check-status' | 'sync-shipments'
 
@@ -96,33 +98,7 @@ serve(async (req) => {
     }
 
     // 5. Resolve the carrier adapter via the registry (with API call logger)
-    const apiCallLogger = (log: ApiCallLog) => {
-      // Truncate large response bodies to avoid bloating the DB
-      let responseBody = log.responseBody
-      try {
-        const serialized = JSON.stringify(responseBody)
-        if (serialized && serialized.length > 50_000) {
-          responseBody = { _truncated: true, preview: serialized.slice(0, 5000) }
-        }
-      } catch { /* keep original */ }
-
-      supabase.from('carrier_api_logs').insert({
-        organization_id: carrier.organization_id,
-        carrier_id: carrierId,
-        action,
-        method: log.method,
-        url: log.url,
-        request_headers: log.requestHeaders,
-        request_body: log.requestBody,
-        http_status: log.httpStatus,
-        response_body: responseBody,
-        response_time_ms: log.responseTimeMs,
-        success: log.success,
-        error_message: log.errorMessage,
-      }).then(({ error: logError }) => {
-        if (logError) console.error('[carrier-proxy] Failed to log API call:', logError.message)
-      })
-    }
+    const apiCallLogger = createApiCallLogger(supabase, carrierId, carrier.organization_id, action)
 
     let adapter
     try {
@@ -138,16 +114,18 @@ serve(async (req) => {
     let result: Record<string, unknown>
 
     try {
+      const errorCtx = { supabase, organizationId: carrier.organization_id, carrierId }
+
       if (action === 'create-shipment') {
-        result = await handleCreateShipment(adapter, payload, supabase)
+        result = await handleCreateShipment(adapter, payload, supabase, errorCtx)
       } else if (action === 'request-pickup') {
         result = await handleRequestPickup(adapter, payload, supabase)
       } else if (action === 'cancel') {
         result = await handleCancel(adapter, payload, supabase)
       } else if (action === 'check-status') {
-        result = await handleCheckStatus(adapter, payload, supabase)
+        result = await handleCheckStatus(adapter, payload, supabase, errorCtx)
       } else if (action === 'sync-shipments') {
-        result = await handleSyncShipments(adapter, payload, supabase, carrier, user)
+        result = await handleSyncShipments(adapter, payload, supabase, carrier, user, errorCtx)
       } else {
         return new Response(
           JSON.stringify({ error: `Unknown action: ${action}. Supported: create-shipment, request-pickup, cancel, check-status, sync-shipments` }),
@@ -211,11 +189,18 @@ async function handleCreateShipment(
   adapter: ReturnType<typeof getCarrierAdapter>,
   payload: Record<string, any>,
   supabase: ReturnType<typeof createServiceClient>,
+  errorCtx: { supabase: any; organizationId: string; carrierId: string },
 ): Promise<Record<string, unknown>> {
-  const { shipmentId, ...shipmentFields } = payload
+  const { shipmentId, skipCarrierCreate, carrierTrackingNumber: existingTrackingNumber, ...shipmentFields } = payload
 
-  if (!shipmentId) {
-    throw new Error('create-shipment requires payload.shipmentId')
+  // ── Post-insert auto-pickup only (First Delivery) ──
+  if (skipCarrierCreate && shipmentId) {
+    const status = await autoRequestPickup(adapter, supabase, shipmentId, existingTrackingNumber, shipmentFields)
+    await supabase
+      .from('shipments')
+      .update({ status })
+      .eq('id', shipmentId)
+    return { carrierTrackingNumber: existingTrackingNumber, status }
   }
 
   const createPayload: CreateShipmentPayload = {
@@ -233,28 +218,71 @@ async function handleCreateShipment(
     exchangeCount: shipmentFields.exchangeCount,
   }
 
+  // ── Carrier-first path (no shipmentId) ──
+  if (!shipmentId) {
+    // Call carrier API — on failure, log to error_logs and rethrow
+    let carrierResult: { trackingNumber: string; printUrl?: string }
+    try {
+      carrierResult = await adapter.createShipment(createPayload)
+    } catch (err) {
+      // Log detailed error for the carrier-first path
+      if (err instanceof CarrierApiError) {
+        await supabase.from('error_logs').insert({
+          organization_id: errorCtx.organizationId,
+          carrier_id: errorCtx.carrierId,
+          source: 'create-shipment',
+          error_type: 'carrier_api_error',
+          message: err.message,
+          context: {
+            carrier: err.carrier,
+            endpoint: err.endpoint,
+            httpStatus: err.httpStatus,
+            responseBody: err.responseBody,
+            payload: createPayload,
+          },
+        })
+      }
+      throw err
+    }
+
+    // Determine initial status (no auto-pickup here — that happens post-insert)
+    let status = 'En attente'
+    if (adapter.carrierId === 'navex') {
+      status = "Demande d'enlèvement"
+    } else if (adapter.carrierId !== 'first-delivery') {
+      try {
+        const statusResult = await adapter.checkStatus(carrierResult.trackingNumber)
+        status = mapCarrierStatus(statusResult.status, { ...errorCtx, trackingNumber: carrierResult.trackingNumber })
+      } catch {
+        console.error(`[carrier-proxy] check-status failed after create for ${carrierResult.trackingNumber}`)
+      }
+    }
+
+    // Return carrier data without any DB operations
+    return {
+      carrierTrackingNumber: carrierResult.trackingNumber,
+      printUrl: carrierResult.printUrl,
+      status,
+    }
+  }
+
+  // ── Legacy path (with shipmentId — used by bulk import) ──
   const carrierResult = await adapter.createShipment(createPayload)
 
-  // Determine initial status based on carrier type
-  let status = 'pending'
+  let status = 'En attente'
   if (adapter.carrierId === 'navex') {
-    // Navex auto-schedules pickup on shipment creation
-    status = 'pickup_scheduled'
+    status = "Demande d'enlèvement"
   } else if (adapter.carrierId === 'first-delivery') {
-    // First Delivery: auto-create pickup request after shipment creation
     status = await autoRequestPickup(adapter, supabase, shipmentId, carrierResult.trackingNumber, shipmentFields)
   } else {
-    // Get the real status from the carrier right after creation
     try {
       const statusResult = await adapter.checkStatus(carrierResult.trackingNumber)
-      status = mapCarrierStatus(statusResult.status)
+      status = mapCarrierStatus(statusResult.status, { ...errorCtx, trackingNumber: carrierResult.trackingNumber })
     } catch {
-      // If check-status fails, keep pending
       console.error(`[carrier-proxy] check-status failed after create for ${carrierResult.trackingNumber}`)
     }
   }
 
-  // Persist the real carrier tracking number, label URL, and actual status
   await supabase
     .from('shipments')
     .update({
@@ -274,7 +302,7 @@ async function handleCreateShipment(
 /**
  * Auto-create a pickup request for a First Delivery shipment right after creation.
  * Creates the pickup_request record, calls the carrier API, and links the shipment.
- * Returns the shipment status to use ('pickup_scheduled' on success, 'pending' on failure).
+ * Returns the shipment status to use ("Demande d'enlèvement assignée" on success, "En attente" on failure).
  */
 async function autoRequestPickup(
   adapter: ReturnType<typeof getCarrierAdapter>,
@@ -293,7 +321,7 @@ async function autoRequestPickup(
 
     if (!shipment) {
       console.error(`[carrier-proxy] auto-pickup: shipment ${shipmentId} not found`)
-      return 'pending'
+      return 'En attente'
     }
 
     // Create pickup_request record
@@ -317,7 +345,7 @@ async function autoRequestPickup(
 
     if (pickupInsertError || !pickup) {
       console.error('[carrier-proxy] auto-pickup: failed to create pickup_request:', pickupInsertError?.message)
-      return 'pending'
+      return 'En attente'
     }
 
     // Link shipment to the pickup
@@ -339,10 +367,10 @@ async function autoRequestPickup(
       .eq('id', pickup.id)
 
     console.log(`[carrier-proxy] auto-pickup: confirmed for ${trackingNumber}, pickupId=${pickupResult.pickupId}`)
-    return 'pickup_scheduled'
+    return "Demande d'enlèvement"
   } catch (err) {
     console.error('[carrier-proxy] auto-pickup failed:', (err as Error).message)
-    return 'pending'
+    return 'En attente'
   }
 }
 
@@ -409,13 +437,13 @@ async function handleCancel(
   if (carrierResult.cancelledBarCodes.length > 0) {
     await supabase
       .from('shipments')
-      .update({ status: 'cancelled' })
+      .update({ status: 'Supprimé' })
       .eq('id', shipmentId)
   }
 
   return {
     cancelledBarCodes: carrierResult.cancelledBarCodes,
-    status: carrierResult.cancelledBarCodes.length > 0 ? 'cancelled' : 'cancel_failed',
+    status: carrierResult.cancelledBarCodes.length > 0 ? 'Supprimé' : 'cancel_failed',
   }
 }
 
@@ -430,6 +458,7 @@ async function handleCheckStatus(
   adapter: ReturnType<typeof getCarrierAdapter>,
   payload: Record<string, any>,
   supabase: ReturnType<typeof createServiceClient>,
+  errorCtx: { supabase: any; organizationId: string; carrierId: string },
 ): Promise<Record<string, unknown>> {
   const { shipmentId, trackingNumber } = payload
 
@@ -444,7 +473,8 @@ async function handleCheckStatus(
     await supabase
       .from('shipments')
       .update({
-        status: mapCarrierStatus(carrierResult.status),
+        status: mapCarrierStatus(carrierResult.status, { ...errorCtx, trackingNumber }),
+        last_synced_at: new Date().toISOString(),
       })
       .eq('id', shipmentId)
   }
@@ -467,6 +497,7 @@ async function handleSyncShipments(
   supabase: ReturnType<typeof createServiceClient>,
   carrier: Record<string, any>,
   user: { organizationId: string },
+  errorCtx: { supabase: any; organizationId: string; carrierId: string },
 ): Promise<Record<string, unknown>> {
   // Only works if the adapter supports filterShipments
   if (!adapter.filterShipments) {
@@ -503,7 +534,7 @@ async function handleSyncShipments(
 
       if (!existing) {
         // Map carrier status to our DB enum
-        const mappedStatus = mapCarrierStatus(shipment.status)
+        const mappedStatus = mapCarrierStatus(shipment.status, { ...errorCtx, trackingNumber: shipment.trackingNumber })
 
         // Find or create client by phone number
         const clientId = await findOrCreateClient(supabase, user.organizationId, shipment)
@@ -524,6 +555,7 @@ async function handleSyncShipments(
           cod_amount: shipment.price ? Number(shipment.price) : 0,
           exchange_allowed: shipment.exchange === '1',
           carrier_raw: shipment,
+          last_synced_at: new Date().toISOString(),
         })
 
         if (insertError) {
@@ -591,24 +623,3 @@ async function findOrCreateClient(
   return created.id
 }
 
-// ─── Helpers ─────────────────────────────────────────────────
-
-/**
- * Map carrier-specific status strings to our DB status enum.
- * DB allows: pending, pickup_scheduled, picked_up, in_transit, out_for_delivery, delivered, returned, cancelled
- */
-function mapCarrierStatus(carrierStatus: string): string {
-  const s = (carrierStatus || '').toLowerCase().trim()
-
-  if (s.includes('livr') && s.includes('pay')) return 'delivered'   // Navex: "Livrer Paye"
-  if (s.includes('livr')) return 'delivered'
-  if (s.includes('rtn') || s.includes('retour')) return 'returned'
-  if (s.includes('supprim') || s.includes('annul')) return 'cancelled'
-  if (s.includes('pickup') || s.includes('enlev') || s.includes('ramass')) return 'picked_up'
-  if (s.includes('transit') || s.includes('transfert') || s.includes('hub')) return 'in_transit'
-  if (s.includes('distribution') || s.includes('livraison en cours')) return 'out_for_delivery'
-  if (s.includes('créé') || s.includes('cree') || s.includes('nouveau')) return 'pending'
-  if (s.includes('attent')) return 'pending'                        // Navex: "En attente"
-
-  return 'in_transit'
-}

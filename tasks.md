@@ -1,18 +1,15 @@
-- [x] Add `tokenRetrieveMultiple` as a 4th config field for Navex in `src/data/carriers-catalog.ts` (TOKEN de Récupération Multiple)
-- [x] Create `supabase/functions/_shared/carriers/navex.ts` with `NavexAdapter` class implementing `CarrierAdapter` interface
-- [x] Implement `createShipment` — POST form-encoded body (`prix`, `nom`, `gouvernerat`, `ville`, `adresse`, `tel`, `tel2`, `designation`, `nb_article`, `msg`, `echange`, `article`, `nb_echange`, `ouvrir`) to `https://app.navex.tn/api/{tokenAdd}/v1/post.php`, parse tracking number from response `colis` field
-- [x] Implement `checkStatus` — POST `code={trackingNumber}` to `https://app.navex.tn/api/{tokenRetrieve}/v1/post.php`, return `etat` as status
-- [x] Implement `cancelShipments` — POST `delete_code={trackingNumber}` to `https://app.navex.tn/api/{tokenDelete}/v1/post.php` for each tracking number
-- [x] Implement `requestPickup` as a no-op — Navex auto-schedules pickup on shipment creation, so just return a generated pickupId without making any API call
-- [x] After `createShipment`, set initial status to `pickup_scheduled` since Navex automatically creates a pickup request for every shipment
-- [x] Skip the pickup request step in bulk import flow for Navex carriers (no need to call `request-pickup` action)
-- [x] Use `tokenRetrieveMultiple` for bulk status checks — POST `codes={comma-separated}` to `https://app.navex.tn/api/{tokenRetrieveMultiple}/v1/post.php`, parse `results` array
-- [x] All Navex API requests must use `application/x-www-form-urlencoded` content type (not JSON), matching the curl examples in the docs
-- [x] Add API call logging via `onApiCall` callback in every Navex HTTP call, same pattern as `FirstDeliveryAdapter`
-- [x] Add error handling using `CarrierApiError` for non-success responses from Navex API
-- [x] Register Navex in `supabase/functions/_shared/carriers/registry.ts` — add cases `'navex'`, `'navex delivery'` in `getCarrierAdapter` switch, map credentials `{ tokenAdd, tokenRetrieve, tokenRetrieveMultiple, tokenDelete }` to `NavexAdapter` constructor
-- [x] Update `isCarrierSupported` in `registry.ts` to include Navex aliases
-- [x] Update the error message in `getCarrierAdapter` default case to list Navex alongside First Delivery
-- [x] Update `carrier-credentials/index.ts` test action — replace the generic `hasKey` check with carrier-aware validation: for Navex check that `tokenAdd` exists, for First Delivery check `apiKey`
-- [x] Update bulk import logic in `src/views/AppLayoutView.vue` — generalize the `firstDeliveryCarrier` lookup to also match Navex carriers by name, so bulk import works for Navex too
-- [x] Map Navex status strings (`En attente`, `Livrer Paye`, `Retourné`, etc.) in the existing `mapCarrierStatus` function in `carrier-proxy/index.ts` if any are not already covered
+* [x] in http://localhost:5180/#/clients/statistics, remove Repartition par Statut
+* [x] in http://localhost:5180/#/clients/statistics, remove Performance de Livraison par Segment
+* [x] in http://localhost:5180/#/shipments, when i select any tab it becomes like http://localhost:5180/#/shipments?tab=delivered, except for Tous and Actifs, it is sometimes with no tab= param for both, why ? what's broken
+* [x] in http://localhost:5180/#/shipments, when i select Tous, then start writing in the client filter, it switches to Actifs. fix it !
+* [x] in http://localhost:5180/#/shipments, add select with typeahead for client, transporteur and statut filters
+* [x] in http://localhost:5180/#/clients/vip, remove stats on top
+* [x] in http://localhost:5180/#/clients/blocked, remove stats on top
+* [x] in http://localhost:5180/#/dashboard/today, when i click a shipment row, open it in ShipmentDetailPanel
+* [x] in UrgentActionModal, when i click a shipment row, open it in ShipmentDetailPanel
+* [x] in http://localhost:5180/#/shipments/labels, add tabs on top like we have in colis that have A imprimer (default), imprimé, Tous
+* [x] in http://localhost:5180/#/shipments on top tabs, remove the + at the end
+* [x] in http://localhost:5180/#/shipments, for columns of dates, allow selecting from-to date filters with a date picker
+* [x] in http://localhost:5180/#/shipments/labels, for columns of dates, allow selecting from-to date filters with a date picker
+* [x] in http://localhost:5180/#/clients, when i click a client row, show its sidebar
+* [x] in http://localhost:5180/#/dashboard, remove the top right notifications icon

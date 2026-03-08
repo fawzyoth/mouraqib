@@ -47,6 +47,12 @@ export interface BulkCreateShipmentResult {
 export interface CheckStatusResult {
   trackingNumber: string
   status: string
+  /** Human-readable description (e.g. reason for return) */
+  description?: string
+  /** Previous status as reported by the carrier */
+  oldStatus?: string
+  /** Extra carrier-specific data (delivery person, reason, etc.) */
+  metadata?: Record<string, unknown>
 }
 
 export interface FilterShipmentsResult {

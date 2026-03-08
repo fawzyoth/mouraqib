@@ -125,7 +125,7 @@ export const pickupsService = {
   async assignShipments(pickupId: string, shipmentIds: string[]) {
     const { error } = await supabase
       .from('shipments')
-      .update({ pickup_id: pickupId, status: 'pickup_scheduled' })
+      .update({ pickup_id: pickupId, status: "Demande d'enlèvement assignée" })
       .in('id', shipmentIds)
 
     if (error) throw error

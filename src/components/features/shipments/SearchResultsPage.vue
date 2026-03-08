@@ -103,13 +103,13 @@
                   <td class="px-4 py-4">
                     <span :class="[
                       'px-2 py-1 text-xs rounded-full font-medium',
-                      result.status === 'Delivered' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
-                      result.status === 'Out for delivery' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
-                      result.status === 'Pending' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
-                      result.status === 'Returned' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
+                      result.status === 'Livré' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                      result.status === 'En cours' || result.status === 'Rtn dépôt' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
+                      result.status === 'En attente' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
+                      result.status.includes('Retour') || result.status.includes('Rtn') ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
                       'bg-gray-100 dark:bg-gray-800 text-gray-600'
                     ]">
-                      {{ result.status === 'Delivered' ? 'Livre' : result.status === 'Out for delivery' ? 'En livraison' : result.status === 'Pending' ? 'En attente' : result.status === 'Returned' ? 'Retourne' : result.status }}
+                      {{ result.status }}
                     </span>
                   </td>
                   <td class="px-4 py-4 text-right">
@@ -198,13 +198,16 @@ const fullSearchResults = computed(() => {
 
   // Apply status filter
   if (searchResultsFilter.value !== 'all') {
-    const statusMap: Record<string, string> = {
-      'pending': 'Pending',
-      'delivered': 'Delivered',
-      'in-transit': 'Out for delivery',
-      'returned': 'Returned'
+    const statusGroups: Record<string, Set<string>> = {
+      'pending': new Set(['En attente', 'A vérifier']),
+      'delivered': new Set(['Livré']),
+      'in-transit': new Set(['En cours', 'Au magasin', 'Rtn dépôt']),
+      'returned': new Set(['Retour Expéditeur', 'Rtn client/agence', 'Retour reçu', 'Rtn définitif', 'Retour assigné', "Retour en cours d'expédition", 'Retour enlevé', 'Retour Annulé']),
     }
-    results = results.filter(s => s.status === statusMap[searchResultsFilter.value])
+    const group = statusGroups[searchResultsFilter.value]
+    if (group) {
+      results = results.filter(s => group.has(s.status))
+    }
   }
 
   // Apply sorting

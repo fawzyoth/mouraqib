@@ -295,6 +295,11 @@ async function saveCarrierFromPage() {
     return
   }
 
+  // Set poll interval from catalog
+  if (selectedModalCarrier.value?.pollIntervalSeconds != null) {
+    ;(newCarrier as any).pollIntervalSeconds = selectedModalCarrier.value.pollIntervalSeconds
+  }
+
   // --- Adding new carrier: step-by-step sync with UI feedback ---
   if (authStore.isDemoMode) {
     await appStore.carriersData.create({ ...newCarrier })

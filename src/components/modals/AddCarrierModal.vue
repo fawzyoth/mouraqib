@@ -98,6 +98,13 @@
                     <input v-model="newCarrier.apiKey" type="password" placeholder="Clé API secrète" class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-mono focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                   </div>
                 </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Sender ID
+                  </label>
+                  <input v-model="newCarrier.senderId" type="text" placeholder="Ex: 7924" class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-mono focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                  <p class="text-xs text-gray-500 mt-1">Identifiant expéditeur (utilisé pour les bordereaux Navex)</p>
+                </div>
               </div>
             </div>
 
@@ -271,6 +278,7 @@ const newCarrier = reactive({
   name: '',
   apiId: '',
   apiKey: '',
+  senderId: '',
   ...DEFAULT_CARRIER_FEES,
   allRegions: true,
   regions: [] as string[]
@@ -316,6 +324,7 @@ function resetForm() {
   newCarrier.name = ''
   newCarrier.apiId = ''
   newCarrier.apiKey = ''
+  newCarrier.senderId = ''
   Object.assign(newCarrier, DEFAULT_CARRIER_FEES)
   newCarrier.allRegions = true
   newCarrier.regions = []
@@ -341,6 +350,7 @@ watch(() => props.editingCarrier, (carrier) => {
     newCarrier.name = carrier.name || ''
     newCarrier.apiId = carrier.apiId || ''
     newCarrier.apiKey = carrier.apiKey || ''
+    newCarrier.senderId = carrier.senderId || ''
     newCarrier.fraisColisLivres = carrier.fraisColisLivres ?? DEFAULT_CARRIER_FEES.fraisColisLivres
     newCarrier.fraisColisRetour = carrier.fraisColisRetour ?? DEFAULT_CARRIER_FEES.fraisColisRetour
     newCarrier.fraisColisEchange = carrier.fraisColisEchange ?? DEFAULT_CARRIER_FEES.fraisColisEchange

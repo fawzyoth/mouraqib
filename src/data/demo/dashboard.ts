@@ -29,7 +29,7 @@ export const demoUserBalance = {
 
 // Icons are stored as string keys, mapped to real components during seeding
 export const demoUrgentActions = [
-  { id: 1, type: 'confirm', iconType: 'FileCheck', title: '4 commandes en attente de confirmation', description: 'Commandes à confirmer', time: 'Il y a 2h', actionLabel: 'Confirmer' },
+  { id: 1, type: 'confirm', iconType: 'FileCheck', title: '4 colis en attente de pickup', description: '3 à scanner', time: 'Il y a 2h', actionLabel: 'Scanner' },
   { id: 2, type: 'delayed', iconType: 'AlertTriangle', title: 'Colis TN-2026-10001008 en retard +3 jours', description: 'Retard de livraison', time: 'Il y a 30min', actionLabel: 'Voir' },
   { id: 3, type: 'return', iconType: 'RotateCcw', title: '3 retours à traiter', description: 'Retours en attente', time: 'Il y a 1h', actionLabel: 'Traiter' },
   { id: 4, type: 'delayed', iconType: 'Clock', title: '2 colis bloqués en transit depuis 48h', description: 'Colis bloqués', time: 'Il y a 4h', actionLabel: 'Voir' },

@@ -22,6 +22,7 @@
     @toggle-task="toggleDailyTask"
     @complete-all-in-category="completeAllInCategory"
     @execute-task-action="executeTaskAction"
+    @print-all-labels="printAllLabels"
   />
 
   <!-- Dashboard: Delayed Shipments -->
@@ -60,12 +61,22 @@
     :all-actions="urgentActions"
     @close="urgentModal.close()"
   />
+
+  <!-- Dashboard Scanner Modal (pickups / returns) -->
+  <DashboardScannerModal
+    :show="scannerModal.show"
+    :title="scannerModal.title"
+    :scan-type="scannerModal.scanType"
+    :shipment-ids="scannerModal.shipmentIds"
+    @close="closeScannerModal"
+  />
 </template>
 
 <script setup lang="ts">
 import { computed, ref, inject, markRaw, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
+import { isReturnStatus, CANCELLED_STATUSES } from '@/utils/shipment-statuses'
 import { useAuthStore } from '@/stores/auth'
 import { subSectionRoutes } from '@/composables/useNavigation'
 
@@ -91,7 +102,10 @@ import DashboardReturnAlerts from '@/components/features/dashboard/DashboardRetu
 import DashboardFinancialSnapshot from '@/components/features/dashboard/DashboardFinancialSnapshot.vue'
 import DashboardActivityLog from '@/components/features/dashboard/DashboardActivityLog.vue'
 import UrgentActionModal from '@/components/features/dashboard/UrgentActionModal.vue'
+import DashboardScannerModal from '@/components/features/dashboard/DashboardScannerModal.vue'
 import { useModal } from '@/composables/useModal'
+import { useToast } from '@/composables/useToast'
+import { supabase } from '@/lib/supabase'
 
 const route = useRoute()
 const router = useRouter()
@@ -113,11 +127,6 @@ const selectedUrgentAction = ref<any>(null)
 const urgentModal = useModal(() => { selectedUrgentAction.value = null })
 
 function onHandleAction(action: any) {
-  // Pending pickup confirmations must go through the scan page
-  if (action.type === 'confirm') {
-    router.push('/pickups')
-    return
-  }
   selectedUrgentAction.value = action
   urgentModal.open()
 }
@@ -125,6 +134,83 @@ function onHandleAction(action: any) {
 function onHandleAllActions() {
   selectedUrgentAction.value = null
   urgentModal.open()
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard Scanner Modal (for today tasks: pickups + returns)
+// ---------------------------------------------------------------------------
+
+const scannerModal = ref({ show: false, title: '', scanType: 'out' as 'out' | 'in', shipmentIds: [] as string[] })
+
+function openScannerModal(title: string, scanType: 'out' | 'in', shipmentIds: string[]) {
+  scannerModal.value = { show: true, title, scanType, shipmentIds }
+}
+
+function closeScannerModal() {
+  scannerModal.value.show = false
+}
+
+const toast = useToast()
+const printingAll = ref(false)
+
+async function printAllLabels() {
+  const labelsCategory = filteredTaskCategories.value.find(c => c.id === 'labels')
+  if (!labelsCategory) return
+
+  const urls = labelsCategory.tasks
+    .map((t: any) => t.labelUrl)
+    .filter((url: string | null | undefined) => !!url)
+
+  if (urls.length === 0) {
+    toast.error('Aucun bordereau avec URL disponible')
+    return
+  }
+
+  printingAll.value = true
+  try {
+    const { data, error } = await supabase.functions.invoke('merge-multiple-labels', {
+      body: { urls },
+    })
+
+    if (error) throw error
+
+    // Detect response type from the blob
+    const text = data instanceof Blob ? await data.text() : typeof data === 'string' ? data : JSON.stringify(data)
+
+    if (text.trimStart().startsWith('<!DOCTYPE') || text.trimStart().startsWith('<html')) {
+      // HTML response (Navex labels) — open in new tab with print dialog
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        printWindow.document.write(text)
+        printWindow.document.close()
+        printWindow.onload = () => printWindow.print()
+      }
+    } else if (text.startsWith('{') && text.includes('"pdf"')) {
+      // Mixed response — open both PDF and HTML
+      const json = JSON.parse(text)
+      if (json.pdf) {
+        const pdfBytes = Uint8Array.from(atob(json.pdf), c => c.charCodeAt(0))
+        const pdfBlob = new Blob([pdfBytes], { type: 'application/pdf' })
+        window.open(URL.createObjectURL(pdfBlob), '_blank')
+      }
+      if (json.html) {
+        const printWindow = window.open('', '_blank')
+        if (printWindow) {
+          printWindow.document.write(json.html)
+          printWindow.document.close()
+          printWindow.onload = () => printWindow.print()
+        }
+      }
+    } else {
+      // PDF response
+      const blob = data instanceof Blob ? data : new Blob([data], { type: 'application/pdf' })
+      window.open(URL.createObjectURL(blob), '_blank')
+    }
+  } catch (e: any) {
+    toast.error('Erreur fusion PDF: ' + (e.message || e))
+  } finally {
+    printingAll.value = false
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -191,12 +277,12 @@ const dashboardStats = computed(() => {
 
   // Today's shipments: created today OR still active (in transit / out for delivery)
   const todayCreated = all.filter(s => new Date(s.createdAt) >= today)
-  const todayDelivered = all.filter(s => s.status === 'Delivered' && s.deliveryDate && new Date(s.deliveryDate) >= today)
-  const todayReturns = all.filter(s => s.status === 'Returned' && s.events?.[0]?.date && new Date(s.events[0].date) >= today)
+  const todayDelivered = all.filter(s => s.status === 'Livré' && s.deliveryDate && new Date(s.deliveryDate) >= today)
+  const todayReturns = all.filter(s => isReturnStatus(s.status) && s.events?.[0]?.date && new Date(s.events[0].date) >= today)
 
   // Active deliveries today = out for delivery + in transit
   const todayDeliveries = all.filter(s =>
-    s.status === 'Out for delivery' || s.status === 'In transit' || (s.status === 'Delivered' && s.deliveryDate && new Date(s.deliveryDate) >= today)
+    s.status === 'En cours' || (s.status === 'Livré' && s.deliveryDate && new Date(s.deliveryDate) >= today)
   ).length
 
   // Yesterday's stats
@@ -205,15 +291,15 @@ const dashboardStats = computed(() => {
     return d >= yesterday && d < today
   })
   const yesterdayDelivered = all.filter(s => {
-    if (s.status !== 'Delivered' || !s.deliveryDate) return false
+    if (s.status !== 'Livré' || !s.deliveryDate) return false
     const d = new Date(s.deliveryDate)
     return d >= yesterday && d < today
   })
 
   // Success rate: delivered / (delivered + returned) over last 30 days
   const last30 = all.filter(s => new Date(s.createdAt) >= daysAgo(30))
-  const last30Delivered = last30.filter(s => s.status === 'Delivered').length
-  const last30Terminal = last30.filter(s => s.status === 'Delivered' || s.status === 'Returned').length
+  const last30Delivered = last30.filter(s => s.status === 'Livré').length
+  const last30Terminal = last30.filter(s => s.status === 'Livré' || isReturnStatus(s.status)).length
   const successRate = last30Terminal > 0 ? Math.round((last30Delivered / last30Terminal) * 100) : 0
 
   // Last week success rate
@@ -221,14 +307,14 @@ const dashboardStats = computed(() => {
     const d = new Date(s.createdAt)
     return d >= daysAgo(14) && d < daysAgo(7)
   })
-  const lwDelivered = lastWeek.filter(s => s.status === 'Delivered').length
-  const lwTerminal = lastWeek.filter(s => s.status === 'Delivered' || s.status === 'Returned').length
+  const lwDelivered = lastWeek.filter(s => s.status === 'Livré').length
+  const lwTerminal = lastWeek.filter(s => s.status === 'Livré' || isReturnStatus(s.status)).length
   const lastWeekSuccessRate = lwTerminal > 0 ? Math.round((lwDelivered / lwTerminal) * 100) : 0
 
   // Expected COD: sum of cod for shipments not yet delivered/returned/cancelled
-  const pendingShipments = all.filter(s => !['Delivered', 'Returned', 'Cancelled'].includes(s.status))
+  const pendingShipments = all.filter(s => s.status !== 'Livré' && !isReturnStatus(s.status) && !CANCELLED_STATUSES.includes(s.status))
   const expectedCOD = pendingShipments.reduce((sum, s) => sum + (s.cod || 0), 0)
-  const pendingConfirmations = all.filter(s => s.status === 'Pending').length
+  const pendingConfirmations = all.filter(s => s.status === 'En attente').length
 
   // Orders change
   const todayOrdersCount = todayCreated.length
@@ -247,7 +333,7 @@ const dashboardStats = computed(() => {
   // Returns change (negative is good)
   const todayReturnsCount = todayReturns.length
   const yesterdayReturns = all.filter(s => {
-    if (s.status !== 'Returned') return false
+    if (!isReturnStatus(s.status)) return false
     const ev = s.events?.[0]
     if (!ev?.date) return false
     const d = new Date(ev.date)
@@ -288,23 +374,27 @@ const urgentActions = computed(() => {
   const actions: any[] = []
   let id = 1
 
-  // Pending confirmations
-  const pending = all.filter(s => s.status === 'Pending')
-  if (pending.length > 0) {
+  // Pending confirmations (not yet out_scanned)
+  const allPendingPickup = all.filter(s =>
+    s.status === 'En attente' || s.status === "Demande d'enlèvement" || s.status === "Demande d'enlèvement assignée"
+  )
+  const pendingScans = allPendingPickup.filter(s => !s.outScannedAt)
+
+  if (pendingScans.length > 0) {
     actions.push({
       id: id++,
       type: 'confirm',
       icon: markRaw(FileCheck),
-      title: `${pending.length} commande${pending.length > 1 ? 's' : ''} en attente de confirmation`,
-      description: 'Commandes à confirmer',
+      title: `${allPendingPickup.length} colis en attente de pickup`,
+      description: `${pendingScans.length} à scanner`,
       time: 'Maintenant',
       actionLabel: 'Scanner',
-      shipmentIds: pending.map(s => s.id),
+      shipmentIds: allPendingPickup.map(s => s.id),
     })
   }
 
   // Delayed in transit (transitDays >= 3)
-  const delayed = all.filter(s => s.status === 'In transit' && s.transitDays >= 3)
+  const delayed = all.filter(s => s.status === 'En cours' && s.transitDays >= 3)
   if (delayed.length > 0) {
     // Show the most delayed one specifically
     const worst = delayed.sort((a, b) => b.transitDays - a.transitDays)[0]
@@ -321,7 +411,7 @@ const urgentActions = computed(() => {
   }
 
   // Stuck in transit >= 2 days
-  const stuck = all.filter(s => s.status === 'In transit' && s.transitDays >= 2)
+  const stuck = all.filter(s => s.status === 'En cours' && s.transitDays >= 2)
   if (stuck.length > 0 && stuck.length !== delayed.length) {
     actions.push({
       id: id++,
@@ -335,15 +425,15 @@ const urgentActions = computed(() => {
     })
   }
 
-  // Returns to process
-  const returned = all.filter(s => s.status === 'Returned')
+  // Returns to process (exclude already scanned-in returns)
+  const returned = all.filter(s => isReturnStatus(s.status) && !s.inScannedAt)
   if (returned.length > 0) {
     actions.push({
       id: id++,
       type: 'return',
       icon: markRaw(RotateCcw),
-      title: `${returned.length} retour${returned.length > 1 ? 's' : ''} à traiter`,
-      description: 'Retours en attente',
+      title: `${returned.length} retour${returned.length > 1 ? 's' : ''} a verifier`,
+      description: 'Retours a verifier',
       time: 'Récent',
       actionLabel: 'Traiter',
       shipmentIds: returned.map(s => s.id),
@@ -351,14 +441,14 @@ const urgentActions = computed(() => {
   }
 
   // Labels not printed
-  const unprinted = all.filter(s => s.status === 'Pending' && !s.labelPrinted)
+  const unprinted = all.filter(s => s.status === 'En attente' && !s.labelPrinted)
   if (unprinted.length > 0) {
     actions.push({
       id: id++,
       type: 'print',
       icon: markRaw(Package),
-      title: `Bordereau non imprimé pour ${unprinted.length} colis`,
-      description: 'Bordereaux à imprimer',
+      title: `${unprinted.length} bordereau${unprinted.length > 1 ? 'x' : ''} a imprimer`,
+      description: 'Bordereaux a imprimer',
       time: 'Récent',
       actionLabel: 'Imprimer',
       shipmentIds: unprinted.map(s => s.id),
@@ -405,7 +495,7 @@ watchEffect(() => {
     filteredTaskCategories.value = [
       {
         id: 'orders',
-        name: 'Confirmations',
+        name: 'Pickups à scanner',
         icon: markRaw(FileCheck),
         bgColor: 'bg-blue-100 dark:bg-blue-900/30',
         iconColor: 'text-blue-600',
@@ -452,28 +542,54 @@ watchEffect(() => {
   const all = appStore.shipments
   const categories: any[] = []
 
-  // Orders to confirm
-  const pendingOrders = all.filter(s => s.status === 'Pending')
-  if (pendingOrders.length > 0) {
+  // Orders to confirm - split by scan status
+  const pendingOrders = all.filter(s => s.status === 'En attente')
+  const unscannedOrders = pendingOrders.filter(s => !s.outScannedAt)
+  const scannedOrders = pendingOrders.filter(s => !!s.outScannedAt)
+
+  if (unscannedOrders.length > 0) {
     categories.push({
       id: 'orders',
-      name: 'Confirmations',
+      name: 'Pickups à scanner',
       icon: markRaw(FileCheck),
       bgColor: 'bg-blue-100 dark:bg-blue-900/30',
       iconColor: 'text-blue-600',
-      tasks: pendingOrders.map((s, i) => ({
+      tasks: unscannedOrders.map((s, i) => ({
         id: 100 + i,
-        title: `${s.orderNumber} - ${s.customerName} - ${s.destination}`,
+        shipmentId: s.id,
+        title: s.customerName,
+        subtitle: s.destination,
+        meta: [s.trackingNumber, s.carrier, s.cod > 0 ? `${s.cod.toFixed(2)} TND` : null, s.recipientPhone].filter(Boolean).join(' · '),
         completed: false,
         completedAt: '',
-        actionLabel: 'Confirmer',
+        actionLabel: 'Scanner',
         action: true,
       })),
     })
   }
 
+  if (scannedOrders.length > 0) {
+    categories.push({
+      id: 'pickup',
+      name: 'A ramasser',
+      icon: markRaw(Truck),
+      bgColor: 'bg-green-100 dark:bg-green-900/30',
+      iconColor: 'text-green-600',
+      tasks: scannedOrders.map((s, i) => ({
+        id: 150 + i,
+        shipmentId: s.id,
+        title: s.customerName,
+        subtitle: s.destination,
+        meta: [s.trackingNumber, s.carrier, s.cod > 0 ? `${s.cod.toFixed(2)} TND` : null, s.recipientPhone].filter(Boolean).join(' · '),
+        completed: true,
+        completedAt: new Date(s.outScannedAt!).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        action: false,
+      })),
+    })
+  }
+
   // Labels to print
-  const toPrint = all.filter(s => s.status === 'Pending' && !s.labelPrinted)
+  const toPrint = all.filter(s => s.status === 'En attente' && !s.labelPrinted)
   if (toPrint.length > 0) {
     categories.push({
       id: 'labels',
@@ -483,6 +599,8 @@ watchEffect(() => {
       iconColor: 'text-purple-600',
       tasks: toPrint.map((s, i) => ({
         id: 200 + i,
+        shipmentId: s.id,
+        labelUrl: s.labelUrl,
         title: `${s.trackingNumber} - Imprimer bordereau`,
         completed: false,
         completedAt: '',
@@ -493,7 +611,7 @@ watchEffect(() => {
   }
 
   // Packages to prepare (picked up shipments grouped by carrier)
-  const pickedUp = all.filter(s => s.status === 'Picked up')
+  const pickedUp = all.filter(s => s.status === 'Enlevé')
   if (pickedUp.length > 0) {
     const byCarrier = new Map<string, number>()
     for (const s of pickedUp) {
@@ -517,8 +635,8 @@ watchEffect(() => {
     })
   }
 
-  // Returns to process
-  const returned = all.filter(s => s.status === 'Returned')
+  // Returns to process (exclude already scanned-in returns)
+  const returned = all.filter(s => isReturnStatus(s.status) && !s.inScannedAt)
   if (returned.length > 0) {
     categories.push({
       id: 'returns',
@@ -528,10 +646,13 @@ watchEffect(() => {
       iconColor: 'text-red-600',
       tasks: returned.map((s, i) => ({
         id: 400 + i,
-        title: `Retour ${s.trackingNumber} - ${(s as any).return_reason || 'À vérifier'}`,
+        shipmentId: s.id,
+        title: `${s.customerName} - ${(s as any).return_reason || 'À vérifier'}`,
+        subtitle: s.destination,
+        meta: [s.trackingNumber, s.carrier, s.cod > 0 ? `${s.cod.toFixed(2)} TND` : null].filter(Boolean).join(' · '),
         completed: false,
         completedAt: '',
-        actionLabel: 'Traiter',
+        actionLabel: 'Scanner',
         action: true,
       })),
     })
@@ -579,38 +700,38 @@ function completeAllInCategory(_categoryId: string) {
 function executeTaskAction(task: any) {
   const label: string = (task.actionLabel || '').toLowerCase()
 
-  // Navigation-based actions
-  if (label === 'confirmer') {
-    // Navigate to the shipments list so the user can confirm orders
-    router.push('/shipments')
+  if (label === 'scanner') {
+    // Determine scan type based on category (id range: 100s = orders/pickups, 400s = returns)
+    const category = filteredTaskCategories.value.find(c => c.tasks.some((t: any) => t.id === task.id))
+    if (category?.id === 'returns') {
+      const ids = category.tasks.map((t: any) => t.shipmentId).filter(Boolean)
+      openScannerModal('Scanner retours', 'in', ids)
+    } else {
+      const cat = filteredTaskCategories.value.find(c => c.id === 'orders')
+      const ids = cat ? cat.tasks.map((t: any) => t.shipmentId).filter(Boolean) : []
+      openScannerModal('Scanner pickups', 'out', ids)
+    }
     return
   }
 
   if (label === 'imprimer') {
-    // Navigate to the labels / print page
-    router.push('/shipments/labels')
-    return
-  }
-
-  if (label === 'traiter') {
-    // Navigate to active returns
-    router.push('/returns')
+    // Open the label directly in a new tab
+    if (task.labelUrl) {
+      window.open(task.labelUrl, '_blank')
+    }
     return
   }
 
   if (label === 'vérifier' || label === 'relancer') {
-    // Navigate to the finance expected-payments view
     router.push('/finance')
     return
   }
 
   if (label === 'marquer prêt') {
-    // Navigate to pickup scanning for package preparation
     router.push('/pickups/scan')
     return
   }
 
-  // Fallback: navigate to the main shipments view
   router.push('/shipments')
 }
 
@@ -626,7 +747,7 @@ const delayedShipments = computed(() => {
   const all = appStore.shipments
   // Shipments in transit with transitDays >= 1 (overdue)
   return all
-    .filter(s => s.status === 'In transit' && s.transitDays >= 1)
+    .filter(s => s.status === 'En cours' && s.transitDays >= 1)
     .map(s => ({
       id: s.id,
       tracking: s.trackingNumber,
@@ -705,7 +826,7 @@ const returnAlerts = computed(() => {
   }
 
   const all = appStore.shipments
-  const returned = all.filter(s => s.status === 'Returned')
+  const returned = all.filter(s => isReturnStatus(s.status))
   const alerts: any[] = []
   let id = 1
 
@@ -742,7 +863,7 @@ const returnAlerts = computed(() => {
   }
 
   // Risk alerts: in-transit shipments with high transit days
-  const atRisk = all.filter(s => s.status === 'In transit' && s.transitDays >= 2)
+  const atRisk = all.filter(s => s.status === 'En cours' && s.transitDays >= 2)
   for (const s of atRisk) {
     const prevReturns = customerReturnCounts.get(s.customerName) || 0
     let riskScore = 30 + s.transitDays * 10
@@ -778,12 +899,12 @@ const financialSnapshot = computed(() => {
   const all = appStore.shipments
 
   // Pending COD: shipments not yet delivered/returned/cancelled
-  const activeShipments = all.filter(s => !['Delivered', 'Returned', 'Cancelled'].includes(s.status))
+  const activeShipments = all.filter(s => s.status !== 'Livré' && !isReturnStatus(s.status) && !CANCELLED_STATUSES.includes(s.status))
   const pendingCOD = activeShipments.reduce((sum, s) => sum + (s.cod || 0), 0)
   const pendingCODCount = activeShipments.length
 
   // Delivery fees this month
-  const delivered = all.filter(s => s.status === 'Delivered')
+  const delivered = all.filter(s => s.status === 'Livré')
   const deliveryFees = delivered.reduce((sum, s) => sum + (s.deliveryFee || 0), 0)
 
   // Revenue from delivered

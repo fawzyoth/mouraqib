@@ -21,6 +21,7 @@ import {
   XCircle,
   TrendingUp,
   FileCheck,
+  Trash2,
   ScanBarcode,
   History,
   PackageCheck,
@@ -39,7 +40,6 @@ import {
   Lock,
   CreditCard,
   ToggleLeft,
-  ClipboardList,
 } from 'lucide-vue-next'
 
 export interface NavItem {
@@ -71,10 +71,10 @@ export const subSectionRoutes: Record<string, { path: string; mainSection: strin
   'all-shipments': { path: '/shipments', mainSection: 'shipments' },
   'create-shipment': { path: '/shipments/create', mainSection: 'shipments' },
   'labels': { path: '/shipments/labels', mainSection: 'shipments' },
+  'deletion-requests': { path: '/shipments/deletion-requests', mainSection: 'shipments' },
 
   // Pickups
-  'request-pickup': { path: '/pickups', mainSection: 'pickups' },
-  'schedule-pickup': { path: '/pickups/scan', mainSection: 'pickups' },
+  'schedule-pickup': { path: '/pickups', mainSection: 'pickups' },
   'pickup-history': { path: '/pickups/history', mainSection: 'pickups' },
 
   // Returns
@@ -153,9 +153,9 @@ export const subNavigation: Record<string, NavItem[]> = {
     { id: 'all-shipments', label: 'Tous les colis', icon: markRaw(Package) },
     { id: 'create-shipment', label: 'Créer un colis', icon: markRaw(Plus) },
     { id: 'labels', label: 'Bordereaux', icon: markRaw(FileCheck) },
+    { id: 'deletion-requests', label: 'Demandes de suppression', icon: markRaw(Trash2) },
   ],
   pickups: [
-    { id: 'request-pickup', label: "Demande d'enlèvement", icon: markRaw(ClipboardList) },
     { id: 'schedule-pickup', label: 'Scan pickup', icon: markRaw(ScanBarcode) },
     { id: 'pickup-history', label: 'Historique', icon: markRaw(History) },
   ],

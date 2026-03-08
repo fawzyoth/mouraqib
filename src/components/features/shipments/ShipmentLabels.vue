@@ -14,61 +14,45 @@
         <div class="hidden sm:flex items-center space-x-3">
           <button
             @click="$emit('print-selected', selectedLabels)"
-            :disabled="selectedLabels.length === 0"
+            :disabled="selectedLabels.length === 0 || printing"
             :class="[
               'flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-              selectedLabels.length > 0
+              selectedLabels.length > 0 && !printing
                 ? 'bg-primary-blue hover:bg-primary-blue-hover text-white'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
             ]"
           >
-            <Printer class="w-4 h-4" />
-            <span>Imprimer ({{ selectedLabels.length }})</span>
+            <Loader2 v-if="printing" class="w-4 h-4 animate-spin" />
+            <Printer v-else class="w-4 h-4" />
+            <span>{{ printing ? 'Fusion en cours...' : `Imprimer (${selectedLabels.length})` }}</span>
           </button>
         </div>
       </div>
     </header>
 
     <main class="flex-1 overflow-y-auto p-6">
-      <!-- Stats Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
-          <div class="flex items-center space-x-3">
-            <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-              <FileText class="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ shipments.length }}</p>
-              <p class="text-sm text-gray-500">Total bordereaux</p>
-            </div>
-          </div>
-        </div>
-        <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
-          <div class="flex items-center space-x-3">
-            <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-              <Printer class="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ printedLabelsCount }}</p>
-              <p class="text-sm text-gray-500">Imprimes</p>
-            </div>
-          </div>
-        </div>
-        <div class="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800">
-          <div class="flex items-center space-x-3">
-            <div class="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-              <Clock class="w-5 h-5 text-yellow-600" />
-            </div>
-            <div>
-              <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ unprintedLabelsCount }}</p>
-              <p class="text-sm text-gray-500">A imprimer</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Table Container -->
       <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+        <!-- Status Tabs -->
+        <div class="border-b border-gray-200 dark:border-gray-800 px-4">
+          <div class="flex items-center space-x-1 overflow-x-auto">
+            <button
+              v-for="tab in labelTabs"
+              :key="tab.id"
+              @click="labelFilterPrinted = tab.id"
+              :class="[
+                'px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors',
+                labelFilterPrinted === tab.id
+                  ? 'border-orange-500 text-orange-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              ]"
+            >
+              {{ tab.label }}
+              <span class="ml-1 text-gray-400">({{ tab.count }})</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Search & Filters -->
         <div class="p-4 border-b border-gray-200 dark:border-gray-800">
           <div class="flex items-center space-x-4">
@@ -81,14 +65,6 @@
                 class="w-full pl-9 pr-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-400"
               />
             </div>
-            <select
-              v-model="labelFilterPrinted"
-              class="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300"
-            >
-              <option value="all">Tous les bordereaux</option>
-              <option value="printed">Imprimes</option>
-              <option value="unprinted">Non imprimes</option>
-            </select>
             <button
               @click="selectAllLabels"
               class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -105,6 +81,12 @@
             <span v-if="columnFilters[col.key]" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">
               {{ col.label }}: {{ columnFilters[col.key] }}
               <button @click="columnFilters[col.key] = ''" class="hover:text-orange-900 dark:hover:text-orange-200">
+                <X class="w-3 h-3" />
+              </button>
+            </span>
+            <span v-if="dateFilters[col.key] && (dateFilters[col.key].from || dateFilters[col.key].to)" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">
+              {{ col.label }}: {{ dateFilters[col.key].from || '...' }} &rarr; {{ dateFilters[col.key].to || '...' }}
+              <button @click="clearDateFilter(col.key)" class="hover:text-orange-900 dark:hover:text-orange-200">
                 <X class="w-3 h-3" />
               </button>
             </span>
@@ -148,20 +130,62 @@
                       v-if="col.filterable"
                       @click.stop="toggleColumnFilter(col.key)"
                       class="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                      :class="columnFilters[col.key] ? 'text-orange-500' : 'text-gray-400 hover:text-gray-600'"
+                      :class="(columnFilters[col.key] || (dateFilters[col.key] && (dateFilters[col.key].from || dateFilters[col.key].to))) ? 'text-orange-500' : 'text-gray-400 hover:text-gray-600'"
                     >
                       <Filter class="w-3 h-3" />
                     </button>
                   </div>
                   <div v-if="openFilter === col.key" class="pb-2">
-                    <input
-                      ref="filterInputRef"
-                      v-model="columnFilters[col.key]"
-                      type="text"
-                      :placeholder="'Filtrer ' + col.label.toLowerCase() + '...'"
-                      class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
-                      @keydown.escape="openFilter = null"
-                    />
+                    <!-- Date range inputs -->
+                    <template v-if="col.type === 'date'">
+                      <div class="flex flex-col gap-1">
+                        <div class="flex items-center gap-1">
+                          <span class="text-[10px] text-gray-400 w-5 shrink-0">De</span>
+                          <input
+                            ref="filterInputRef"
+                            v-model="dateFilters[col.key].from"
+                            type="date"
+                            class="w-full px-1.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                            @keydown.escape="openFilter = null"
+                          />
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <span class="text-[10px] text-gray-400 w-5 shrink-0">A</span>
+                          <input
+                            v-model="dateFilters[col.key].to"
+                            type="date"
+                            class="w-full px-1.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                            @keydown.escape="openFilter = null"
+                          />
+                        </div>
+                        <button
+                          v-if="dateFilters[col.key].from || dateFilters[col.key].to"
+                          @click="clearDateFilter(col.key)"
+                          class="text-[10px] text-gray-400 hover:text-red-500 text-right"
+                        >
+                          Effacer
+                        </button>
+                      </div>
+                    </template>
+                    <!-- Typeahead select -->
+                    <template v-else-if="col.type === 'typeahead'">
+                      <TypeaheadFilter
+                        v-model="columnFilters[col.key]"
+                        :options="uniqueColumnValues[col.key] || []"
+                        :placeholder="'Filtrer ' + col.label.toLowerCase() + '...'"
+                      />
+                    </template>
+                    <!-- Plain text input -->
+                    <template v-else>
+                      <input
+                        ref="filterInputRef"
+                        v-model="columnFilters[col.key]"
+                        type="text"
+                        :placeholder="'Filtrer ' + col.label.toLowerCase() + '...'"
+                        class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                        @keydown.escape="openFilter = null"
+                      />
+                    </template>
                   </div>
                 </th>
                 <!-- Actions column header -->
@@ -176,7 +200,8 @@
               <tr
                 v-for="shipment in paginatedLabels"
                 :key="shipment.id"
-                class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                @click="$emit('select-shipment', shipment)"
+                class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
                 :class="selectedLabels.includes(shipment.id) ? 'bg-orange-50 dark:bg-orange-900/10' : ''"
               >
                 <!-- Checkbox -->
@@ -200,12 +225,6 @@
                 </td>
                 <!-- Customer Name -->
                 <td class="px-4 py-3 text-sm text-gray-900 dark:text-white" data-label="Client">{{ shipment.customerName }}</td>
-                <!-- Phone -->
-                <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Telephone">{{ shipment.recipientPhone }}</td>
-                <!-- Address -->
-                <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Adresse">
-                  <span class="truncate max-w-[200px] inline-block">{{ shipment.recipientAddress }}</span>
-                </td>
                 <!-- Status -->
                 <td class="px-4 py-3" data-label="Statut">
                   <span
@@ -217,7 +236,15 @@
                 </td>
                 <!-- COD -->
                 <td class="px-4 py-3 text-sm font-semibold text-orange-600" data-label="Montant COD">
-                  {{ shipment.cod?.toLocaleString() }} TND
+                  {{ shipment.cod?.toLocaleString() }}
+                </td>
+                <!-- Created At -->
+                <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap" data-label="Création">
+                  {{ formatDate(shipment.createdAt) }}
+                </td>
+                <!-- Label Printed At -->
+                <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap" data-label="Imprimé le">
+                  {{ formatDate(shipment.labelPrintedAt) }}
                 </td>
                 <!-- Actions -->
                 <td class="px-4 py-3" data-label="Actions">
@@ -273,7 +300,6 @@ import {
   ListFilter,
   Printer,
   FileText,
-  Clock,
   Search,
   ArrowUpDown,
   ChevronLeft,
@@ -281,13 +307,16 @@ import {
   ChevronUp,
   ChevronDown,
   Filter,
-  X
+  X,
+  Loader2
 } from 'lucide-vue-next'
+import TypeaheadFilter from '@/components/shared/TypeaheadFilter.vue'
 
 interface LabelShipment {
   id: number
   labelNumber: string
   labelPrinted: boolean
+  labelPrintedAt?: string | null
   carrier: string
   fragile?: boolean
   customerName: string
@@ -297,32 +326,49 @@ interface LabelShipment {
   dimensions: string
   cod?: number
   trackingNumber?: string
+  createdAt?: string
   [key: string]: any
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   shipments: LabelShipment[]
-}>()
+  printing?: boolean
+}>(), {
+  printing: false,
+})
 
 defineEmits<{
   (e: 'toggle-submenu'): void
   (e: 'print-selected', ids: number[]): void
   (e: 'open-label-preview', shipment: LabelShipment): void
+  (e: 'select-shipment', shipment: LabelShipment): void
 }>()
 
 const columns = [
   { key: 'labelNumber', label: 'N\u00b0 Bordereau', filterable: true },
-  { key: 'carrier', label: 'Transporteur', filterable: true },
-  { key: 'customerName', label: 'Client', filterable: true },
-  { key: 'recipientPhone', label: 'Telephone', filterable: true },
-  { key: 'recipientAddress', label: 'Adresse', filterable: true },
-  { key: 'labelPrinted', label: 'Statut', filterable: false },
-  { key: 'cod', label: 'Montant COD', filterable: false },
+  { key: 'carrier', label: 'Transporteur', filterable: true, type: 'typeahead' },
+  { key: 'customerName', label: 'Client', filterable: true, type: 'typeahead' },
+  { key: 'printStatus', label: 'Statut', filterable: true, type: 'typeahead' },
+  { key: 'cod', label: 'Montant', filterable: false },
+  { key: 'createdAt', label: 'Création', filterable: true, type: 'date' as const },
+  { key: 'labelPrintedAt', label: 'Imprimé le', filterable: true, type: 'date' as const },
 ]
 
 const selectedLabels = ref<number[]>([])
 const labelSearchQuery = ref('')
-const labelFilterPrinted = ref('all')
+const labelFilterPrinted = ref('active')
+
+const excludedStatuses = new Set(['Livré', 'Supprimé', "Demande d'enlèvement annulé", 'Retour Expéditeur', 'Rtn client/agence', 'Retour reçu', 'Rtn définitif', 'Retour assigné', "Retour en cours d'expédition", 'Retour enlevé', 'Retour Annulé'])
+
+const activeShipments = computed(() => props.shipments.filter(s => !excludedStatuses.has(s.status)))
+
+// Tab definitions
+const labelTabs = computed(() => [
+  { id: 'active', label: 'Actifs', count: activeShipments.value.length },
+  { id: 'unprinted', label: 'A imprimer', count: unprintedLabelsCount.value },
+  { id: 'printed', label: 'Imprimé', count: printedLabelsCount.value },
+  { id: 'all', label: 'Tous', count: props.shipments.length },
+])
 
 // Sort state
 const sortKey = ref<string | null>(null)
@@ -347,9 +393,32 @@ const columnFilters = reactive<Record<string, string>>({
   labelNumber: '',
   carrier: '',
   customerName: '',
-  recipientPhone: '',
-  recipientAddress: '',
+  printStatus: '',
 })
+
+// Date range filters
+const dateFilterKeys = ['createdAt', 'labelPrintedAt']
+const dateFilters = reactive<Record<string, { from: string; to: string }>>(
+  Object.fromEntries(dateFilterKeys.map(k => [k, { from: '', to: '' }]))
+)
+
+const typeaheadKeys = ['carrier', 'customerName', 'printStatus']
+const uniqueColumnValues = computed(() => {
+  const result: Record<string, string[]> = {}
+  result['printStatus'] = ['Imprimé', 'A imprimer']
+  for (const key of typeaheadKeys.filter(k => k !== 'printStatus')) {
+    const values = new Set<string>()
+    for (const s of props.shipments) {
+      const val = s[key]
+      if (val && String(val).trim()) {
+        values.add(String(val))
+      }
+    }
+    result[key] = Array.from(values).sort((a, b) => a.localeCompare(b, 'fr'))
+  }
+  return result
+})
+
 const openFilter = ref<string | null>(null)
 const filterInputRef = ref<HTMLInputElement[] | null>(null)
 
@@ -365,14 +434,24 @@ function toggleColumnFilter(key: string) {
 }
 
 const hasActiveColumnFilters = computed(() =>
-  Object.values(columnFilters).some(v => v !== '')
+  Object.values(columnFilters).some(v => v !== '') ||
+  Object.values(dateFilters).some(v => v.from !== '' || v.to !== '')
 )
 
 function clearAllFilters() {
   for (const key of Object.keys(columnFilters)) {
     columnFilters[key] = ''
   }
+  for (const key of Object.keys(dateFilters)) {
+    dateFilters[key].from = ''
+    dateFilters[key].to = ''
+  }
   openFilter.value = null
+}
+
+function clearDateFilter(key: string) {
+  dateFilters[key].from = ''
+  dateFilters[key].to = ''
 }
 
 // Pagination
@@ -393,8 +472,10 @@ const unprintedLabelsCount = computed(() => {
 const filteredLabels = computed(() => {
   let result = props.shipments
 
-  // Print status filter
-  if (labelFilterPrinted.value === 'printed') {
+  // Tab filter
+  if (labelFilterPrinted.value === 'active') {
+    result = result.filter(s => !excludedStatuses.has(s.status))
+  } else if (labelFilterPrinted.value === 'printed') {
     result = result.filter(s => s.labelPrinted)
   } else if (labelFilterPrinted.value === 'unprinted') {
     result = result.filter(s => !s.labelPrinted)
@@ -417,8 +498,26 @@ const filteredLabels = computed(() => {
     if (val) {
       const q = val.toLowerCase()
       result = result.filter(s => {
-        const cell = String(s[key] ?? '').toLowerCase()
+        const cell = key === 'printStatus'
+          ? (s.labelPrinted ? 'imprimé' : 'a imprimer')
+          : String(s[key] ?? '').toLowerCase()
         return cell.includes(q)
+      })
+    }
+  }
+
+  // Date range filters
+  for (const [key, range] of Object.entries(dateFilters)) {
+    if (range.from || range.to) {
+      result = result.filter(s => {
+        const raw = s[key]
+        if (!raw) return false
+        const d = new Date(raw)
+        if (isNaN(d.getTime())) return false
+        const dateStr = d.toISOString().slice(0, 10) // YYYY-MM-DD
+        if (range.from && dateStr < range.from) return false
+        if (range.to && dateStr > range.to) return false
+        return true
       })
     }
   }
@@ -428,8 +527,12 @@ const filteredLabels = computed(() => {
     const key = sortKey.value
     const dir = sortDir.value === 'asc' ? 1 : -1
     result = [...result].sort((a, b) => {
-      const va = String(a[key] ?? '').toLowerCase()
-      const vb = String(b[key] ?? '').toLowerCase()
+      const va = key === 'printStatus'
+        ? (a.labelPrinted ? 'imprimé' : 'a imprimer')
+        : String(a[key] ?? '').toLowerCase()
+      const vb = key === 'printStatus'
+        ? (b.labelPrinted ? 'imprimé' : 'a imprimer')
+        : String(b[key] ?? '').toLowerCase()
       return va < vb ? -dir : va > vb ? dir : 0
     })
   }
@@ -445,9 +548,9 @@ const paginatedLabels = computed(() => {
 })
 
 // Reset to page 1 when filters or page size change
-watch([labelFilterPrinted, labelSearchQuery, pageSize, columnFilters], () => {
+watch([labelFilterPrinted, labelSearchQuery, pageSize, columnFilters, dateFilters], () => {
   currentPage.value = 1
-})
+}, { deep: true })
 
 function toggleLabelSelection(id: number) {
   const index = selectedLabels.value.indexOf(id)
@@ -456,6 +559,13 @@ function toggleLabelSelection(id: number) {
   } else {
     selectedLabels.value.splice(index, 1)
   }
+}
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-'
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return dateStr
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function selectAllLabels() {

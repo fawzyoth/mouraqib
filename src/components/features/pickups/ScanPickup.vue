@@ -56,42 +56,6 @@
       </transition>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-3 gap-3 mb-4">
-      <div class="bg-white dark:bg-gray-900 rounded-xl p-3 sm:p-4 border border-gray-200 dark:border-gray-800">
-        <div class="flex items-center space-x-3">
-          <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-            <CheckCircle class="w-5 h-5 text-green-600" />
-          </div>
-          <div>
-            <p class="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">{{ confirmedShipments.length }}<span class="text-sm font-normal text-gray-400">/{{ pickupCandidates.length }}</span></p>
-            <p class="text-xs sm:text-sm text-gray-500">Confirmes</p>
-          </div>
-        </div>
-      </div>
-      <div class="bg-white dark:bg-gray-900 rounded-xl p-3 sm:p-4 border border-gray-200 dark:border-gray-800">
-        <div class="flex items-center space-x-3">
-          <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-            <Truck class="w-5 h-5 text-blue-600" />
-          </div>
-          <div>
-            <p class="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">{{ confirmedByCarrier.length }}</p>
-            <p class="text-xs sm:text-sm text-gray-500">Transporteurs</p>
-          </div>
-        </div>
-      </div>
-      <div class="bg-white dark:bg-gray-900 rounded-xl p-3 sm:p-4 border border-gray-200 dark:border-gray-800">
-        <div class="flex items-center space-x-3">
-          <div class="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-            <Wallet class="w-5 h-5 text-orange-600" />
-          </div>
-          <div>
-            <p class="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">{{ confirmedTotalCOD.toLocaleString() }}</p>
-            <p class="text-xs sm:text-sm text-gray-500">COD (TND)</p>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- Empty State: No candidates at all -->
     <div v-if="pickupCandidates.length === 0" class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-12 text-center">
@@ -122,14 +86,7 @@
                   : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
               ]">{{ group.confirmedCount }}/{{ group.shipments.length }} confirmes</span>
             </div>
-            <div class="flex items-center gap-3">
-              <button
-                @click="$emit('confirm-all-carrier', group.carrier)"
-                v-if="group.confirmedCount < group.shipments.length"
-                class="text-xs text-orange-600 hover:text-orange-700 font-medium"
-              >Tout confirmer</button>
-              <span class="text-sm font-medium text-gray-500">{{ group.shipments.reduce((sum: number, s: any) => sum + (s.cod || s.totalPrice || 0), 0).toLocaleString() }} TND</span>
-            </div>
+            <span class="text-sm font-medium text-gray-500">{{ group.shipments.reduce((sum: number, s: any) => sum + (s.cod || s.totalPrice || 0), 0).toLocaleString() }} TND</span>
           </div>
         </div>
         <!-- Shipments List -->
@@ -138,11 +95,12 @@
             v-for="shipment in group.shipments"
             :key="shipment.trackingNumber"
             :class="[
-              'px-4 py-3 flex items-center justify-between transition-colors',
+              'px-4 py-3 flex items-center justify-between transition-colors cursor-pointer',
               shipment.confirmed
-                ? 'bg-green-50/50 dark:bg-green-900/10'
+                ? 'bg-green-50/50 dark:bg-green-900/10 hover:bg-green-50 dark:hover:bg-green-900/20'
                 : 'hover:bg-gray-50 dark:hover:bg-gray-800/30'
             ]"
+            @click="$emit('select-shipment', shipment)"
           >
             <div class="flex items-center gap-3 flex-1 min-w-0">
               <!-- Confirmed/Unconfirmed indicator -->
@@ -163,33 +121,16 @@
                       ? 'text-green-700 dark:text-green-400'
                       : 'text-gray-900 dark:text-white'
                   ]">{{ shipment.trackingNumber }}</span>
-                  <span v-if="shipment.confirmed" class="text-xs text-green-600 dark:text-green-500 font-medium">Enleve</span>
+                  <span v-if="shipment.confirmed" class="text-xs text-green-600 dark:text-green-500 font-medium">Scanné le {{ formatScanTime(shipment) }}</span>
                 </div>
                 <p class="text-xs text-gray-500 truncate">{{ shipment.customerName }} - {{ shipment.recipientPhone }}</p>
               </div>
             </div>
-            <div class="flex items-center gap-3">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ (shipment.cod || shipment.totalPrice || 0).toLocaleString() }} TND</span>
-              <button
-                v-if="shipment.confirmed"
-                @click="$emit('unconfirm-shipment', shipment.trackingNumber)"
-                class="p-1.5 text-green-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                title="Retirer la confirmation"
-              >
-                <X class="w-4 h-4" />
-              </button>
-            </div>
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ (shipment.cod || shipment.totalPrice || 0).toLocaleString() }} TND</span>
           </div>
         </div>
       </div>
 
-      <!-- Bottom Actions -->
-      <div class="flex items-center justify-end bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-        <button @click="$emit('clear-scan-session')" class="text-sm text-gray-500 hover:text-red-500 transition-colors flex items-center gap-1.5">
-          <Trash2 class="w-4 h-4" />
-          Reinitialiser
-        </button>
-      </div>
     </div>
   </main>
 
@@ -287,7 +228,14 @@ const emit = defineEmits<{
   'confirm-shipment-manual': [trackingNumber: string]
   'clear-scan-session': []
   'navigate-to-labels': []
+  'select-shipment': [shipment: any]
 }>()
+
+function formatScanTime(shipment: any): string {
+  const dt = shipment.scannedAt || shipment.outScannedAt
+  if (!dt) return ''
+  return new Date(dt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
 
 // Camera scanner state
 const scanInputRef = ref<HTMLInputElement | null>(null)

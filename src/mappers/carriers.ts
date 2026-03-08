@@ -16,6 +16,7 @@ export interface UICarrier {
   retenuPassage: number
   allRegions: boolean
   regions: string[]
+  senderId: string | null
   isActive: boolean
   // Computed stats (filled after cross-referencing shipments)
   shipments: number
@@ -41,6 +42,7 @@ export function dbCarrierToUI(row: Carrier): UICarrier {
     retenuPassage: row.fee_withholding,
     allRegions: row.all_regions,
     regions: row.regions || [],
+    senderId: (row as any).sender_id || null,
     isActive: row.is_active,
     shipments: 0,
     delivered: 0,
@@ -66,7 +68,9 @@ export function uiCarrierToInsert(form: Record<string, any>, orgId: string): Car
     fee_withholding: form.retenuPassage ?? 0,
     all_regions: form.allRegions ?? true,
     regions: form.regions?.length ? form.regions : null,
+    sender_id: form.senderId || null,
     is_active: true,
+    poll_interval_seconds: form.pollIntervalSeconds ?? null,
   }
 }
 
@@ -84,5 +88,6 @@ export function uiCarrierToUpdate(form: Record<string, any>): CarrierUpdate {
     fee_withholding: form.retenuPassage,
     all_regions: form.allRegions,
     regions: form.regions?.length ? form.regions : null,
+    sender_id: form.senderId || null,
   }
 }

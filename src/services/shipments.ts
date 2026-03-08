@@ -1,6 +1,9 @@
 import { supabase } from '@/lib/supabase'
 import type { Shipment, ShipmentInsert, ShipmentUpdate, ShipmentEvent } from '@/types/database'
 import type { RealtimeChannel } from '@supabase/supabase-js'
+import { RETURN_STATUSES } from '@/utils/shipment-statuses'
+
+const RETURN_STATUSES_SET = new Set(RETURN_STATUSES)
 
 export interface ShipmentFilters {
   status?: string
@@ -19,9 +22,8 @@ export const shipmentsService = {
       .select(`
         *,
         boutique:boutiques(id, name, color),
-        carrier:carriers(id, name),
-        client:clients(id, name, phone),
-        pickup:pickup_requests(scheduled_date)
+        carrier:carriers(id, name, sender_id),
+        client:clients(id, name, phone)
       `)
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
@@ -60,8 +62,9 @@ export const shipmentsService = {
       .select(`
         *,
         boutique:boutiques(id, name, color),
-        carrier:carriers(id, name),
-        client:clients(*)
+        carrier:carriers(id, name, sender_id),
+        client:clients(*),
+        shipment_events(*)
       `)
       .eq('id', id)
       .single()
@@ -76,7 +79,7 @@ export const shipmentsService = {
       .select(`
         *,
         boutique:boutiques(id, name, color),
-        carrier:carriers(id, name),
+        carrier:carriers(id, name, sender_id),
         events:shipment_events(*)
       `)
       .eq('tracking_number', trackingNumber)
@@ -122,9 +125,9 @@ export const shipmentsService = {
   async updateStatus(id: string, status: string) {
     const updates: ShipmentUpdate = { status: status as any }
 
-    if (status === 'delivered') {
+    if (status === 'Livré') {
       updates.delivered_at = new Date().toISOString()
-    } else if (status === 'returned') {
+    } else if (RETURN_STATUSES_SET.has(status)) {
       updates.returned_at = new Date().toISOString()
     }
 
@@ -138,6 +141,40 @@ export const shipmentsService = {
       .eq('id', id)
 
     if (error) throw error
+  },
+
+  async requestDeletion(id: string, reason: string | null, requestedBy: string, requestedByName: string) {
+    const { data, error } = await supabase
+      .from('shipments')
+      .update({
+        deletion_requested_at: new Date().toISOString(),
+        deletion_requested_by: requestedBy,
+        deletion_reason: reason,
+        deletion_requested_by_name: requestedByName,
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  async cancelDeletionRequest(id: string) {
+    const { data, error } = await supabase
+      .from('shipments')
+      .update({
+        deletion_requested_at: null,
+        deletion_requested_by: null,
+        deletion_reason: null,
+        deletion_requested_by_name: null,
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
   },
 
   async getEvents(shipmentId: string) {
@@ -175,14 +212,6 @@ export const shipmentsService = {
 
     const stats: Record<string, number> = {
       total: 0,
-      pending: 0,
-      pickup_scheduled: 0,
-      picked_up: 0,
-      in_transit: 0,
-      out_for_delivery: 0,
-      delivered: 0,
-      returned: 0,
-      cancelled: 0
     }
 
     if (!error && data) {

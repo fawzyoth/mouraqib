@@ -24,6 +24,7 @@
             @confirm="handleConfirm(s)"
             @print="handlePrint(s)"
             @view="handleView(s)"
+            @row-click="openDetailPanel(s)"
           />
         </div>
       </div>
@@ -35,6 +36,47 @@
 
     <!-- Single action view -->
     <template v-else>
+      <!-- Barcode scanner for confirm/return actions -->
+      <div v-if="action.type === 'confirm' || action.type === 'return'" class="mb-4 space-y-3">
+        <div class="relative rounded-xl overflow-hidden bg-black" style="height: 160px">
+          <video
+            ref="videoRef"
+            autoplay
+            playsinline
+            muted
+            class="w-full h-full object-cover"
+          />
+          <div v-if="!scannerActive" class="absolute inset-0 flex items-center justify-center bg-gray-900/80">
+            <Loader2 class="w-6 h-6 text-white animate-spin" />
+          </div>
+          <div v-if="scannerActive" class="absolute inset-0 pointer-events-none">
+            <div class="absolute inset-x-8 top-1/2 -translate-y-1/2 h-0.5 bg-green-400/60 rounded-full animate-pulse"></div>
+          </div>
+          <div class="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+            {{ scannedCount }}/{{ filteredShipments.length }} scannés
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <input
+            v-model="manualCode"
+            @keydown.enter="handleManualScan"
+            type="text"
+            placeholder="Saisir un code-barres manuellement…"
+            class="flex-1 text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            @click="handleManualScan"
+            :disabled="!manualCode.trim()"
+            class="btn-primary btn-primary-sm whitespace-nowrap"
+          >
+            OK
+          </button>
+        </div>
+        <p v-if="scanFeedback" class="text-xs text-center" :class="scanFeedbackIsError ? 'text-red-500' : 'text-green-600 dark:text-green-400'">
+          {{ scanFeedback }}
+        </p>
+      </div>
+
       <div class="space-y-2">
         <ShipmentRow
           v-for="s in filteredShipments"
@@ -42,9 +84,11 @@
           :shipment="s"
           :action-type="action.type"
           :processing="processingIds.has(s.id)"
+          :scanned="isShipmentScanned(s)"
           @confirm="handleConfirm(s)"
           @print="handlePrint(s)"
           @view="handleView(s)"
+          @row-click="openDetailPanel(s)"
         />
       </div>
       <div v-if="filteredShipments.length === 0" class="py-8 text-center">
@@ -53,16 +97,28 @@
       </div>
     </template>
   </ModalShell>
+
+  <!-- Shipment detail drawer (above modal z-index) -->
+  <Teleport to="body">
+    <div v-if="showDetailPanel" class="relative" style="z-index: 60;">
+      <ShipmentDetailPanel
+        :show="showDetailPanel"
+        :shipment="selectedShipment"
+        @close="closeDetailPanel"
+      />
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { CheckCircle } from 'lucide-vue-next'
+import { CheckCircle, Loader2 } from 'lucide-vue-next'
 import ModalShell from '@/components/shared/ModalShell.vue'
 import { useAppStore } from '@/stores/app'
 import { getStatusLabel, getStatusDotClass } from '@/composables/useStatusFormatting'
 import ShipmentRow from './UrgentActionShipmentRow.vue'
+import ShipmentDetailPanel from '@/components/features/shipments/ShipmentDetailPanel.vue'
 import type { UIShipment } from '@/mappers/shipments'
 
 interface UrgentAction {
@@ -87,6 +143,148 @@ const router = useRouter()
 const appStore = useAppStore()
 const processingIds = reactive(new Set<string>())
 
+// Shipment detail panel state
+const showDetailPanel = ref(false)
+const selectedShipment = ref<UIShipment | null>(null)
+
+function openDetailPanel(shipment: UIShipment) {
+  selectedShipment.value = shipment
+  showDetailPanel.value = true
+}
+
+function closeDetailPanel() {
+  showDetailPanel.value = false
+  selectedShipment.value = null
+}
+
+// Barcode scanner state
+const scannedIds = reactive(new Set<string>())
+const videoRef = ref<HTMLVideoElement>()
+const stream = ref<MediaStream | null>(null)
+const scannerActive = ref(false)
+const manualCode = ref('')
+const scanFeedback = ref('')
+const scanFeedbackIsError = ref(false)
+let animFrameId: number | null = null
+let lastDetectTime = 0
+
+function showFeedback(message: string, isError = false) {
+  scanFeedback.value = message
+  scanFeedbackIsError.value = isError
+  setTimeout(() => { scanFeedback.value = '' }, 2000)
+}
+
+function isShipmentScanned(s: UIShipment) {
+  if (scannedIds.has(s.id)) return true
+  if (props.action?.type === 'confirm') return !!s.outScannedAt
+  if (props.action?.type === 'return') return !!s.inScannedAt
+  return false
+}
+
+async function markScanned(shipment: UIShipment) {
+  processingIds.add(shipment.id)
+  try {
+    if (props.action?.type === 'return') {
+      await appStore.shipmentsData.markAsInScanned([shipment.id])
+    } else {
+      await appStore.shipmentsData.markAsOutScanned([shipment.id])
+    }
+  } finally {
+    processingIds.delete(shipment.id)
+  }
+}
+
+async function onBarcodeDetected(code: string) {
+  const shipment = filteredShipments.value.find(s => s.trackingNumber === code)
+  if (!shipment) return
+  if (scannedIds.has(shipment.id)) return
+  scannedIds.add(shipment.id)
+  showFeedback(`${code} scanné !`)
+  await markScanned(shipment)
+}
+
+function detectionLoop() {
+  if (!scannerActive.value || !videoRef.value) return
+  const now = performance.now()
+  if (now - lastDetectTime >= 250) {
+    lastDetectTime = now
+    const detector = new (window as any).BarcodeDetector({ formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'qr_code'] })
+    detector.detect(videoRef.value).then((barcodes: any[]) => {
+      for (const barcode of barcodes) {
+        onBarcodeDetected(barcode.rawValue)
+      }
+    }).catch(() => {})
+  }
+  animFrameId = requestAnimationFrame(detectionLoop)
+}
+
+async function startScanner() {
+  if (!('BarcodeDetector' in window)) {
+    showFeedback('BarcodeDetector non supporté par ce navigateur', true)
+    return
+  }
+  try {
+    const mediaStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' },
+    })
+    stream.value = mediaStream
+    if (videoRef.value) {
+      videoRef.value.srcObject = mediaStream
+    }
+    scannerActive.value = true
+    lastDetectTime = 0
+    animFrameId = requestAnimationFrame(detectionLoop)
+  } catch {
+    showFeedback('Impossible d\'accéder à la caméra', true)
+  }
+}
+
+function stopScanner() {
+  scannerActive.value = false
+  if (animFrameId !== null) {
+    cancelAnimationFrame(animFrameId)
+    animFrameId = null
+  }
+  if (stream.value) {
+    stream.value.getTracks().forEach(t => t.stop())
+    stream.value = null
+  }
+}
+
+async function handleManualScan() {
+  const code = manualCode.value.trim()
+  if (!code) return
+  const shipment = filteredShipments.value.find(s => s.trackingNumber === code)
+  if (shipment) {
+    if (scannedIds.has(shipment.id)) {
+      showFeedback('Déjà scanné', true)
+    } else {
+      scannedIds.add(shipment.id)
+      showFeedback(`${code} scanné !`)
+      await markScanned(shipment)
+    }
+  } else {
+    showFeedback('Aucun colis correspondant', true)
+  }
+  manualCode.value = ''
+}
+
+// Start/stop scanner based on modal visibility
+watch(() => props.show, (visible) => {
+  const type = props.action?.type
+  if (visible && (type === 'confirm' || type === 'return')) {
+    scannedIds.clear()
+    scanFeedback.value = ''
+    startScanner()
+  } else {
+    stopScanner()
+  }
+})
+
+onUnmounted(() => {
+  stopScanner()
+})
+
 const modalTitle = computed(() => {
   if (props.action) return props.action.title
   return 'Toutes les actions urgentes'
@@ -96,7 +294,22 @@ const modalTitle = computed(() => {
 const filteredShipments = computed(() => {
   if (!props.action) return []
   const idSet = new Set(props.action.shipmentIds)
-  return appStore.shipments.filter(s => idSet.has(s.id))
+  const matches = appStore.shipments.filter(s => idSet.has(s.id))
+  
+  if (props.action.type === 'confirm' || props.action.type === 'return') {
+    return matches.sort((a, b) => {
+      const aScanned = isShipmentScanned(a)
+      const bScanned = isShipmentScanned(b)
+      if (aScanned === bScanned) return 0
+      return aScanned ? 1 : -1
+    })
+  }
+
+  return matches
+})
+
+const scannedCount = computed(() => {
+  return filteredShipments.value.filter(s => isShipmentScanned(s)).length
 })
 
 // For tout-traiter mode: group by action type
@@ -143,7 +356,7 @@ async function handlePrint(shipment: UIShipment) {
 }
 
 function handleView(shipment: UIShipment) {
-  emit('close')
-  router.push(`/shipments?f_trackingNumber=${shipment.trackingNumber}`)
+  const route = router.resolve(`/shipments?f_trackingNumber=${shipment.trackingNumber}`)
+  window.open(route.href, '_blank')
 }
 </script>

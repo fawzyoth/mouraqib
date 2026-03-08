@@ -2,6 +2,7 @@ import { computed, type Ref } from 'vue'
 import type { UIShipment } from '@/mappers/shipments'
 import type { UICarrier } from '@/mappers/carriers'
 import type { UIClient } from '@/mappers/clients'
+import { isReturnStatus, CANCELLED_STATUSES } from '@/utils/shipment-statuses'
 
 export function useDerivedStats(
   shipments: Ref<UIShipment[]>,
@@ -34,13 +35,13 @@ export function useDerivedStats(
     const all = shipments.value
     const todayShipments = all.filter(s => isToday(s.createdAt))
     const yesterdayShipments = all.filter(s => isYesterday(s.createdAt))
-    const delivered = all.filter(s => s.status === 'Delivered')
+    const delivered = all.filter(s => s.status === 'Livré')
     const todayDelivered = delivered.filter(s => s.deliveryDate && isToday(s.deliveryDate))
     const yesterdayDelivered = delivered.filter(s => s.deliveryDate && isYesterday(s.deliveryDate))
-    const returned = all.filter(s => s.status === 'Returned')
+    const returned = all.filter(s => isReturnStatus(s.status))
     const todayReturns = returned.filter(s => isToday(s.createdAt))
     const successRate = all.length > 0 ? Math.round((delivered.length / all.length) * 100) : 0
-    const pendingCOD = all.filter(s => s.status !== 'Delivered' && s.status !== 'Returned' && s.status !== 'Cancelled')
+    const pendingCOD = all.filter(s => s.status !== 'Livré' && !isReturnStatus(s.status) && !CANCELLED_STATUSES.includes(s.status))
       .reduce((sum, s) => sum + s.cod, 0)
 
     return {
@@ -50,7 +51,7 @@ export function useDerivedStats(
       successRate,
       lastWeekSuccessRate: successRate,
       expectedCOD: pendingCOD,
-      pendingConfirmations: all.filter(s => s.status === 'Pending').length,
+      pendingConfirmations: all.filter(s => s.status === 'En attente').length,
       todayOrders: todayShipments.length,
       yesterdayOrders: yesterdayShipments.length,
       ordersChange: yesterdayShipments.length > 0 ? Math.round(((todayShipments.length - yesterdayShipments.length) / yesterdayShipments.length) * 100) : 0,
@@ -64,9 +65,9 @@ export function useDerivedStats(
   // ==================== Financial Stats ====================
   const financialSnapshot = computed(() => {
     const all = shipments.value
-    const pendingShipments = all.filter(s => s.status !== 'Delivered' && s.status !== 'Returned' && s.status !== 'Cancelled')
+    const pendingShipments = all.filter(s => s.status !== 'Livré' && !isReturnStatus(s.status) && !CANCELLED_STATUSES.includes(s.status))
     const pendingCOD = pendingShipments.reduce((sum, s) => sum + s.cod, 0)
-    const deliveredCOD = all.filter(s => s.status === 'Delivered').reduce((sum, s) => sum + s.cod, 0)
+    const deliveredCOD = all.filter(s => s.status === 'Livré').reduce((sum, s) => sum + s.cod, 0)
     const totalFees = all.reduce((sum, s) => sum + s.deliveryFee, 0)
 
     return {
@@ -83,7 +84,7 @@ export function useDerivedStats(
 
   // ==================== Returns Data ====================
   const returnsData = computed(() => {
-    const returned = shipments.value.filter(s => s.status === 'Returned')
+    const returned = shipments.value.filter(s => isReturnStatus(s.status))
     const totalValue = returned.reduce((sum, s) => sum + s.cod, 0)
     return {
       active: returned.length,
@@ -98,7 +99,7 @@ export function useDerivedStats(
   })
 
   const carriersReturnStats = computed(() => {
-    const returned = shipments.value.filter(s => s.status === 'Returned')
+    const returned = shipments.value.filter(s => isReturnStatus(s.status))
     const byCarrier: Record<string, { count: number; value: number }> = {}
     returned.forEach(s => {
       const c = s.carrier
@@ -119,8 +120,8 @@ export function useDerivedStats(
   // ==================== Analytics KPIs ====================
   const analyticsKpis = computed(() => {
     const all = shipments.value
-    const delivered = all.filter(s => s.status === 'Delivered')
-    const returned = all.filter(s => s.status === 'Returned')
+    const delivered = all.filter(s => s.status === 'Livré')
+    const returned = all.filter(s => isReturnStatus(s.status))
     const totalRevenue = delivered.reduce((sum, s) => sum + s.cod, 0)
     const avgTransit = delivered.length > 0
       ? Math.round(delivered.reduce((sum, s) => sum + s.transitDays, 0) / delivered.length * 10) / 10
@@ -140,7 +141,7 @@ export function useDerivedStats(
   // ==================== Delivery Performance ====================
   const deliveryPerformance = computed(() => {
     const all = shipments.value
-    const delivered = all.filter(s => s.status === 'Delivered')
+    const delivered = all.filter(s => s.status === 'Livré')
     return {
       successfulDeliveries: delivered.length,
       totalAttempts: all.length,
@@ -157,7 +158,7 @@ export function useDerivedStats(
   function computeCarrierStats() {
     carriers.value.forEach(carrier => {
       const carrierShipments = shipments.value.filter(s => s.carrier === carrier.name)
-      const delivered = carrierShipments.filter(s => s.status === 'Delivered')
+      const delivered = carrierShipments.filter(s => s.status === 'Livré')
       carrier.shipments = carrierShipments.length
       carrier.delivered = delivered.length
       carrier.deliveryRate = carrierShipments.length > 0
@@ -176,7 +177,7 @@ export function useDerivedStats(
 
     return shipments.value
       .filter(s => {
-        if (s.status === 'Delivered' || s.status === 'Returned' || s.status === 'Cancelled') return false
+        if (s.status === 'Livré' || isReturnStatus(s.status) || CANCELLED_STATUSES.includes(s.status)) return false
         const created = new Date(s.createdAt)
         return created < threeDaysAgo
       })
