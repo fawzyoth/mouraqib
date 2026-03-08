@@ -86,8 +86,11 @@ export function useShipmentsData(orgId: Ref<string>) {
         completed: true,
       }]
 
+      // Add to list immediately so realtime INSERT dedup check works
+      shipments.value.unshift(uiShipment)
+      toast.success('Colis créé')
+
       // If carrier API is connected, send to carrier-proxy to get real tracking number
-      console.log('[create-shipment] carrierId:', carrierId, 'carrierApiStatus:', carrierApiStatus)
       if (carrierId && carrierApiStatus === 'connected') {
         try {
           const { data, error } = await supabase.functions.invoke('carrier-proxy', {
@@ -114,6 +117,16 @@ export function useShipmentsData(orgId: Ref<string>) {
 
           if (!error && data?.result) {
             const result = data.result
+            // Update the existing entry in-place
+            const idx = shipments.value.findIndex(s => s.id === uiShipment.id)
+            if (idx !== -1) {
+              if (result.carrierTrackingNumber) {
+                shipments.value[idx] = { ...shipments.value[idx], trackingNumber: result.carrierTrackingNumber }
+              }
+              if (result.printUrl) {
+                shipments.value[idx] = { ...shipments.value[idx], labelUrl: result.printUrl }
+              }
+            }
             if (result.carrierTrackingNumber) {
               uiShipment.trackingNumber = result.carrierTrackingNumber
             }
@@ -122,7 +135,6 @@ export function useShipmentsData(orgId: Ref<string>) {
             }
             toast.success('Colis envoyé au transporteur')
           } else if (error) {
-            // FunctionsHttpError stores the raw Response in error.context
             let detail = ''
             try {
               const response = (error as any).context
@@ -140,8 +152,6 @@ export function useShipmentsData(orgId: Ref<string>) {
         }
       }
 
-      shipments.value.unshift(uiShipment)
-      toast.success('Colis créé')
       return uiShipment
     } catch (e: any) {
       toast.error('Erreur création colis: ' + (e.message || e))
@@ -280,6 +290,8 @@ export function useShipmentsData(orgId: Ref<string>) {
           const patched = dbShipmentToUI({ ...raw, carrier: null, client: null, boutique: null, pickup: null }, orgContext)
           shipments.value[index] = {
             ...existing,
+            trackingNumber: patched.trackingNumber,
+            labelUrl: raw.label_url || existing.labelUrl,
             status: patched.status,
             lastSyncedAt: patched.lastSyncedAt,
             updatedAt: patched.updatedAt,

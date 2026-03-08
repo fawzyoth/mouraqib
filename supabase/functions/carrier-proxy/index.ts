@@ -218,7 +218,7 @@ async function handleCreateShipment(
   let status = 'En attente'
   if (adapter.carrierId === 'navex') {
     // Navex auto-schedules pickup on shipment creation
-    status = "Demande d'enlèvement assignée"
+    status = "Demande d'enlèvement"
   } else if (adapter.carrierId === 'first-delivery') {
     // First Delivery: auto-create pickup request after shipment creation
     status = await autoRequestPickup(adapter, supabase, shipmentId, carrierResult.trackingNumber, shipmentFields)
@@ -318,7 +318,7 @@ async function autoRequestPickup(
       .eq('id', pickup.id)
 
     console.log(`[carrier-proxy] auto-pickup: confirmed for ${trackingNumber}, pickupId=${pickupResult.pickupId}`)
-    return "Demande d'enlèvement assignée"
+    return "Demande d'enlèvement"
   } catch (err) {
     console.error('[carrier-proxy] auto-pickup failed:', (err as Error).message)
     return 'En attente'
