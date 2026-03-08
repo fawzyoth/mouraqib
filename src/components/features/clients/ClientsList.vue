@@ -98,7 +98,7 @@
           <span class="text-xs text-gray-500">Filtres:</span>
           <template v-for="col in columns" :key="col.key">
             <span v-if="columnFilters[col.key]" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
-              {{ col.label }}: {{ columnFilters[col.key] }}
+              {{ col.label }}: {{ col.key === 'status' ? clientStatusLabel(columnFilters[col.key]) : columnFilters[col.key] }}
               <button @click="columnFilters[col.key] = ''" class="hover:text-blue-900 dark:hover:text-blue-200">
                 <X class="w-3 h-3" />
               </button>
@@ -139,21 +139,33 @@
                   </div>
                   <!-- Inline filter input -->
                   <div v-if="openFilter === col.key" class="pb-2">
-                    <input
-                      ref="filterInputRef"
-                      v-model="columnFilters[col.key]"
-                      type="text"
-                      :placeholder="'Filtrer ' + col.label.toLowerCase() + '...'"
-                      class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary-blue focus:border-primary-blue"
-                      @keydown.escape="openFilter = null"
-                    />
+                    <!-- Typeahead select -->
+                    <template v-if="col.type === 'typeahead'">
+                      <TypeaheadFilter
+                        v-model="columnFilters[col.key]"
+                        :options="uniqueColumnValues[col.key] || []"
+                        :placeholder="'Filtrer ' + col.label.toLowerCase() + '...'"
+                        :display-fn="col.key === 'status' ? clientStatusLabel : undefined"
+                      />
+                    </template>
+                    <!-- Plain text input -->
+                    <template v-else>
+                      <input
+                        ref="filterInputRef"
+                        v-model="columnFilters[col.key]"
+                        type="text"
+                        :placeholder="'Filtrer ' + col.label.toLowerCase() + '...'"
+                        class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary-blue focus:border-primary-blue"
+                        @keydown.escape="openFilter = null"
+                      />
+                    </template>
                   </div>
                 </th>
                 <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
-              <tr v-for="client in paginatedClients" :key="client.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+              <tr v-for="client in paginatedClients" :key="client.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer" @click="$emit('view-client', client)">
                 <td class="px-4 py-4" data-label="Client">
                   <div class="flex items-center space-x-3">
                     <div class="w-10 h-10 rounded-full bg-primary-blue/10 flex items-center justify-center">
@@ -194,7 +206,7 @@
                     {{ client.status === 'active' ? 'Actif' : client.status === 'vip' ? 'VIP' : client.status === 'blocked' ? 'Bloque' : 'Inactif' }}
                   </span>
                 </td>
-                <td class="px-4 py-4" data-label="Actions">
+                <td class="px-4 py-4" data-label="Actions" @click.stop>
                   <div class="flex items-center space-x-2">
                     <button @click="$emit('view-client', client)" class="p-2 text-gray-500 hover:text-primary-blue hover:bg-primary-blue/10 rounded-lg">
                       <Eye class="w-4 h-4" />
@@ -262,6 +274,7 @@ import {
   Filter as FilterIcon,
   X
 } from 'lucide-vue-next'
+import TypeaheadFilter from '@/components/shared/TypeaheadFilter.vue'
 
 interface ClientStats {
   totalClients: number
@@ -309,7 +322,7 @@ const columns = [
   { key: 'totalOrders', label: 'Commandes', filterable: false },
   { key: 'deliveryRate', label: 'Taux', filterable: false },
   { key: 'totalSpent', label: 'Total', filterable: false },
-  { key: 'status', label: 'Statut', filterable: true },
+  { key: 'status', label: 'Statut', filterable: true, type: 'typeahead' },
 ]
 
 const columnFilterKeys = columns.filter(c => c.filterable).map(c => c.key)
@@ -366,6 +379,32 @@ function clearAllFilters() {
   }
   openFilter.value = null
 }
+
+function clientStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    active: 'Actif',
+    vip: 'VIP',
+    blocked: 'Bloqué',
+    inactive: 'Inactif',
+  }
+  return labels[status] || status
+}
+
+const typeaheadKeys = ['status']
+const uniqueColumnValues = computed(() => {
+  const result: Record<string, string[]> = {}
+  for (const key of typeaheadKeys) {
+    const values = new Set<string>()
+    for (const c of props.clients) {
+      const val = c[key]
+      if (val && String(val).trim()) {
+        values.add(String(val))
+      }
+    }
+    result[key] = Array.from(values).sort((a, b) => a.localeCompare(b, 'fr'))
+  }
+  return result
+})
 
 // Pagination
 const currentPage = ref(1)

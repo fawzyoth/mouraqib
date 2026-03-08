@@ -19,10 +19,6 @@
           <Plus class="w-4 h-4" />
           <span class="hidden sm:inline">Créer colis</span>
         </button>
-        <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors relative">
-          <Bell class="w-5 h-5 text-gray-500" />
-          <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-        </button>
       </div>
     </div>
   </header>
@@ -162,7 +158,6 @@
 import { useRouter } from 'vue-router'
 import {
   ListFilter,
-  Bell,
   Package,
   CheckCircle,
   Banknote,

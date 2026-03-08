@@ -38,7 +38,8 @@
         <!-- Tasks List -->
         <div class="divide-y divide-gray-100 dark:divide-gray-800">
           <div v-for="task in category.tasks" :key="task.id"
-            :class="['px-5 py-3 flex items-center justify-between transition-colors', task.completed ? 'bg-gray-50 dark:bg-gray-800/30' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50']">
+            :class="['px-5 py-3 flex items-center justify-between transition-colors', task.completed ? 'bg-gray-50 dark:bg-gray-800/30' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50', task.shipmentId ? 'cursor-pointer' : '']"
+            @click="openShipmentDetail(task)">
             <div class="flex items-center space-x-4 min-w-0 flex-1">
               <!-- Task Info -->
               <div class="flex-1 min-w-0">
@@ -58,7 +59,7 @@
             <!-- Task Actions -->
             <div class="flex items-center space-x-2">
               <!-- Quick Action Button -->
-              <button v-if="task.action && !task.completed" @click="$emit('execute-task-action', task)" class="btn-primary btn-primary-sm flex items-center space-x-1">
+              <button v-if="task.action && !task.completed" @click.stop="$emit('execute-task-action', task)" class="btn-primary btn-primary-sm flex items-center space-x-1">
                 <component :is="task.actionIcon" class="w-3 h-3" />
                 <span>{{ task.actionLabel }}</span>
               </button>
@@ -73,15 +74,24 @@
 
     </div>
   </main>
+
+  <!-- Shipment Detail Panel -->
+  <ShipmentDetailPanel
+    :show="showDetailPanel"
+    :shipment="selectedShipment"
+    @close="closeDetailPanel"
+  />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import {
   ListFilter,
   Printer,
 } from 'lucide-vue-next'
+import { useAppStore } from '@/stores/app'
+import ShipmentDetailPanel from '@/components/features/shipments/ShipmentDetailPanel.vue'
 
 interface Task {
   id: number
@@ -96,6 +106,7 @@ interface Task {
   action?: string
   actionIcon?: any
   actionLabel?: string
+  shipmentId?: string
 }
 
 interface TaskCategory {
@@ -129,5 +140,24 @@ defineEmits<{
   (e: 'print-all-labels'): void
 }>()
 
+const appStore = useAppStore()
+
 const filteredCategories = computed(() => props.categories)
+
+// Shipment detail panel state
+const showDetailPanel = ref(false)
+const selectedShipment = ref<Record<string, any> | null>(null)
+
+function openShipmentDetail(task: Task) {
+  if (!task.shipmentId) return
+  const shipment = appStore.shipments.find(s => s.id === task.shipmentId)
+  if (!shipment) return
+  selectedShipment.value = shipment
+  showDetailPanel.value = true
+}
+
+function closeDetailPanel() {
+  showDetailPanel.value = false
+  selectedShipment.value = null
+}
 </script>

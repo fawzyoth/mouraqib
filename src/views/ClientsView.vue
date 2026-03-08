@@ -24,8 +24,6 @@
   <VipClients
     v-else-if="activeSection === 'vip-clients'"
     :clients="appStore.clients"
-    :total-revenue="totalVipRevenue"
-    :average-delivery-rate="avgVipDeliveryRate"
     @toggle-submenu="subMenuOpen = !subMenuOpen"
     @view-client="(c: any) => { selectedClient = c; showClientDetail = true }"
     @remove-vip="toggleClientVip"
@@ -145,10 +143,6 @@ const editClientForm = reactive({
   status: 'active',
   notes: '',
 })
-
-// VIP stats
-const totalVipRevenue = ref(0)
-const avgVipDeliveryRate = ref(0)
 
 function enterEditMode(client: any) {
   if (client) {

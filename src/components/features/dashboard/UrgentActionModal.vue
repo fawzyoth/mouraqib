@@ -24,6 +24,7 @@
             @confirm="handleConfirm(s)"
             @print="handlePrint(s)"
             @view="handleView(s)"
+            @row-click="openDetailPanel(s)"
           />
         </div>
       </div>
@@ -87,6 +88,7 @@
           @confirm="handleConfirm(s)"
           @print="handlePrint(s)"
           @view="handleView(s)"
+          @row-click="openDetailPanel(s)"
         />
       </div>
       <div v-if="filteredShipments.length === 0" class="py-8 text-center">
@@ -95,6 +97,17 @@
       </div>
     </template>
   </ModalShell>
+
+  <!-- Shipment detail drawer (above modal z-index) -->
+  <Teleport to="body">
+    <div v-if="showDetailPanel" class="relative" style="z-index: 60;">
+      <ShipmentDetailPanel
+        :show="showDetailPanel"
+        :shipment="selectedShipment"
+        @close="closeDetailPanel"
+      />
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -105,6 +118,7 @@ import ModalShell from '@/components/shared/ModalShell.vue'
 import { useAppStore } from '@/stores/app'
 import { getStatusLabel, getStatusDotClass } from '@/composables/useStatusFormatting'
 import ShipmentRow from './UrgentActionShipmentRow.vue'
+import ShipmentDetailPanel from '@/components/features/shipments/ShipmentDetailPanel.vue'
 import type { UIShipment } from '@/mappers/shipments'
 
 interface UrgentAction {
@@ -128,6 +142,20 @@ const emit = defineEmits<{
 const router = useRouter()
 const appStore = useAppStore()
 const processingIds = reactive(new Set<string>())
+
+// Shipment detail panel state
+const showDetailPanel = ref(false)
+const selectedShipment = ref<UIShipment | null>(null)
+
+function openDetailPanel(shipment: UIShipment) {
+  selectedShipment.value = shipment
+  showDetailPanel.value = true
+}
+
+function closeDetailPanel() {
+  showDetailPanel.value = false
+  selectedShipment.value = null
+}
 
 // Barcode scanner state
 const scannedIds = reactive(new Set<string>())

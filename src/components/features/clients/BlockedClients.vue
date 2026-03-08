@@ -17,44 +17,6 @@
       </div>
     </header>
     <main class="flex-1 overflow-y-auto p-6">
-      <!-- Blocked Stats -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-5 text-white">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm opacity-90">Clients Bloques</p>
-              <p class="text-3xl font-bold">{{ blockedClients.length }}</p>
-            </div>
-            <Ban class="w-10 h-10 opacity-80" />
-          </div>
-          <p class="text-sm opacity-80 mt-2">{{ totalClientsCount > 0 ? ((blockedClients.length / totalClientsCount) * 100).toFixed(1) : '0.0' }}% de la base</p>
-        </div>
-        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm text-gray-500">Retours Evites</p>
-              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ blockedReturnsSaved }}</p>
-            </div>
-            <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
-              <RotateCcw class="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-          <p class="text-xs text-gray-500 mt-2">Depuis le blocage</p>
-        </div>
-        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm text-gray-500">Taux Moyen Avant Blocage</p>
-              <p class="text-2xl font-bold text-red-600">{{ blockedAverageDeliveryRate }}%</p>
-            </div>
-            <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-xl flex items-center justify-center">
-              <TrendingDown class="w-6 h-6 text-red-600" />
-            </div>
-          </div>
-          <p class="text-xs text-gray-500 mt-2">Raison principale du blocage</p>
-        </div>
-      </div>
-
       <!-- Blocked Clients List -->
       <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
         <div class="p-4 border-b border-gray-200 dark:border-gray-800">
@@ -106,8 +68,6 @@ import { computed } from 'vue'
 import {
   ListFilter,
   Ban,
-  RotateCcw,
-  TrendingDown,
   Eye,
   CheckCircle
 } from 'lucide-vue-next'
@@ -139,15 +99,4 @@ const blockedClients = computed(() => {
   return props.clients.filter(client => client.status === 'blocked')
 })
 
-const totalClientsCount = computed(() => props.clients.length)
-
-const blockedReturnsSaved = computed(() => {
-  return blockedClients.value.reduce((sum, client) => sum + (client.totalOrders - client.deliveredOrders), 0) * 3
-})
-
-const blockedAverageDeliveryRate = computed(() => {
-  if (blockedClients.value.length === 0) return 0
-  const total = blockedClients.value.reduce((sum, client) => sum + client.deliveryRate, 0)
-  return Math.round(total / blockedClients.value.length)
-})
 </script>

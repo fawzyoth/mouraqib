@@ -55,9 +55,6 @@
               {{ tab.label }}
               <span v-if="tab.count !== undefined" class="ml-1 text-gray-400">({{ tab.count }})</span>
             </button>
-            <button class="px-3 py-3 text-gray-400 hover:text-gray-600">
-              <Plus class="w-4 h-4" />
-            </button>
           </div>
         </div>
 
@@ -79,8 +76,14 @@
           <span class="text-xs text-gray-500">Filtres:</span>
           <template v-for="col in columns" :key="col.key">
             <span v-if="columnFilters[col.key]" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">
-              {{ col.label }}: {{ columnFilters[col.key] }}
-              <button @click="columnFilters[col.key] = ''" class="hover:text-orange-900 dark:hover:text-orange-200">
+              {{ col.label }}: {{ col.key === 'status' ? getStatusLabel(columnFilters[col.key]) : columnFilters[col.key] }}
+              <button @click="clearColumnFilter(col.key)" class="hover:text-orange-900 dark:hover:text-orange-200">
+                <X class="w-3 h-3" />
+              </button>
+            </span>
+            <span v-if="dateFilters[col.key] && (dateFilters[col.key].from || dateFilters[col.key].to)" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">
+              {{ col.label }}: {{ dateFilters[col.key].from || '...' }} → {{ dateFilters[col.key].to || '...' }}
+              <button @click="clearDateFilter(col.key)" class="hover:text-orange-900 dark:hover:text-orange-200">
                 <X class="w-3 h-3" />
               </button>
             </span>
@@ -113,21 +116,64 @@
                     v-if="col.filterable"
                     @click.stop="toggleColumnFilter(col.key)"
                     class="absolute right-0 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                    :class="columnFilters[col.key] ? 'text-orange-500' : 'text-gray-400 hover:text-gray-600'"
+                    :class="(columnFilters[col.key] || (dateFilters[col.key] && (dateFilters[col.key].from || dateFilters[col.key].to))) ? 'text-orange-500' : 'text-gray-400 hover:text-gray-600'"
                   >
                     <Filter class="w-3 h-3" />
                   </button>
                 </div>
                 <!-- Inline filter input -->
                 <div v-if="openFilter === col.key" class="pb-2">
-                  <input
-                    ref="filterInputRef"
-                    v-model="columnFilters[col.key]"
-                    type="text"
-                    :placeholder="'Filtrer ' + col.label.toLowerCase() + '...'"
-                    class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
-                    @keydown.escape="openFilter = null"
-                  />
+                  <!-- Date range inputs -->
+                  <template v-if="col.type === 'date'">
+                    <div class="flex flex-col gap-1">
+                      <div class="flex items-center gap-1">
+                        <span class="text-[10px] text-gray-400 w-5 shrink-0">De</span>
+                        <input
+                          ref="filterInputRef"
+                          v-model="dateFilters[col.key].from"
+                          type="date"
+                          class="w-full px-1.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                          @keydown.escape="openFilter = null"
+                        />
+                      </div>
+                      <div class="flex items-center gap-1">
+                        <span class="text-[10px] text-gray-400 w-5 shrink-0">A</span>
+                        <input
+                          v-model="dateFilters[col.key].to"
+                          type="date"
+                          class="w-full px-1.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                          @keydown.escape="openFilter = null"
+                        />
+                      </div>
+                      <button
+                        v-if="dateFilters[col.key].from || dateFilters[col.key].to"
+                        @click="clearDateFilter(col.key)"
+                        class="text-[10px] text-gray-400 hover:text-red-500 text-right"
+                      >
+                        Effacer
+                      </button>
+                    </div>
+                  </template>
+                  <!-- Plain text input for trackingNumber -->
+                  <template v-else-if="col.key === 'trackingNumber'">
+                    <input
+                      ref="filterInputRef"
+                      v-model="columnFilters[col.key]"
+                      type="text"
+                      :placeholder="'Filtrer ' + col.label.toLowerCase() + '...'"
+                      class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                      @keydown.escape="openFilter = null"
+                    />
+                  </template>
+                  <!-- Typeahead select for carrier, client, status -->
+                  <template v-else>
+                    <TypeaheadFilter
+                      v-model="columnFilters[col.key]"
+                      :options="uniqueColumnValues[col.key] || []"
+                      :placeholder="'Filtrer ' + col.label.toLowerCase() + '...'"
+                      :display-fn="col.key === 'status' ? getStatusLabel : undefined"
+                    />
+                  </template>
                 </div>
               </th>
             </tr>
@@ -145,7 +191,7 @@
                   <span>{{ getStatusLabel(shipment.status) }}</span>
                 </span>
               </td>
-              <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white" data-label="Prix">{{ shipment.amount ? shipment.amount.toFixed(2) + ' DT' : '-' }}</td>
+              <td class="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white" data-label="Prix">{{ shipment.amount ? shipment.amount.toFixed(2) : '-' }}</td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap" data-label="Création">
                 <template v-if="shipment.createdAt">
                   <div>{{ formatDateShort(shipment.createdAt) }}</div>
@@ -217,6 +263,7 @@ import {
   X
 } from 'lucide-vue-next'
 import { getStatusLabel, getStatusTextClass, getStatusDotClass } from '@/composables/useStatusFormatting'
+import TypeaheadFilter from '@/components/shared/TypeaheadFilter.vue'
 
 interface StatusTab {
   id: string
@@ -257,11 +304,11 @@ const columns = computed(() => {
     { key: 'client', label: 'Client', filterable: true },
     { key: 'status', label: 'Statut', filterable: true },
     { key: 'amount', label: 'Prix', filterable: false },
-    { key: 'createdAt', label: 'Création', filterable: false },
-    { key: 'outScannedAt', label: 'Scan Pickup', filterable: false },
-    ...(showScanRetourColumn.value ? [{ key: 'inScannedAt', label: 'Scan Retour', filterable: false }] : []),
-    { key: 'deliveryDate', label: 'Livraison', filterable: false },
-    { key: 'lastSyncedAt', label: 'Sync', filterable: false },
+    { key: 'createdAt', label: 'Création', filterable: true, type: 'date' },
+    { key: 'outScannedAt', label: 'Scan Pickup', filterable: true, type: 'date' },
+    ...(showScanRetourColumn.value ? [{ key: 'inScannedAt', label: 'Scan Retour', filterable: true, type: 'date' }] : []),
+    { key: 'deliveryDate', label: 'Livraison', filterable: true, type: 'date' },
+    { key: 'lastSyncedAt', label: 'Last Sync', filterable: true, type: 'date' },
   ]
   return base
 })
@@ -274,6 +321,7 @@ const router = useRouter()
 // ---------------------------------------------------------------------------
 const q = route.query
 const columnFilterKeys = ['trackingNumber', 'carrier', 'client', 'status']
+const dateFilterKeys = ['createdAt', 'outScannedAt', 'inScannedAt', 'deliveryDate', 'lastSyncedAt']
 
 const activeStatusTab = ref((q.tab as string) || 'active')
 const searchQuery = ref((q.q as string) || '')
@@ -303,6 +351,12 @@ function toggleSort(key: string) {
 const columnFilters = reactive<Record<string, string>>(
   Object.fromEntries(columnFilterKeys.map(k => [k, (q[`f_${k}`] as string) || '']))
 )
+
+// Date range filters
+const dateFilters = reactive<Record<string, { from: string; to: string }>>(
+  Object.fromEntries(dateFilterKeys.map(k => [k, { from: (q[`df_${k}`] as string) || '', to: (q[`dt_${k}`] as string) || '' }]))
+)
+
 const openFilter = ref<string | null>(null)
 const filterInputRef = ref<HTMLInputElement[] | null>(null)
 
@@ -318,14 +372,44 @@ function toggleColumnFilter(key: string) {
 }
 
 const hasActiveColumnFilters = computed(() =>
-  Object.values(columnFilters).some(v => v !== '')
+  Object.values(columnFilters).some(v => v !== '') ||
+  Object.values(dateFilters).some(v => v.from !== '' || v.to !== '')
 )
 
 function clearAllFilters() {
   for (const key of Object.keys(columnFilters)) {
     columnFilters[key] = ''
   }
+  for (const key of Object.keys(dateFilters)) {
+    dateFilters[key].from = ''
+    dateFilters[key].to = ''
+  }
   openFilter.value = null
+}
+
+function clearDateFilter(key: string) {
+  dateFilters[key].from = ''
+  dateFilters[key].to = ''
+}
+
+// Unique values per column derived from all shipments
+const uniqueColumnValues = computed(() => {
+  const result: Record<string, string[]> = {}
+  for (const key of ['carrier', 'client', 'status']) {
+    const values = new Set<string>()
+    for (const s of props.shipments) {
+      const val = s[key]
+      if (val && String(val).trim()) {
+        values.add(String(val))
+      }
+    }
+    result[key] = Array.from(values).sort((a, b) => a.localeCompare(b, 'fr'))
+  }
+  return result
+})
+
+function clearColumnFilter(key: string) {
+  columnFilters[key] = ''
 }
 
 // ---------------------------------------------------------------------------
@@ -336,7 +420,7 @@ let skipUrlSync = false
 function syncToUrl() {
   if (skipUrlSync) return
   const params: Record<string, string> = {}
-  if (activeStatusTab.value !== 'all') params.tab = activeStatusTab.value
+  params.tab = activeStatusTab.value
   if (searchQuery.value) params.q = searchQuery.value
   if (sortKey.value) params.sort = sortKey.value
   if (sortKey.value && sortDir.value !== 'asc') params.dir = sortDir.value
@@ -345,11 +429,15 @@ function syncToUrl() {
   for (const [key, val] of Object.entries(columnFilters)) {
     if (val) params[`f_${key}`] = val
   }
+  for (const [key, range] of Object.entries(dateFilters)) {
+    if (range.from) params[`df_${key}`] = range.from
+    if (range.to) params[`dt_${key}`] = range.to
+  }
   router.replace({ query: params })
 }
 
 watch(
-  [activeStatusTab, searchQuery, sortKey, sortDir, currentPage, pageSize, columnFilters],
+  [activeStatusTab, searchQuery, sortKey, sortDir, currentPage, pageSize, columnFilters, dateFilters],
   syncToUrl,
   { deep: true }
 )
@@ -366,6 +454,10 @@ watch(() => route.query, (newQ) => {
   for (const key of columnFilterKeys) {
     columnFilters[key] = (newQ[`f_${key}`] as string) || ''
   }
+  for (const key of dateFilterKeys) {
+    dateFilters[key].from = (newQ[`df_${key}`] as string) || ''
+    dateFilters[key].to = (newQ[`dt_${key}`] as string) || ''
+  }
   nextTick(() => { skipUrlSync = false })
 })
 
@@ -374,8 +466,8 @@ const filteredShipments = computed(() => {
 
   // Status tab filter
   if (activeStatusTab.value === 'active') {
-    const deliveredSet = new Set(['Livré'])
-    result = result.filter(s => !deliveredSet.has(s.status) && !s.inScannedAt)
+    const excludedSet = new Set(['Livré', 'Supprimé', "Demande d'enlèvement annulé"])
+    result = result.filter(s => !excludedSet.has(s.status) && !s.inScannedAt)
   } else if (activeStatusTab.value !== 'all') {
     const statusGroups: Record<string, Set<string>> = {
       'pending': new Set(['En attente', 'A vérifier']),
@@ -411,6 +503,22 @@ const filteredShipments = computed(() => {
     }
   }
 
+  // Date range filters
+  for (const [key, range] of Object.entries(dateFilters)) {
+    if (range.from || range.to) {
+      result = result.filter(s => {
+        const raw = s[key]
+        if (!raw) return false
+        const d = new Date(raw)
+        if (isNaN(d.getTime())) return false
+        const dateStr = d.toISOString().slice(0, 10) // YYYY-MM-DD
+        if (range.from && dateStr < range.from) return false
+        if (range.to && dateStr > range.to) return false
+        return true
+      })
+    }
+  }
+
   // Sort
   if (sortKey.value) {
     const key = sortKey.value
@@ -433,9 +541,9 @@ const paginatedShipments = computed(() => {
 })
 
 // Reset to page 1 when filters or page size change
-watch([activeStatusTab, searchQuery, pageSize, columnFilters], () => {
+watch([activeStatusTab, searchQuery, pageSize, columnFilters, dateFilters], () => {
   currentPage.value = 1
-})
+}, { deep: true })
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '-'
@@ -469,7 +577,7 @@ function formatSyncDate(dateStr: string | null | undefined): string {
   const d = new Date(dateStr)
   if (isNaN(d.getTime())) return '-'
   const diffSec = Math.floor((now.value - d.getTime()) / 1000)
-  if (diffSec < 100) return `il y a ${diffSec}s`
+  if (diffSec < 100) return `${diffSec}s`
   const today = new Date(now.value)
   const isToday = d.toDateString() === today.toDateString()
   if (isToday) return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })

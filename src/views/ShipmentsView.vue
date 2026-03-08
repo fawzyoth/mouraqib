@@ -35,9 +35,11 @@
   <ShipmentLabels
     v-else-if="activeSection === 'labels'"
     :shipments="appStore.shipments"
+    :printing="printingLabels"
     @toggle-submenu="subMenuOpen = !subMenuOpen"
     @print-selected="printSelectedLabels"
     @open-label-preview="openLabelPreview"
+    @select-shipment="(s: any) => { selectedShipment = s; showShipmentDetail = true }"
   />
 
   <!-- Shipment Detail Panel (always rendered, toggled via :show) -->
@@ -72,6 +74,9 @@ import ShipmentDetailPanel from '@/components/features/shipments/ShipmentDetailP
 
 // Modal components
 import PrintLabelModal from '@/components/modals/PrintLabelModal.vue'
+
+import { supabase } from '@/lib/supabase'
+import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
 const router = useRouter()
@@ -123,8 +128,8 @@ const statusTabs = computed(() => {
     const set = new Set(statuses)
     return s.filter((sh: any) => set.has(sh.status)).length
   }
-  const deliveredSet = new Set(['Livré'])
-  const activeCount = s.filter((sh: any) => !deliveredSet.has(sh.status) && !sh.inScannedAt).length
+  const excludedSet = new Set(['Livré', 'Supprimé', "Demande d'enlèvement annulé"])
+  const activeCount = s.filter((sh: any) => !excludedSet.has(sh.status) && !sh.inScannedAt).length
   return [
     { id: 'active', label: 'Actifs', count: activeCount },
     { id: 'all', label: 'Tous', count: s.length },
@@ -192,17 +197,66 @@ function openLabelPreview(shipment: any) {
   }
 }
 
-function printSelectedLabels(ids: any[]) {
+const toast = useToast()
+const printingLabels = ref(false)
+
+async function printSelectedLabels(ids: any[]) {
   const shipments = appStore.shipments.filter((s: any) => ids.includes(s.id))
-  const printedIds: string[] = []
-  for (const s of shipments) {
-    if (s.labelUrl) {
-      window.open(s.labelUrl, '_blank')
-      printedIds.push(s.id)
-    }
+  const urls = shipments
+    .map((s: any) => s.labelUrl)
+    .filter((url: string | null | undefined) => !!url)
+
+  if (urls.length === 0) {
+    toast.error('Aucun bordereau avec URL disponible')
+    return
   }
-  if (printedIds.length > 0) {
-    appStore.shipmentsData.markAsPrinted(printedIds)
+
+  printingLabels.value = true
+  try {
+    const { data, error } = await supabase.functions.invoke('merge-multiple-labels', {
+      body: { urls },
+    })
+
+    if (error) throw error
+
+    const text = data instanceof Blob ? await data.text() : typeof data === 'string' ? data : JSON.stringify(data)
+
+    if (text.trimStart().startsWith('<!DOCTYPE') || text.trimStart().startsWith('<html')) {
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        printWindow.document.write(text)
+        printWindow.document.close()
+        printWindow.onload = () => printWindow.print()
+      }
+    } else if (text.startsWith('{') && text.includes('"pdf"')) {
+      const json = JSON.parse(text)
+      if (json.pdf) {
+        const pdfBytes = Uint8Array.from(atob(json.pdf), c => c.charCodeAt(0))
+        const pdfBlob = new Blob([pdfBytes], { type: 'application/pdf' })
+        window.open(URL.createObjectURL(pdfBlob), '_blank')
+      }
+      if (json.html) {
+        const printWindow = window.open('', '_blank')
+        if (printWindow) {
+          printWindow.document.write(json.html)
+          printWindow.document.close()
+          printWindow.onload = () => printWindow.print()
+        }
+      }
+    } else {
+      const blob = data instanceof Blob ? data : new Blob([data], { type: 'application/pdf' })
+      window.open(URL.createObjectURL(blob), '_blank')
+    }
+
+    // Mark as printed
+    const printedIds = shipments.filter((s: any) => s.labelUrl).map((s: any) => s.id)
+    if (printedIds.length > 0) {
+      appStore.shipmentsData.markAsPrinted(printedIds)
+    }
+  } catch (e: any) {
+    toast.error('Erreur fusion PDF: ' + (e.message || e))
+  } finally {
+    printingLabels.value = false
   }
 }
 

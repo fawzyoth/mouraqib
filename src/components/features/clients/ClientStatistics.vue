@@ -89,37 +89,20 @@
         </div>
       </div>
 
-      <!-- Charts Row -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <!-- Client Distribution by Status -->
-        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-          <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Repartition par Statut</h3>
-          <div class="space-y-4">
-            <div v-for="status in clientStatusDistribution" :key="status.label" class="flex items-center">
-              <div class="w-32 text-sm text-gray-600 dark:text-gray-400">{{ status.label }}</div>
-              <div class="flex-1 h-8 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden relative">
-                <div :style="{ width: status.percentage + '%' }" :class="status.color" class="h-full rounded-lg transition-all duration-500"></div>
-                <span class="absolute inset-0 flex items-center justify-center text-xs font-medium text-gray-700 dark:text-gray-300">{{ status.count }} ({{ status.percentage.toFixed(1) }}%)</span>
-              </div>
+      <!-- Client Distribution by Region -->
+      <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 mb-6">
+        <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Repartition par Region</h3>
+        <div class="space-y-3">
+          <div v-for="region in clientRegionDistribution" :key="region.name" class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <div class="w-3 h-3 rounded-full" :class="region.color"></div>
+              <span class="text-sm text-gray-700 dark:text-gray-300">{{ region.name }}</span>
             </div>
-          </div>
-        </div>
-
-        <!-- Client Distribution by Region -->
-        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-          <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Repartition par Region</h3>
-          <div class="space-y-3">
-            <div v-for="region in clientRegionDistribution" :key="region.name" class="flex items-center justify-between">
-              <div class="flex items-center space-x-3">
-                <div class="w-3 h-3 rounded-full" :class="region.color"></div>
-                <span class="text-sm text-gray-700 dark:text-gray-300">{{ region.name }}</span>
+            <div class="flex items-center space-x-3">
+              <div class="w-24 h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                <div :style="{ width: region.percentage + '%' }" :class="region.bgColor" class="h-full rounded-full"></div>
               </div>
-              <div class="flex items-center space-x-3">
-                <div class="w-24 h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                  <div :style="{ width: region.percentage + '%' }" :class="region.bgColor" class="h-full rounded-full"></div>
-                </div>
-                <span class="text-sm font-medium text-gray-900 dark:text-white w-12 text-right">{{ region.count }}</span>
-              </div>
+              <span class="text-sm font-medium text-gray-900 dark:text-white w-12 text-right">{{ region.count }}</span>
             </div>
           </div>
         </div>
@@ -178,36 +161,6 @@
         </div>
       </div>
 
-      <!-- Delivery Performance by Client Segment -->
-      <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6">
-        <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Performance de Livraison par Segment</h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-sm font-medium text-purple-700 dark:text-purple-300">Clients VIP</span>
-              <Star class="w-4 h-4 text-purple-600 fill-purple-600" />
-            </div>
-            <p class="text-2xl font-bold text-purple-700 dark:text-purple-300">{{ vipAverageDeliveryRate }}%</p>
-            <p class="text-xs text-purple-600 dark:text-purple-400 mt-1">Taux de livraison moyen</p>
-          </div>
-          <div class="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-sm font-medium text-green-700 dark:text-green-300">Clients Actifs</span>
-              <CheckCircle class="w-4 h-4 text-green-600" />
-            </div>
-            <p class="text-2xl font-bold text-green-700 dark:text-green-300">{{ activeClientsDeliveryRate }}%</p>
-            <p class="text-xs text-green-600 dark:text-green-400 mt-1">Taux de livraison moyen</p>
-          </div>
-          <div class="p-4 bg-red-50 dark:bg-red-900/20 rounded-xl">
-            <div class="flex items-center justify-between mb-2">
-              <span class="text-sm font-medium text-red-700 dark:text-red-300">Clients Bloques</span>
-              <Ban class="w-4 h-4 text-red-600" />
-            </div>
-            <p class="text-2xl font-bold text-red-700 dark:text-red-300">{{ blockedAverageDeliveryRate }}%</p>
-            <p class="text-xs text-red-600 dark:text-red-400 mt-1">Taux avant blocage</p>
-          </div>
-        </div>
-      </div>
     </main>
   </div>
 </template>
@@ -221,10 +174,7 @@ import {
   TrendingUp,
   ShoppingBag,
   RefreshCw,
-  Gem,
-  Star,
-  CheckCircle,
-  Ban
+  Gem
 } from 'lucide-vue-next'
 
 interface Client {
@@ -272,26 +222,6 @@ const topClientsByRevenue = computed(() => {
   return [...props.clients].sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 5)
 })
 
-const clientStatusDistribution = computed(() => {
-  const statusMap: Record<string, { label: string; color: string; count: number }> = {
-    active: { label: 'Actifs', color: 'bg-green-500', count: 0 },
-    vip: { label: 'VIP', color: 'bg-purple-500', count: 0 },
-    inactive: { label: 'Inactifs', color: 'bg-gray-400', count: 0 },
-    blocked: { label: 'Bloques', color: 'bg-red-500', count: 0 }
-  }
-
-  props.clients.forEach(client => {
-    if (statusMap[client.status]) {
-      statusMap[client.status].count++
-    }
-  })
-
-  return Object.values(statusMap).map(s => ({
-    ...s,
-    percentage: props.clients.length > 0 ? (s.count / props.clients.length) * 100 : 0
-  }))
-})
-
 const clientRegionDistribution = computed(() => {
   const regionMap: Record<string, number> = {}
   props.clients.forEach(client => {
@@ -312,25 +242,4 @@ const clientRegionDistribution = computed(() => {
     }))
 })
 
-// Segment delivery rates
-const vipAverageDeliveryRate = computed(() => {
-  const vipClients = props.clients.filter(c => c.status === 'vip')
-  if (vipClients.length === 0) return 0
-  const total = vipClients.reduce((sum, client) => sum + client.deliveryRate, 0)
-  return Math.round(total / vipClients.length)
-})
-
-const activeClientsDeliveryRate = computed(() => {
-  const activeClients = props.clients.filter(c => c.status === 'active')
-  if (activeClients.length === 0) return 0
-  const total = activeClients.reduce((sum, client) => sum + client.deliveryRate, 0)
-  return Math.round(total / activeClients.length)
-})
-
-const blockedAverageDeliveryRate = computed(() => {
-  const blockedClients = props.clients.filter(c => c.status === 'blocked')
-  if (blockedClients.length === 0) return 0
-  const total = blockedClients.reduce((sum, client) => sum + client.deliveryRate, 0)
-  return Math.round(total / blockedClients.length)
-})
 </script>

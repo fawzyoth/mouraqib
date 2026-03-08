@@ -17,44 +17,6 @@
       </div>
     </header>
     <main class="flex-1 overflow-y-auto p-6">
-      <!-- VIP Stats -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-5 text-white">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm opacity-90">Clients VIP</p>
-              <p class="text-3xl font-bold">{{ vipClients.length }}</p>
-            </div>
-            <Star class="w-10 h-10 opacity-80" />
-          </div>
-          <p class="text-sm opacity-80 mt-2">{{ totalClientsCount > 0 ? ((vipClients.length / totalClientsCount) * 100).toFixed(1) : '0.0' }}% de la base</p>
-        </div>
-        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm text-gray-500">CA VIP Total</p>
-              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ vipTotalRevenue.toLocaleString() }} TND</p>
-            </div>
-            <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
-              <Banknote class="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-          <p class="text-xs text-gray-500 mt-2">{{ totalRevenue > 0 ? ((vipTotalRevenue / totalRevenue) * 100).toFixed(1) : '0.0' }}% du CA total</p>
-        </div>
-        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm text-gray-500">Taux Livraison VIP</p>
-              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ vipAverageDeliveryRate }}%</p>
-            </div>
-            <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
-              <TrendingUp class="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-          <p class="text-xs text-green-600 mt-2">+{{ (vipAverageDeliveryRate - averageDeliveryRate).toFixed(1) }}% vs moyenne</p>
-        </div>
-      </div>
-
       <!-- VIP Clients List -->
       <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
         <div class="p-4 border-b border-gray-200 dark:border-gray-800">
@@ -105,8 +67,6 @@ import { computed } from 'vue'
 import {
   ListFilter,
   Star,
-  Banknote,
-  TrendingUp,
   Eye,
   X
 } from 'lucide-vue-next'
@@ -125,8 +85,6 @@ interface Client {
 
 const props = defineProps<{
   clients: Client[]
-  totalRevenue: number
-  averageDeliveryRate: number
 }>()
 
 defineEmits<{
@@ -137,17 +95,5 @@ defineEmits<{
 
 const vipClients = computed(() => {
   return props.clients.filter(client => client.status === 'vip')
-})
-
-const totalClientsCount = computed(() => props.clients.length)
-
-const vipTotalRevenue = computed(() => {
-  return vipClients.value.reduce((sum, client) => sum + client.totalSpent, 0)
-})
-
-const vipAverageDeliveryRate = computed(() => {
-  if (vipClients.value.length === 0) return 0
-  const total = vipClients.value.reduce((sum, client) => sum + client.deliveryRate, 0)
-  return Math.round(total / vipClients.value.length)
 })
 </script>

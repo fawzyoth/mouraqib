@@ -1,6 +1,8 @@
 <template>
-  <div :class="[
-    'flex items-center justify-between p-3 rounded-lg transition-colors duration-300 relative',
+  <div
+    @click="$emit('row-click')"
+    :class="[
+    'flex items-center justify-between p-3 rounded-lg transition-colors duration-300 relative cursor-pointer',
     isRowScanned
       ? 'bg-green-50 dark:bg-green-900/20 ring-1 ring-green-200 dark:ring-green-800'
       : isOverdue
@@ -63,7 +65,7 @@
         <button
           v-if="actionType === 'print'"
           :disabled="processing"
-          @click="$emit('print')"
+          @click.stop="$emit('print')"
           class="btn-primary btn-primary-sm whitespace-nowrap"
         >
           <Loader2 v-if="processing" class="w-3.5 h-3.5 animate-spin" />
@@ -72,7 +74,7 @@
 
         <button
           v-if="actionType === 'confirm' || actionType === 'print' || actionType === 'return'"
-          @click="$emit('view')"
+          @click.stop="$emit('view')"
           class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
           title="Voir détails"
         >
@@ -107,6 +109,7 @@ defineEmits<{
   (e: 'confirm'): void
   (e: 'print'): void
   (e: 'view'): void
+  (e: 'row-click'): void
 }>()
 
 const isRowScanned = computed(() => {
