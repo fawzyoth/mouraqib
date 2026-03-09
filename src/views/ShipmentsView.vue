@@ -24,6 +24,7 @@
   <CreateShipment
     v-else-if="activeSection === 'create-shipment'"
     :clients="enrichedClients"
+    :products="appStore.products"
     :carriers="appStore.carriers"
     :initial-carrier="stickyCarrier"
     :loading="creatingShipment"
@@ -84,6 +85,15 @@
     @confirm="handleClientUpdateConfirm"
     @dismiss="handleClientUpdateDismiss"
   />
+
+  <!-- Save Product Data Modal -->
+  <SaveProductDataModal
+    :show="showSaveProductModal"
+    :initial-name="productToSaveName"
+    :initial-price="productToSavePrice"
+    @confirm="handleSaveProductConfirm"
+    @dismiss="showSaveProductModal = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -105,6 +115,7 @@ import DeletionRequests from '@/components/features/shipments/DeletionRequests.v
 import PrintLabelModal from '@/components/modals/PrintLabelModal.vue'
 import RequestDeletionModal from '@/components/modals/RequestDeletionModal.vue'
 import UpdateClientDataModal from '@/components/modals/UpdateClientDataModal.vue'
+import SaveProductDataModal from '@/components/modals/SaveProductDataModal.vue'
 import type { ClientChange } from '@/components/modals/UpdateClientDataModal.vue'
 
 import { supabase } from '@/lib/supabase'
@@ -211,6 +222,17 @@ function handleDeletionConfirmed(shipmentId: string) {
 const createdShipment = ref<any>(null)
 const creatingShipment = ref(false)
 const stickyCarrier = ref('')
+let pendingNewProduct: any = null
+
+function checkAndPromptNewProduct(data: any) {
+  if (!data.productName) return
+  const exists = appStore.products.some((p: any) => p.name.toLowerCase() === data.productName.toLowerCase())
+  if (!exists) {
+    productToSaveName.value = data.productName
+    productToSavePrice.value = data.productPrice || 0
+    showSaveProductModal.value = true
+  }
+}
 
 async function handleCreateShipment(data: any) {
   creatingShipment.value = true
@@ -235,6 +257,9 @@ async function handleCreateShipment(data: any) {
         clientUpdateChanges.value = data.clientChanges
         clientUpdateId.value = data.clientId
         showClientUpdateModal.value = true
+        pendingNewProduct = data
+      } else {
+        checkAndPromptNewProduct(data)
       }
     }
   } finally {
@@ -374,6 +399,11 @@ async function handleClientUpdateConfirm() {
     showClientUpdateModal.value = false
     clientUpdateChanges.value = []
     clientUpdateId.value = null
+
+    if (pendingNewProduct) {
+      checkAndPromptNewProduct(pendingNewProduct)
+      pendingNewProduct = null
+    }
   }
 }
 
@@ -381,5 +411,21 @@ function handleClientUpdateDismiss() {
   showClientUpdateModal.value = false
   clientUpdateChanges.value = []
   clientUpdateId.value = null
+
+  if (pendingNewProduct) {
+    checkAndPromptNewProduct(pendingNewProduct)
+    pendingNewProduct = null
+  }
+}
+
+// Product save modal
+const showSaveProductModal = ref(false)
+const productToSaveName = ref('')
+const productToSavePrice = ref(0)
+
+async function handleSaveProductConfirm(payload: { name: string; price: number }) {
+  await appStore.productsData.create(payload.name, payload.price)
+  showSaveProductModal.value = false
+  toast.success('Produit ajouté au catalogue')
 }
 </script>

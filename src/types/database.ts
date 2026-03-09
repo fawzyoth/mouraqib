@@ -584,6 +584,32 @@ export interface Database {
           updated_at?: string
         }
       }
+      products: {
+        Row: {
+          id: string
+          organization_id: string
+          name: string
+          price: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          name: string
+          price?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          name?: string
+          price?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
       // =============================================
       // New tables from migration 002
       // =============================================

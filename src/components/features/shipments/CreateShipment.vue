@@ -321,11 +321,27 @@
           <div class="p-6 space-y-4">
             <!-- Nom du produit + Fragile -->
             <div class="flex flex-col md:flex-row md:items-end gap-4">
-              <div class="flex-1">
+              <div class="flex-1 relative">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Nom du Produit <span class="text-red-500">*</span>
                 </label>
-                <input v-model="newShipment.productName" type="text" placeholder="Entrez le nom du produit" class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                <input
+                  v-model="newShipment.productName"
+                  @input="onProductNameInput"
+                  @focus="showProductSuggestions = true"
+                  @keydown.down.prevent="onProductSearchKey('down')"
+                  @keydown.up.prevent="onProductSearchKey('up')"
+                  @keydown.enter.prevent="onProductSearchKey('enter')"
+                  type="text"
+                  placeholder="Entrez le nom du produit"
+                  class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                />
+                <ProductSuggestionsDropdown
+                  v-if="showProductSuggestions && filteredProducts.length > 0"
+                  :products="filteredProducts"
+                  :selected-index="productSuggestIndex"
+                  @select="selectProduct"
+                />
               </div>
               <div class="flex items-center">
                 <label class="flex items-center space-x-2 cursor-pointer px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
@@ -435,6 +451,7 @@ import {
   Loader2
 } from 'lucide-vue-next'
 import ClientSuggestionsDropdown from './ClientSuggestionsDropdown.vue'
+import ProductSuggestionsDropdown from './ProductSuggestionsDropdown.vue'
 import { carrierDeliveryFees } from '@/data/carriers-catalog'
 import zonesData from '@/data/zones-first'
 
@@ -462,10 +479,12 @@ interface DeliveryCarrier {
 const props = withDefaults(defineProps<{
   clients: Client[]
   carriers: { id: number; name: string; [key: string]: any }[]
+  products?: { id: string; name: string; price: number; [key: string]: any }[]
   initialCarrier?: string
   loading?: boolean
 }>(), {
   loading: false,
+  products: () => []
 })
 
 const emit = defineEmits<{
@@ -546,6 +565,30 @@ const filteredShipmentClients = computed(() => {
     client.address.toLowerCase().includes(search)
   ).slice(0, 5)
 })
+
+// Product autocomplete
+const showProductSuggestions = ref(false)
+const productSuggestIndex = ref(-1)
+
+const filteredProducts = computed(() => {
+  if (!props.products) return []
+  const search = newShipment.productName.toLowerCase()
+  if (!search) return props.products.slice(0, 5)
+  return props.products.filter(p =>
+    p.name.toLowerCase().includes(search)
+  ).slice(0, 5)
+})
+
+function onProductNameInput() {
+  showProductSuggestions.value = true
+  productSuggestIndex.value = -1
+}
+
+function selectProduct(product: any) {
+  newShipment.productName = product.name
+  newShipment.productPrice = product.price
+  showProductSuggestions.value = false
+}
 
 // Carrier search
 const carrierSearchQuery = ref('')
@@ -692,6 +735,7 @@ function onDocumentClick(e: MouseEvent) {
   if (!target.closest('.relative')) {
     showClientSuggestions.value = false
     showPhoneSuggestions.value = false
+    showProductSuggestions.value = false
   }
 }
 onMounted(() => document.addEventListener('click', onDocumentClick))
@@ -736,6 +780,7 @@ function resetForm() {
 }
 
 function handleSubmit() {
+  console.log('Button "Créer le colis" clicked!', newShipment)
   // Compute client data changes if an existing client was selected
   const clientChanges: { field: string; label: string; oldValue: string; newValue: string }[] = []
   if (selectedShipmentClient.value && originalClientData.value) {
@@ -793,6 +838,23 @@ function onPhoneSearchKey(key: 'up' | 'down' | 'enter') {
   } else if (key === 'enter') {
     if (phoneSuggestIndex.value >= 0 && phoneSuggestIndex.value < len) {
       selectClientFromPhone(filteredPhoneClients.value[phoneSuggestIndex.value])
+    }
+  }
+}
+
+function onProductSearchKey(key: 'up' | 'down' | 'enter') {
+  if (!showProductSuggestions.value || filteredProducts.value.length === 0) {
+    if (key === 'enter') showProductSuggestions.value = true
+    return
+  }
+  const len = filteredProducts.value.length
+  if (key === 'down') {
+    productSuggestIndex.value = (productSuggestIndex.value + 1) % len
+  } else if (key === 'up') {
+    productSuggestIndex.value = productSuggestIndex.value <= 0 ? len - 1 : productSuggestIndex.value - 1
+  } else if (key === 'enter') {
+    if (productSuggestIndex.value >= 0 && productSuggestIndex.value < len) {
+      selectProduct(filteredProducts.value[productSuggestIndex.value])
     }
   }
 }

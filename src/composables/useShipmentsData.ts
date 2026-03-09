@@ -4,9 +4,10 @@ import { shipmentsService, clientsService } from '@/services'
 import { dbShipmentToUI, uiShipmentToInsert } from '@/mappers/shipments'
 import type { UIShipment } from '@/mappers/shipments'
 import { useToast } from './useToast'
+import { useAuthStore } from '@/stores/auth'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
-interface OrgContext {
+export interface OrgContext {
   name: string
   address: string
   phone: string
@@ -92,13 +93,36 @@ export function useShipmentsData(orgId: Ref<string>) {
       if (carrierId) {
         try {
           console.log('[create-shipment] step 2: calling carrier-proxy…')
-          const { data, error } = await supabase.functions.invoke('carrier-proxy', {
-            body: {
+          const authStore = useAuthStore()
+          const token = authStore.session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+
+          const invokePromise = fetch(`${supabaseUrl}/functions/v1/carrier-proxy`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
               carrierId,
               action: 'create-shipment',
               payload: carrierPayload, // no shipmentId → carrier-first path
-            },
+            })
+          }).then(async (res) => {
+            const data = await res.json().catch(() => ({}))
+            if (!res.ok) {
+              return { data: null, error: { message: data.error || data.detail || JSON.stringify(data) } }
+            }
+            return { data, error: null }
+          }).catch(err => ({ data: null, error: err }))
+
+          const timeoutPromise = new Promise<any>((_, reject) => {
+            setTimeout(() => {
+              reject(new Error("Délai d'attente dépassé : l'API du transporteur ne répond pas."))
+            }, 15000)
           })
+
+          const { data, error } = await Promise.race([invokePromise, timeoutPromise])
           console.log('[create-shipment] step 2: carrier-proxy returned', { data, error: error?.message })
 
           if (error || !data?.result) {
@@ -124,7 +148,7 @@ export function useShipmentsData(orgId: Ref<string>) {
           }
         } catch (proxyErr: any) {
           console.error('[carrier-proxy] create-shipment failed:', proxyErr)
-          toast.error('Erreur transporteur — colis non créé')
+          toast.error(proxyErr?.message || 'Erreur transporteur — colis non créé')
           return null
         }
       }
@@ -144,8 +168,17 @@ export function useShipmentsData(orgId: Ref<string>) {
 
       // ── Post-insert: auto-pickup for First Delivery (fire-and-forget) ──
       if (carrierId && carrierData && isFirstDelivery) {
-        supabase.functions.invoke('carrier-proxy', {
-          body: {
+        const authStore = useAuthStore()
+        const token = authStore.session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+
+        fetch(`${supabaseUrl}/functions/v1/carrier-proxy`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
             carrierId,
             action: 'create-shipment',
             payload: {
@@ -154,7 +187,7 @@ export function useShipmentsData(orgId: Ref<string>) {
               carrierTrackingNumber: carrierData.carrier_tracking_number,
               ...carrierPayload,
             },
-          },
+          })
         }).catch((err: any) => {
           console.error('[carrier-proxy] auto-pickup failed:', err)
         })

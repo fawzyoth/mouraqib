@@ -352,6 +352,7 @@ function handleClose() {
 
 function handleSubmit() {
   if (!canAddShipment.value) return
+  console.log('Button "Créer le colis" clicked (from Modal)!', newShipment)
   emit('submit', {
     ...newShipment,
     selectedClient: selectedShipmentClient.value

@@ -8,6 +8,7 @@ import { useBoutiquesData } from '@/composables/useBoutiquesData'
 import { usePickupsData } from '@/composables/usePickupsData'
 import { useOrganizationData } from '@/composables/useOrganizationData'
 import { useFinanceData } from '@/composables/useFinanceData'
+import { useProductsData } from '@/composables/useProductsData'
 
 export const useAppStore = defineStore('app', () => {
   const authStore = useAuthStore()
@@ -21,6 +22,7 @@ export const useAppStore = defineStore('app', () => {
   const pickupsData = usePickupsData(orgId)
   const orgData = useOrganizationData(orgId)
   const financeData = useFinanceData(orgId)
+  const productsData = useProductsData(orgId)
 
   // Direct ref access (no copy anti-pattern)
   const shipments = shipmentsData.shipments
@@ -37,6 +39,7 @@ export const useAppStore = defineStore('app', () => {
   const userBalance = financeData.userBalance
   const invoices = financeData.invoices
   const payments = financeData.payments
+  const products = productsData.products
 
   // Derived counts for AppShell sidebar
   const deliveredCount = computed(() =>
@@ -65,6 +68,7 @@ export const useAppStore = defineStore('app', () => {
         pickupsData.load(),
         orgData.load(),
         financeData.load(),
+        productsData.load(),
       ])
     } finally {
       isLoading.value = false
@@ -94,6 +98,7 @@ export const useAppStore = defineStore('app', () => {
     pickupsData,
     orgData,
     financeData,
+    productsData,
 
     // Direct refs (for reading)
     shipments,
@@ -110,6 +115,7 @@ export const useAppStore = defineStore('app', () => {
     userBalance,
     invoices,
     payments,
+    products,
 
     // Computed
     orgId,
