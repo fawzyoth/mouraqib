@@ -35,12 +35,6 @@ const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      path: '/',
-      name: 'root',
-      component: () => import('@/views/WaitingListV2View.vue'),
-      meta: { public: true, rootRedirect: true },
-    },
-    {
       path: '/waitinglist',
       name: 'waiting-list-v2',
       component: () => import('@/views/WaitingListV2View.vue'),
@@ -106,17 +100,15 @@ router.beforeEach(async (to, _from, next) => {
   // Check for demo mode first
   const isDemoMode = localStorage.getItem('demoMode') === 'true'
   if (isDemoMode) {
-    if (authRedirect) {
-      return next({ path: '/dashboard' })
-    }
+    if (to.path === '/') return next({ path: '/dashboard' })
+    if (authRedirect) return next({ path: '/dashboard' })
     return next()
   }
 
   // Skip auth checks if Supabase is not configured
   if (!isSupabaseConfigured) {
-    if (requiresAuth) {
-      return next({ name: 'signin' })
-    }
+    if (to.path === '/') return next({ path: '/waitinglist' })
+    if (requiresAuth) return next({ name: 'signin' })
     return next()
   }
 
@@ -129,6 +121,13 @@ router.beforeEach(async (to, _from, next) => {
   }
   const isAuthenticated = authStore.isAuthenticated
 
+  // Root path: authenticated → dashboard, unauthenticated → waitinglist
+  // (must run before requiresAuth check — path: '' layout route matches /)
+  if (to.path === '/') {
+    if (isAuthenticated) return next({ path: '/dashboard' })
+    return next({ path: '/waitinglist' })
+  }
+
   // If route requires auth and user is not authenticated
   if (requiresAuth && !isAuthenticated) {
     return next({
@@ -140,12 +139,6 @@ router.beforeEach(async (to, _from, next) => {
   // If user is authenticated and trying to access auth pages
   if (authRedirect && isAuthenticated) {
     return next({ path: '/dashboard' })
-  }
-
-  // Root path: authenticated → dashboard, unauthenticated → waitinglist
-  if (to.meta.rootRedirect) {
-    if (isAuthenticated) return next({ path: '/dashboard' })
-    return next({ path: '/waitinglist' })
   }
 
   // If route requires admin and user is not a platform admin
