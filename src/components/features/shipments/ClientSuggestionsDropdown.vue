@@ -5,10 +5,12 @@
     :class="wide ? 'min-w-full w-max max-w-[28rem]' : 'w-full'"
   >
     <button
-      v-for="client in clients"
+      v-for="(client, index) in clients"
       :key="client.id"
+      :ref="(el) => { if (el) itemRefs[index] = el as HTMLElement }"
       @click="$emit('select', client)"
-      class="w-full px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-3 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0"
+      class="w-full px-3 py-2.5 text-left flex items-center space-x-3 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0"
+      :class="index === selectedIndex ? 'bg-gray-100 dark:bg-gray-700' : 'hover:bg-gray-50 dark:hover:bg-gray-700'"
     >
       <div
         class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0"
@@ -32,14 +34,28 @@
 </template>
 
 <script setup lang="ts">
+import { ref, watch, nextTick } from 'vue'
 import { AlertTriangle } from 'lucide-vue-next'
 
-defineProps<{
+const props = defineProps<{
   clients: { id: number; name: string; phone: string; address: string; delegation?: string; region: string; status: string; deliveryRate: number; [key: string]: any }[]
   wide?: boolean
+  selectedIndex?: number
 }>()
 
 defineEmits<{
   (e: 'select', client: any): void
 }>()
+
+const itemRefs = ref<HTMLElement[]>([])
+
+watch(() => props.selectedIndex, async (newIndex) => {
+  if (newIndex !== undefined && newIndex >= 0) {
+    await nextTick()
+    const el = itemRefs.value[newIndex]
+    if (el) {
+      el.scrollIntoView({ block: 'nearest' })
+    }
+  }
+})
 </script>

@@ -76,6 +76,14 @@
     @close="closePrintModal"
     @print="printLabel"
   />
+
+  <!-- Update Client Data Modal -->
+  <UpdateClientDataModal
+    :show="showClientUpdateModal"
+    :changes="clientUpdateChanges"
+    @confirm="handleClientUpdateConfirm"
+    @dismiss="handleClientUpdateDismiss"
+  />
 </template>
 
 <script setup lang="ts">
@@ -96,9 +104,12 @@ import DeletionRequests from '@/components/features/shipments/DeletionRequests.v
 // Modal components
 import PrintLabelModal from '@/components/modals/PrintLabelModal.vue'
 import RequestDeletionModal from '@/components/modals/RequestDeletionModal.vue'
+import UpdateClientDataModal from '@/components/modals/UpdateClientDataModal.vue'
+import type { ClientChange } from '@/components/modals/UpdateClientDataModal.vue'
 
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/composables/useToast'
+import { clientsService } from '@/services'
 
 const route = useRoute()
 const router = useRouter()
@@ -218,6 +229,13 @@ async function handleCreateShipment(data: any) {
     if (result) {
       createdShipment.value = result
       stickyCarrier.value = data.carrier || ''
+
+      // Show client update modal if client data was changed
+      if (data.clientChanges && data.clientChanges.length > 0 && data.clientId) {
+        clientUpdateChanges.value = data.clientChanges
+        clientUpdateId.value = data.clientId
+        showClientUpdateModal.value = true
+      }
     }
   } finally {
     creatingShipment.value = false
@@ -322,5 +340,46 @@ function printLabel() {
   if (labelToPrint.value?.labelUrl) {
     window.open(labelToPrint.value.labelUrl, '_blank')
   }
+}
+
+// Client update modal
+const showClientUpdateModal = ref(false)
+const clientUpdateChanges = ref<ClientChange[]>([])
+const clientUpdateId = ref<string | null>(null)
+
+async function handleClientUpdateConfirm() {
+  if (!clientUpdateId.value || clientUpdateChanges.value.length === 0) return
+  try {
+    const updates: Record<string, any> = {}
+    const fieldToDb: Record<string, string> = {
+      phone: 'phone',
+      phoneSecondary: 'phone_secondary',
+      address: 'address',
+      gouvernorat: 'governorate',
+      delegation: 'delegation',
+      locality: 'locality',
+      postalCode: 'postal_code',
+    }
+    for (const change of clientUpdateChanges.value) {
+      const dbField = fieldToDb[change.field]
+      if (dbField) updates[dbField] = change.newValue || null
+    }
+    await clientsService.update(clientUpdateId.value, updates)
+    // Refresh clients list in store
+    appStore.clientsData.load()
+    toast.success('Fiche client mise à jour')
+  } catch (e: any) {
+    toast.error('Erreur mise à jour client: ' + (e.message || e))
+  } finally {
+    showClientUpdateModal.value = false
+    clientUpdateChanges.value = []
+    clientUpdateId.value = null
+  }
+}
+
+function handleClientUpdateDismiss() {
+  showClientUpdateModal.value = false
+  clientUpdateChanges.value = []
+  clientUpdateId.value = null
 }
 </script>

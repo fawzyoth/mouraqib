@@ -38,6 +38,9 @@
                   v-model="shipmentClientSearch"
                   @input="onShipmentClientSearch"
                   @focus="showClientSuggestions = true"
+                  @keydown.down.prevent="onClientSearchKey('down')"
+                  @keydown.up.prevent="onClientSearchKey('up')"
+                  @keydown.enter.prevent="onClientSearchKey('enter')"
                   type="text"
                   placeholder="Rechercher ou saisir un nouveau client..."
                   class="w-full pl-10 pr-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -46,6 +49,7 @@
               <ClientSuggestionsDropdown
                 v-if="showClientSuggestions"
                 :clients="filteredShipmentClients"
+                :selected-index="clientSuggestIndex"
                 @select="selectClientForShipment"
               />
               <!-- No results - option to create new -->
@@ -97,6 +101,9 @@
                     v-model="newShipment.phone"
                     @input="onPhoneInput"
                     @focus="showPhoneSuggestions = true"
+                    @keydown.down.prevent="onPhoneSearchKey('down')"
+                    @keydown.up.prevent="onPhoneSearchKey('up')"
+                    @keydown.enter.prevent="onPhoneSearchKey('enter')"
                     type="tel"
                     placeholder="XX XXX XXX"
                     class="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-r-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
@@ -106,6 +113,7 @@
                   v-if="showPhoneSuggestions && !selectedShipmentClient"
                   :clients="filteredPhoneClients"
                   :wide="true"
+                  :selected-index="phoneSuggestIndex"
                   @select="selectClientFromPhone"
                 />
               </div>
@@ -496,6 +504,10 @@ const newShipment = reactive({
 const shipmentClientSearch = ref('')
 const showClientSuggestions = ref(false)
 const selectedShipmentClient = ref<Client | null>(null)
+const clientSuggestIndex = ref(-1)
+
+// Snapshot of original client data to detect changes
+const originalClientData = ref<Record<string, string> | null>(null)
 
 // Phone-based client match (exact)
 const phoneMatchedClient = computed(() => {
@@ -506,6 +518,7 @@ const phoneMatchedClient = computed(() => {
 
 // Phone typeahead (partial match)
 const showPhoneSuggestions = ref(false)
+const phoneSuggestIndex = ref(-1)
 const filteredPhoneClients = computed(() => {
   const phone = newShipment.phone.replace(/\s/g, '')
   if (phone.length < 3 || selectedShipmentClient.value) return []
@@ -516,6 +529,7 @@ const filteredPhoneClients = computed(() => {
 
 function onPhoneInput() {
   showPhoneSuggestions.value = true
+  phoneSuggestIndex.value = -1
 }
 
 function selectClientFromPhone(client: Client) {
@@ -606,6 +620,7 @@ function generateReference() {
 function onShipmentClientSearch() {
   showClientSuggestions.value = true
   selectedShipmentClient.value = null
+  clientSuggestIndex.value = -1
 }
 
 function selectClientForShipment(client: Client) {
@@ -624,6 +639,18 @@ function selectClientForShipment(client: Client) {
   newShipment.locality = client.locality || ''
   newShipment.postalCode = client.postalCode || ''
   newShipment.clientId = client.id
+
+  // Snapshot for change detection
+  originalClientData.value = {
+    phone: client.phone || '',
+    phoneSecondary: client.phoneSecondary || '',
+    address: client.address || '',
+    gouvernorat: client.region || '',
+    delegation: client.delegation || '',
+    locality: client.locality || '',
+    postalCode: client.postalCode || '',
+  }
+
   // Re-enable cascade resets after all values have settled
   setTimeout(() => { skipReset = false }, 0)
 }
@@ -635,6 +662,7 @@ function clearSelectedClient() {
   newShipment.phone = ''
   newShipment.address = ''
   newShipment.clientId = null
+  originalClientData.value = null
 }
 
 function useNewClientName() {
@@ -708,6 +736,64 @@ function resetForm() {
 }
 
 function handleSubmit() {
-  emit('submit', { ...newShipment, totalPrice: totalPrice.value })
+  // Compute client data changes if an existing client was selected
+  const clientChanges: { field: string; label: string; oldValue: string; newValue: string }[] = []
+  if (selectedShipmentClient.value && originalClientData.value) {
+    const fieldMap: { formKey: string; field: string; label: string }[] = [
+      { formKey: 'phone', field: 'phone', label: 'Téléphone' },
+      { formKey: 'phoneSecondary', field: 'phoneSecondary', label: 'Tél. secondaire' },
+      { formKey: 'address', field: 'address', label: 'Adresse' },
+      { formKey: 'gouvernorat', field: 'gouvernorat', label: 'Gouvernorat' },
+      { formKey: 'delegation', field: 'delegation', label: 'Délégation' },
+      { formKey: 'locality', field: 'locality', label: 'Localité' },
+      { formKey: 'postalCode', field: 'postalCode', label: 'Code postal' },
+    ]
+    for (const { formKey, field, label } of fieldMap) {
+      const oldVal = originalClientData.value[field] || ''
+      const newVal = (newShipment as any)[formKey] || ''
+      if (oldVal !== newVal) {
+        clientChanges.push({ field, label, oldValue: oldVal, newValue: newVal })
+      }
+    }
+  }
+  emit('submit', {
+    ...newShipment,
+    totalPrice: totalPrice.value,
+    clientChanges: clientChanges.length > 0 ? clientChanges : undefined,
+  })
+}
+
+function onClientSearchKey(key: 'up' | 'down' | 'enter') {
+  if (!showClientSuggestions.value || filteredShipmentClients.value.length === 0) {
+    if (key === 'enter') showClientSuggestions.value = true
+    return
+  }
+  const len = filteredShipmentClients.value.length
+  if (key === 'down') {
+    clientSuggestIndex.value = (clientSuggestIndex.value + 1) % len
+  } else if (key === 'up') {
+    clientSuggestIndex.value = clientSuggestIndex.value <= 0 ? len - 1 : clientSuggestIndex.value - 1
+  } else if (key === 'enter') {
+    if (clientSuggestIndex.value >= 0 && clientSuggestIndex.value < len) {
+      selectClientForShipment(filteredShipmentClients.value[clientSuggestIndex.value])
+    }
+  }
+}
+
+function onPhoneSearchKey(key: 'up' | 'down' | 'enter') {
+  if (!showPhoneSuggestions.value || filteredPhoneClients.value.length === 0) {
+    if (key === 'enter') showPhoneSuggestions.value = true
+    return
+  }
+  const len = filteredPhoneClients.value.length
+  if (key === 'down') {
+    phoneSuggestIndex.value = (phoneSuggestIndex.value + 1) % len
+  } else if (key === 'up') {
+    phoneSuggestIndex.value = phoneSuggestIndex.value <= 0 ? len - 1 : phoneSuggestIndex.value - 1
+  } else if (key === 'enter') {
+    if (phoneSuggestIndex.value >= 0 && phoneSuggestIndex.value < len) {
+      selectClientFromPhone(filteredPhoneClients.value[phoneSuggestIndex.value])
+    }
+  }
 }
 </script>
