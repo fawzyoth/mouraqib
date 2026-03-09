@@ -384,12 +384,12 @@
         <div class="flex items-center gap-6">
           <div>
             <span class="text-sm text-gray-500">Prix produit</span>
-            <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ newShipment.productPrice.toFixed(2) }} DT</p>
+            <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ (Number(newShipment.productPrice) || 0).toFixed(2) }} DT</p>
           </div>
           <div class="text-gray-300 dark:text-gray-600">+</div>
           <div>
             <span class="text-sm text-gray-500">Livraison</span>
-            <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ newShipment.deliveryFee.toFixed(2) }} DT</p>
+            <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ (Number(newShipment.deliveryFee) || 0).toFixed(2) }} DT</p>
           </div>
           <div class="text-gray-300 dark:text-gray-600">=</div>
           <div class="bg-orange-50 dark:bg-orange-900/20 px-4 py-2 rounded-xl">
@@ -592,7 +592,7 @@ watch(() => newShipment.locality, () => {
 })
 
 const totalPrice = computed(() => {
-  return (newShipment.productPrice || 0) + (newShipment.deliveryFee || 0)
+  return (Number(newShipment.productPrice) || 0) + (Number(newShipment.deliveryFee) || 0)
 })
 
 function generateReference() {
