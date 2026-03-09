@@ -13,6 +13,10 @@
           ]"></span>
           <h4 class="text-sm font-semibold text-gray-900 dark:text-white">{{ group.label }}</h4>
           <span class="text-xs text-gray-400">({{ group.shipments.length }})</span>
+          <button v-if="group.type === 'print' && group.shipments.length > 0" @click="handlePrintAll(group.shipments)" class="btn-primary btn-primary-sm flex items-center space-x-1 ml-auto">
+            <Printer class="w-3 h-3" />
+            <span>Imprimer tout</span>
+          </button>
         </div>
         <div class="space-y-2">
           <ShipmentRow
@@ -84,6 +88,13 @@
         </p>
       </div>
 
+      <div v-if="action.type === 'print' && filteredShipments.length > 0" class="mb-3 flex justify-end">
+        <button @click="handlePrintAll(filteredShipments)" class="btn-primary btn-primary-sm flex items-center space-x-1">
+          <Printer class="w-3 h-3" />
+          <span>Imprimer tout</span>
+        </button>
+      </div>
+
       <div class="space-y-2">
         <ShipmentRow
           v-for="s in filteredShipments"
@@ -120,7 +131,7 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { CheckCircle, Loader2 } from 'lucide-vue-next'
+import { CheckCircle, Loader2, Printer } from 'lucide-vue-next'
 import { Html5Qrcode } from 'html5-qrcode'
 import ModalShell from '@/components/shared/ModalShell.vue'
 import { useAppStore } from '@/stores/app'
@@ -412,11 +423,29 @@ function handleConfirm(_shipment: UIShipment) {
 }
 
 async function handlePrint(shipment: UIShipment) {
+  if (shipment.labelUrl) {
+    window.open(shipment.labelUrl, '_blank', 'noopener,noreferrer')
+  }
   processingIds.add(shipment.id)
   try {
     await appStore.shipmentsData.markAsPrinted([shipment.id])
   } finally {
     processingIds.delete(shipment.id)
+  }
+}
+
+async function handlePrintAll(shipments: UIShipment[]) {
+  for (const s of shipments) {
+    if (s.labelUrl) {
+      window.open(s.labelUrl, '_blank', 'noopener,noreferrer')
+    }
+  }
+  const ids = shipments.map(s => s.id)
+  ids.forEach(id => processingIds.add(id))
+  try {
+    await appStore.shipmentsData.markAsPrinted(ids)
+  } finally {
+    ids.forEach(id => processingIds.delete(id))
   }
 }
 
