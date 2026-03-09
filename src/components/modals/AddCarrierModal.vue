@@ -98,7 +98,7 @@
                     <input v-model="newCarrier.apiKey" type="password" placeholder="Clé API secrète" class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-mono focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                   </div>
                 </div>
-                <div>
+                <div v-if="newCarrier.name.toLowerCase().includes('navex')">
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Sender ID
                   </label>

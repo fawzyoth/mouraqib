@@ -211,6 +211,10 @@
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nom du transporteur</label>
                 <input :value="newCarrier.name" @input="$emit('update:newCarrierField', 'name', ($event.target as HTMLInputElement).value)" type="text" placeholder="Ex: Aramex, DHL, etc." class="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white" :readonly="!!selectedModalCarrier" />
               </div>
+              <div v-if="newCarrier.name.toLowerCase().includes('navex')">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sender ID <span class="text-red-500">*</span></label>
+                <input :value="newCarrier.senderId" @input="$emit('update:newCarrierField', 'senderId', ($event.target as HTMLInputElement).value)" type="text" autocomplete="off" placeholder="Ex: 7924" class="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+              </div>
               <!-- Custom config fields (e.g. Navex tokens) -->
               <div v-if="hasCustomConfig()" class="space-y-4">
                 <div v-for="field in selectedModalCarrier!.configFields" :key="field.key">
@@ -462,6 +466,7 @@ interface NewCarrierForm {
   name: string
   apiId: string
   apiKey: string
+  senderId: string
   fraisColisLivres: number
   fraisColisRetour: number
   fraisColisEchange: number
@@ -534,6 +539,9 @@ function hasCustomConfig(): boolean {
 }
 
 function canProceedFromStep2(): boolean {
+  if (props.newCarrier.name.toLowerCase().includes('navex') && !props.newCarrier.senderId) {
+    return false
+  }
   if (hasCustomConfig()) {
     return props.selectedModalCarrier!.configFields!
       .filter(f => f.required)

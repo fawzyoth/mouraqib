@@ -101,6 +101,7 @@ const newCarrier = reactive({
   apiId: '',
   apiKey: '',
   apiSecret: '',
+  senderId: '',
   fraisColisLivres: 7,
   fraisColisRetour: 5,
   fraisColisEchange: 8,
@@ -130,6 +131,7 @@ function resetNewCarrierForm() {
     apiId: '',
     apiKey: '',
     apiSecret: '',
+    senderId: '',
     fraisColisLivres: 7,
     fraisColisRetour: 5,
     fraisColisEchange: 8,
@@ -158,6 +160,7 @@ function editCarrier(carrier: any) {
     apiId: carrier.apiId || '',
     apiKey: carrier.apiKey || '',
     apiSecret: '',
+    senderId: carrier.senderId || '',
     fraisColisLivres: carrier.fraisColisLivres ?? 7,
     fraisColisRetour: carrier.fraisColisRetour ?? 5,
     fraisColisEchange: carrier.fraisColisEchange ?? 8,
@@ -256,7 +259,7 @@ async function saveCarrierFromPage() {
     const allFilled = selectedModalCarrier.value!.configFields!
       .filter((f: any) => f.required)
       .every((f: any) => !!(newCarrier as any)[f.key])
-    if (!newCarrier.name || !allFilled) {
+    if (!newCarrier.name || !allFilled || (newCarrier.name.toLowerCase().includes('navex') && !newCarrier.senderId)) {
       toast.error('Veuillez remplir tous les champs requis')
       return
     }
