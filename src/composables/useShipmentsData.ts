@@ -46,13 +46,10 @@ export function useShipmentsData(orgId: Ref<string>) {
     try {
       // Auto-create client if no existing client was selected
       if (!form.clientId && form.phone) {
-        console.log('[create-shipment] step 1: looking up client by phone…')
         const existing = await clientsService.getByPhone(form.phone, orgId.value)
         if (existing) {
           form.clientId = existing.id
-          console.log('[create-shipment] step 1: existing client found', existing.id)
         } else {
-          console.log('[create-shipment] step 1b: creating new client…')
           const newClient = await clientsService.create({
             organization_id: orgId.value,
             name: form.customerName,
@@ -66,7 +63,6 @@ export function useShipmentsData(orgId: Ref<string>) {
             status: 'active',
           })
           form.clientId = newClient.id
-          console.log('[create-shipment] step 1b: new client created', newClient.id)
         }
       }
 
@@ -92,7 +88,6 @@ export function useShipmentsData(orgId: Ref<string>) {
 
       if (carrierId) {
         try {
-          console.log('[create-shipment] step 2: calling carrier-proxy…')
           const authStore = useAuthStore()
           const token = authStore.session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY
           const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -123,7 +118,6 @@ export function useShipmentsData(orgId: Ref<string>) {
           })
 
           const { data, error } = await Promise.race([invokePromise, timeoutPromise])
-          console.log('[create-shipment] step 2: carrier-proxy returned', { data, error: error?.message })
 
           if (error || !data?.result) {
             // Extract error detail for toast
@@ -154,16 +148,13 @@ export function useShipmentsData(orgId: Ref<string>) {
       }
 
       // ── Insert into DB (with carrier data if available) ──
-      console.log('[create-shipment] step 3: inserting into DB…')
       const insert = uiShipmentToInsert(form, orgId.value, userId, carrierId, carrierData)
       const row = await shipmentsService.create(insert)
-      console.log('[create-shipment] step 3: DB insert done, id =', row.id)
 
       // Add initial event
       const eventStatus = carrierData?.status || 'En attente'
       shipmentsService.addEvent(row.id, eventStatus, 'Commande en attente de ramassage', 'Tunisie').catch(console.error)
 
-      console.log('[create-shipment] step 4: all done ✅')
       toast.success('Colis créé')
 
       // ── Post-insert: auto-pickup for First Delivery (fire-and-forget) ──

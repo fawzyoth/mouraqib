@@ -780,7 +780,6 @@ function resetForm() {
 }
 
 function handleSubmit() {
-  console.log('Button "Créer le colis" clicked!', newShipment)
   // Compute client data changes if an existing client was selected
   const clientChanges: { field: string; label: string; oldValue: string; newValue: string }[] = []
   if (selectedShipmentClient.value && originalClientData.value) {
