@@ -537,9 +537,10 @@ const filteredShipmentClients = computed(() => {
 const carrierSearchQuery = ref('')
 
 const filteredCarriersLocal = computed(() => {
-  if (!carrierSearchQuery.value) return props.carriers
+  const connected = props.carriers.filter((c: any) => c.apiStatus === 'connected')
+  if (!carrierSearchQuery.value) return connected
   const search = carrierSearchQuery.value.toLowerCase()
-  return props.carriers.filter(carrier =>
+  return connected.filter(carrier =>
     carrier.name.toLowerCase().includes(search)
   )
 })

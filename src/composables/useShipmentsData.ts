@@ -85,7 +85,7 @@ export function useShipmentsData(orgId: Ref<string>) {
       let carrierData: { carrier_tracking_number?: string; label_url?: string; status?: string } | undefined
       const isFirstDelivery = (form.carrier || '').toLowerCase().includes('first delivery')
 
-      if (carrierId && carrierApiStatus === 'connected') {
+      if (carrierId) {
         try {
           const { data, error } = await supabase.functions.invoke('carrier-proxy', {
             body: {
