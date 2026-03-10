@@ -111,13 +111,15 @@ export function useShipmentsData(orgId: Ref<string>) {
             return { data, error: null }
           }).catch(err => ({ data: null, error: err }))
 
+          let timeoutId: any
           const timeoutPromise = new Promise<any>((_, reject) => {
-            setTimeout(() => {
+            timeoutId = setTimeout(() => {
               reject(new Error("Délai d'attente dépassé : l'API du transporteur ne répond pas."))
             }, 15000)
           })
 
           const { data, error } = await Promise.race([invokePromise, timeoutPromise])
+          clearTimeout(timeoutId)
 
           if (error || !data?.result) {
             // Extract error detail for toast
@@ -179,7 +181,7 @@ export function useShipmentsData(orgId: Ref<string>) {
               ...carrierPayload,
             },
           })
-        }).catch((err: any) => {
+        }).then(res => res.text().catch(() => { })).catch((err: any) => {
           console.error('[carrier-proxy] auto-pickup failed:', err)
         })
       }

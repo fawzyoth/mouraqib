@@ -56,6 +56,7 @@
                 :href="shipment.labelUrl"
                 target="_blank"
                 rel="noopener noreferrer"
+                @click="onPrintOpened"
                 class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1"
               >
                 <ExternalLink class="w-3 h-3" />
@@ -91,6 +92,7 @@
               :href="shipment.labelUrl"
               target="_blank"
               rel="noopener noreferrer"
+              @click="onPrintOpened"
               class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#4959b4] hover:bg-[#3a4791] text-white rounded-lg text-sm font-medium transition-colors"
             >
               <Printer class="w-4 h-4" />
@@ -129,8 +131,9 @@
 import { ref } from 'vue'
 import { CheckCircle, Copy, Check, Printer, Plus, ArrowRight, ListFilter, FileText, ExternalLink } from 'lucide-vue-next'
 
-defineProps<{
+const props = defineProps<{
   shipment: {
+    id?: string
     trackingNumber: string
     customerName: string
     destination: string
@@ -148,6 +151,9 @@ defineEmits<{
   (e: 'toggle-submenu'): void
 }>()
 
+import { useAppStore } from '@/stores/app'
+
+const appStore = useAppStore()
 const copied = ref(false)
 
 function copyTracking() {
@@ -162,5 +168,11 @@ function copyTracking() {
 function formatAmount(val: number | undefined) {
   if (val == null) return '0.00'
   return Number(val).toFixed(2)
+}
+
+function onPrintOpened() {
+  if (props.shipment.id) {
+    appStore.shipmentsData.markAsPrinted([props.shipment.id])
+  }
 }
 </script>

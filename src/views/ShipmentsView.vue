@@ -364,6 +364,9 @@ function closePrintModal() {
 function printLabel() {
   if (labelToPrint.value?.labelUrl) {
     window.open(labelToPrint.value.labelUrl, '_blank')
+    if (labelToPrint.value.id) {
+      appStore.shipmentsData.markAsPrinted([labelToPrint.value.id])
+    }
   }
 }
 
