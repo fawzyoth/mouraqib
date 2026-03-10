@@ -33,8 +33,7 @@
     </div>
   </header>
   <main class="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-950">
-    <!-- Active Returns Stats (only for active mode) -->
-    <div v-if="mode === 'active'" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div v-if="mode === 'active'" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
       <div @click="localFilter = 'all'"
         :class="['bg-white dark:bg-gray-900 rounded-xl border p-4 cursor-pointer transition-all',
           localFilter === 'all' ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800' : 'border-gray-200 dark:border-gray-800 hover:border-gray-300']">
@@ -48,56 +47,6 @@
               <p class="text-sm text-gray-500">Tous les retours actifs</p>
             </div>
           </div>
-        </div>
-      </div>
-      <div @click="localFilter = 'on-time'"
-        :class="['bg-white dark:bg-gray-900 rounded-xl border p-4 cursor-pointer transition-all',
-          localFilter === 'on-time' ? 'border-green-500 ring-2 ring-green-200 dark:ring-green-800' : 'border-gray-200 dark:border-gray-800 hover:border-gray-300']">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-3">
-            <div class="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-              <Clock class="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p class="text-2xl font-bold text-green-600">{{ activeReturnsStats.onTime }}</p>
-              <p class="text-sm text-gray-500">A l'heure</p>
-            </div>
-          </div>
-          <span class="text-xs font-medium text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full">
-            {{ activeReturnsStats.onTimePercent }}%
-          </span>
-        </div>
-      </div>
-      <div @click="localFilter = 'delayed'"
-        :class="['bg-white dark:bg-gray-900 rounded-xl border p-4 cursor-pointer transition-all',
-          localFilter === 'delayed' ? 'border-red-500 ring-2 ring-red-200 dark:ring-red-800' : 'border-gray-200 dark:border-gray-800 hover:border-gray-300']">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-3">
-            <div class="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
-              <AlertTriangle class="w-5 h-5 text-red-600" />
-            </div>
-            <div>
-              <p class="text-2xl font-bold text-red-600">{{ activeReturnsStats.delayed }}</p>
-              <p class="text-sm text-gray-500">En retard</p>
-            </div>
-          </div>
-          <span class="text-xs font-medium text-red-600 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-full">
-            {{ activeReturnsStats.delayedPercent }}%
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Delayed Alert Banner (only for active mode with delayed filter) -->
-    <div v-if="mode === 'active' && activeReturnsStats.delayed > 0 && localFilter !== 'on-time'"
-      class="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
-      <div class="flex items-start space-x-3">
-        <AlertTriangle class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-        <div>
-          <p class="font-medium text-red-800 dark:text-red-300">{{ activeReturnsStats.delayed }} retour(s) en retard</p>
-          <p class="text-sm text-red-600 dark:text-red-400 mt-1">
-            Ces colis ont depasse le delai de retour estime. Contactez le transporteur pour plus d'informations.
-          </p>
         </div>
       </div>
     </div>
@@ -131,120 +80,42 @@
         </div>
       </div>
 
-      <!-- Returns Cards -->
-      <div v-if="displayedReturns.length > 0" class="p-4 space-y-3">
-        <div v-for="ret in displayedReturns" :key="ret.id"
-          :class="[
-            'group rounded-xl p-4 transition-all cursor-pointer',
-            ret.isDelayed && mode === 'active'
-              ? 'bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 border border-red-200 dark:border-red-800'
-              : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 border border-transparent hover:border-gray-200 dark:hover:border-gray-700'
-          ]">
-          <div class="flex items-start justify-between">
-            <!-- Left: Main Info -->
-            <div class="flex items-start space-x-4">
-              <!-- Status Icon -->
-              <div class="flex-shrink-0 relative">
-                <div :class="[
-                  'w-12 h-12 rounded-xl flex items-center justify-center',
-                  ret.status === 'Perdu' ? 'bg-red-100 dark:bg-red-900/30' :
-                  ret.status === 'Recupere' ? 'bg-green-100 dark:bg-green-900/30' :
-                  ret.isDelayed ? 'bg-red-100 dark:bg-red-900/30' :
-                  'bg-blue-100 dark:bg-blue-900/30'
-                ]">
-                  <PackageX v-if="ret.status === 'Perdu'" class="w-6 h-6 text-red-600" />
-                  <PackageCheck v-else-if="ret.status === 'Recupere'" class="w-6 h-6 text-green-600" />
-                  <AlertTriangle v-else-if="ret.isDelayed" class="w-6 h-6 text-red-600" />
-                  <Truck v-else class="w-6 h-6 text-blue-600" />
+      <!-- Returns Table -->
+      <div v-if="displayedReturns.length > 0" class="overflow-x-auto border-t border-gray-200 dark:border-gray-800">
+        <table class="w-full min-w-[1000px]">
+          <thead class="bg-gray-50 dark:bg-gray-800/50">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">N Suivi</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Transporteur</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Client</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Raison</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Statut</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Valeur</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date Retour</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+            <tr v-for="ret in displayedReturns" :key="ret.id" 
+                @click="$emit('select-return', ret)"
+                class="group even:bg-gray-50/50 even:dark:bg-gray-800/20 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer">
+              <td class="px-4 py-3" data-label="N Suivi">
+                <div class="flex flex-col">
+                  <span class="font-mono text-sm font-semibold text-gray-900 dark:text-white">{{ ret.trackingNumber }}</span>
+                  <span class="text-xs text-gray-500">Cmd: {{ ret.originalOrder }}</span>
                 </div>
-                <!-- Delay indicator badge -->
-                <div v-if="ret.isDelayed && ret.status === 'En transit'" class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                  <span class="text-[10px] font-bold text-white">!</span>
+              </td>
+              <td class="px-4 py-3" data-label="Transporteur">
+                <span class="text-sm font-medium text-gray-900 dark:text-white">{{ ret.carrier }}</span>
+              </td>
+              <td class="px-4 py-3" data-label="Client">
+                <div class="flex flex-col">
+                  <span class="text-sm text-gray-900 dark:text-white">{{ ret.customerName }}</span>
+                  <span class="text-xs text-gray-500 flex items-center mt-0.5"><MapPin class="w-3 h-3 mr-1" />{{ ret.destination }}</span>
                 </div>
-              </div>
-              <!-- Details -->
-              <div>
-                <div class="flex items-center space-x-2 flex-wrap gap-y-1">
-                  <p class="font-semibold text-gray-900 dark:text-white">{{ ret.trackingNumber }}</p>
-                  <span :class="[
-                    'px-2 py-0.5 text-xs font-medium rounded-full',
-                    ret.status === 'Perdu' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                    ret.status === 'Recupere' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                  ]">
-                    {{ ret.status }}
-                  </span>
-                  <!-- Delay badge for active returns -->
-                  <span v-if="ret.status === 'En transit' && ret.isDelayed" class="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                    En retard +{{ ret.daysDelayed }}j
-                  </span>
-                  <span v-else-if="ret.status === 'En transit' && !ret.isDelayed" class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                    A l'heure
-                  </span>
-                </div>
-                <p class="text-sm text-gray-500 mt-0.5">Commande: {{ ret.originalOrder }}</p>
-                <div class="flex items-center space-x-4 mt-2 flex-wrap gap-y-1">
-                  <div class="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                    <User class="w-4 h-4 mr-1.5" />
-                    {{ ret.customerName }}
-                  </div>
-                  <div class="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                    <MapPin class="w-4 h-4 mr-1.5" />
-                    {{ ret.destination }}
-                  </div>
-                  <!-- Expected arrival for active returns -->
-                  <div v-if="ret.status === 'En transit' && ret.expectedArrival"
-                    :class="['flex items-center text-sm', ret.isDelayed ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400']">
-                    <Calendar class="w-4 h-4 mr-1.5" />
-                    {{ ret.isDelayed ? 'Attendu le' : 'Arrivee prevue' }}: {{ ret.expectedArrival }}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Right: Value & Actions -->
-            <div class="text-right">
-              <p :class="[
-                'text-lg font-bold',
-                ret.status === 'Perdu' ? 'text-red-600' : 'text-gray-900 dark:text-white'
-              ]">
-                {{ ret.value }} DT
-              </p>
-              <p class="text-xs text-gray-500 mt-1">{{ ret.returnDate }}</p>
-            </div>
-          </div>
-
-          <!-- Carrier & Reason Section -->
-          <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <div class="flex items-center justify-between">
-              <!-- Carrier Info -->
-              <div class="flex items-center space-x-3">
-                <div :class="[
-                  'w-10 h-10 rounded-lg flex items-center justify-center',
-                  ret.carrier === 'Yalidine' ? 'bg-blue-100 dark:bg-blue-900/30' :
-                  ret.carrier === 'ZR Express' ? 'bg-green-100 dark:bg-green-900/30' :
-                  ret.carrier === 'Maystro' ? 'bg-purple-100 dark:bg-purple-900/30' :
-                  ret.carrier === 'Ecotrack' ? 'bg-orange-100 dark:bg-orange-900/30' :
-                  'bg-gray-100 dark:bg-gray-800'
-                ]">
-                  <Building2 :class="[
-                    'w-5 h-5',
-                    ret.carrier === 'Yalidine' ? 'text-blue-600' :
-                    ret.carrier === 'ZR Express' ? 'text-green-600' :
-                    ret.carrier === 'Maystro' ? 'text-purple-600' :
-                    ret.carrier === 'Ecotrack' ? 'text-orange-600' :
-                    'text-gray-500'
-                  ]" />
-                </div>
-                <div>
-                  <p class="font-medium text-gray-900 dark:text-white text-sm">{{ ret.carrier }}</p>
-                  <p class="text-xs text-gray-500">Transporteur</p>
-                </div>
-              </div>
-              <!-- Reason Badge -->
-              <div class="flex items-center space-x-2">
+              </td>
+              <td class="px-4 py-3" data-label="Raison">
                 <span :class="[
-                  'px-3 py-1.5 text-xs font-medium rounded-lg',
+                  'px-2.5 py-1 text-xs font-medium rounded-lg',
                   ret.reason === 'Refus client' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
                   ret.reason === 'Client absent' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
                   ret.reason === 'Adresse incorrecte' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
@@ -253,13 +124,31 @@
                 ]">
                   {{ ret.reason }}
                 </span>
-                <button class="text-sm text-orange-600 hover:text-orange-700 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                  Details ->
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+              </td>
+              <td class="px-4 py-3" data-label="Statut">
+                <div class="flex flex-col gap-1 items-start">
+                  <span :class="[
+                    'px-2 py-0.5 text-xs font-medium rounded-full flex items-center gap-1',
+                    ret.status === 'Perdu' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                    ret.status === 'Recupere' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                  ]">
+                    <PackageX v-if="ret.status === 'Perdu'" class="w-3 h-3" />
+                    <PackageCheck v-else-if="ret.status === 'Recupere'" class="w-3 h-3" />
+                    <Truck v-else class="w-3 h-3" />
+                    {{ ret.status }}
+                  </span>
+                </div>
+              </td>
+              <td class="px-4 py-3 text-sm font-semibold" :class="ret.status === 'Perdu' ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'" data-label="Valeur">
+                {{ ret.value }} DT
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Date Retour">
+                <span class="flex items-center"><RotateCcw class="w-3 h-3 mr-1 text-gray-400" /> {{ ret.returnDate }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <!-- Empty State -->
@@ -383,20 +272,12 @@ const props = defineProps<{
 defineEmits<{
   'toggle-submenu': []
   'sync-returns': []
+  'select-return': [returnItem: ReturnItem]
 }>()
 
-const localFilter = ref<'all' | 'on-time' | 'delayed'>('all')
+const localFilter = ref<'all'>('all')
 
 const displayedReturns = computed(() => {
-  if (props.mode !== 'active' || localFilter.value === 'all') {
-    return props.filteredReturns
-  }
-  if (localFilter.value === 'delayed') {
-    return props.filteredReturns.filter(r => r.isDelayed)
-  }
-  if (localFilter.value === 'on-time') {
-    return props.filteredReturns.filter(r => !r.isDelayed)
-  }
   return props.filteredReturns
 })
 

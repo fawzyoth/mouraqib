@@ -81,8 +81,8 @@
         </div>
 
         <!-- Table -->
-        <div class="table-responsive">
-        <table class="w-full">
+        <div class="overflow-x-auto border-t border-gray-200 dark:border-gray-800">
+        <table class="w-full min-w-[1000px]">
           <thead class="bg-gray-50 dark:bg-gray-800/50">
             <tr>
               <th v-for="col in columns" :key="col.key" :class="['px-4 py-0 text-left', col.width]">
@@ -168,7 +168,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
-            <tr v-for="shipment in paginatedShipments" :key="shipment.id" @click="$emit('select-shipment', shipment)" class="group hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer">
+            <tr v-for="shipment in paginatedShipments" :key="shipment.id" @click="$emit('select-shipment', shipment)" class="group even:bg-gray-50/50 even:dark:bg-gray-800/20 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer">
               <td class="px-4 py-3" data-label="N Suivi">
                 <span class="font-mono text-sm text-gray-900 dark:text-white">{{ shipment.trackingNumber }}</span>
               </td>

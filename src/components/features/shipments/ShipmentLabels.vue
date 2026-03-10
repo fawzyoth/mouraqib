@@ -95,8 +95,8 @@
         </div>
 
         <!-- Table -->
-        <div class="table-responsive">
-          <table class="w-full">
+        <div class="overflow-x-auto border-t border-gray-200 dark:border-gray-800">
+          <table class="w-full min-w-[800px]">
             <thead class="bg-gray-50 dark:bg-gray-800/50">
               <tr>
                 <!-- Checkbox column header -->
@@ -201,7 +201,7 @@
                 v-for="shipment in paginatedLabels"
                 :key="shipment.id"
                 @click="$emit('select-shipment', shipment)"
-                class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
+                class="even:bg-gray-50/50 even:dark:bg-gray-800/20 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
                 :class="selectedLabels.includes(shipment.id) ? 'bg-orange-50 dark:bg-orange-900/10' : ''"
               >
                 <!-- Checkbox -->

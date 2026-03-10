@@ -10,6 +10,7 @@
     :carriers="returnCarriers"
     @toggle-submenu="subMenuOpen = !subMenuOpen"
     @sync-returns="syncReturns"
+    @select-return="handleSelectReturn"
   />
 
   <!-- Returns: Value -->
@@ -53,6 +54,18 @@ const appStore = useAppStore()
 const authStore = useAuthStore()
 const activeSection = computed(() => (route.meta.subSection as string) || '')
 const subMenuOpen = inject<import('vue').Ref<boolean>>('subMenuOpen', ref(false))
+const openShipmentDetail = inject<((shipment: any) => void) | undefined>('openShipmentDetail')
+
+function handleSelectReturn(ret: any) {
+  if (openShipmentDetail) {
+    const originalShipment = appStore.shipments.find((s: any) => s.id === ret.id)
+    if (originalShipment) {
+      openShipmentDetail(originalShipment)
+    } else {
+      openShipmentDetail(ret)
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Section-local state
