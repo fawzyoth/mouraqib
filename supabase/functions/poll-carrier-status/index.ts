@@ -168,6 +168,7 @@ async function pollCarrier(
     .not('carrier_tracking_number', 'is', null)
     .neq('carrier_tracking_number', '')
     .order('id', { ascending: true })
+    .limit(10000)
 
   if (shipmentsError) {
     throw new Error(`Failed to query shipments: ${shipmentsError.message}`)

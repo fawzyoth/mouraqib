@@ -50,7 +50,7 @@ export const shipmentsService = {
       query = query.or(`tracking_number.ilike.%${filters.search}%,recipient_name.ilike.%${filters.search}%,recipient_phone.ilike.%${filters.search}%`)
     }
 
-    const { data, error } = await query
+    const { data, error } = await query.limit(10000)
 
     if (error) throw error
     return data

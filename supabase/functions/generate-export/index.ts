@@ -88,7 +88,7 @@ serve(async (req) => {
         if (filters?.boutiqueId) query = query.eq('boutique_id', filters.boutiqueId)
         if (filters?.carrierId) query = query.eq('carrier_id', filters.carrierId)
 
-        const { data: shipments } = await query
+        const { data: shipments } = await query.limit(10000)
 
         // Build CSV
         const headers = [
