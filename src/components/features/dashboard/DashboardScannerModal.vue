@@ -3,20 +3,12 @@
     <!-- Barcode scanner -->
     <div class="mb-4 space-y-3">
       <div class="relative rounded-xl overflow-hidden bg-black" style="height: 160px">
-        <!-- Native BarcodeDetector mode -->
-        <template v-if="useNative">
-          <video
-            ref="videoRef"
-            autoplay
-            playsinline
-            muted
-            class="w-full h-full object-cover"
-          />
-        </template>
-        <!-- html5-qrcode fallback mode -->
-        <template v-else>
-          <div id="dashboard-barcode-scanner" class="dashboard-scanner-container"></div>
-        </template>
+        <BarcodeScanner
+          ref="scannerRef"
+          :active="scannerActive"
+          @scan="onBarcodeDetected"
+          @error="(msg) => showFeedback(msg, true)"
+        />
         <div v-if="!scannerActive" class="absolute inset-0 flex items-center justify-center bg-gray-900/80">
           <Loader2 class="w-6 h-6 text-white animate-spin" />
         </div>
@@ -85,7 +77,7 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch, onUnmounted } from 'vue'
 import { CheckCircle, Loader2, Check, Package } from 'lucide-vue-next'
-import { Html5Qrcode } from 'html5-qrcode'
+import BarcodeScanner from '@/components/shared/BarcodeScanner.vue'
 import ModalShell from '@/components/shared/ModalShell.vue'
 import { useAppStore } from '@/stores/app'
 import type { UIShipment } from '@/mappers/shipments'
@@ -105,18 +97,12 @@ const appStore = useAppStore()
 const processingIds = reactive(new Set<string>())
 
 // Barcode scanner state
+const scannerRef = ref<InstanceType<typeof BarcodeScanner> | null>(null)
 const scannedIds = reactive(new Set<string>())
-const videoRef = ref<HTMLVideoElement>()
-const stream = ref<MediaStream | null>(null)
 const scannerActive = ref(false)
 const manualCode = ref('')
 const scanFeedback = ref('')
 const scanFeedbackIsError = ref(false)
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-const useNative = ref(!isIOS)
-let animFrameId: number | null = null
-let lastDetectTime = 0
-let html5Qrcode: Html5Qrcode | null = null
 
 function showFeedback(message: string, isError = false) {
   scanFeedback.value = message
@@ -161,113 +147,19 @@ async function markScanned(shipment: UIShipment) {
 
 async function onBarcodeDetected(code: string) {
   const shipment = shipmentList.value.find((s: UIShipment) => s.trackingNumber === code)
-  if (!shipment) return
-  if (scannedIds.has(shipment.id)) return
+  if (!shipment) {
+    scannerRef.value?.playErrorBeep()
+    showFeedback('Aucun colis correspondant', true)
+    return
+  }
+  if (scannedIds.has(shipment.id)) {
+    scannerRef.value?.playErrorBeep()
+    showFeedback('Déjà scanné', true)
+    return
+  }
   scannedIds.add(shipment.id)
   showFeedback(`${code} scanne !`)
   await markScanned(shipment)
-}
-
-// --- Native BarcodeDetector path ---
-function detectionLoop() {
-  if (!scannerActive.value || !videoRef.value) return
-  const now = performance.now()
-  if (now - lastDetectTime >= 250) {
-    lastDetectTime = now
-    const detector = new (window as any).BarcodeDetector({ formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'qr_code'] })
-    detector.detect(videoRef.value).then((barcodes: any[]) => {
-      for (const barcode of barcodes) {
-        onBarcodeDetected(barcode.rawValue)
-      }
-    }).catch(() => {})
-  }
-  animFrameId = requestAnimationFrame(detectionLoop)
-}
-
-async function startNativeScanner() {
-  try {
-    const mediaStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment' },
-    })
-    stream.value = mediaStream
-    if (videoRef.value) {
-      videoRef.value.srcObject = mediaStream
-    }
-    scannerActive.value = true
-    lastDetectTime = 0
-    animFrameId = requestAnimationFrame(detectionLoop)
-  } catch {
-    showFeedback('Impossible d\'acceder a la camera', true)
-  }
-}
-
-function stopNativeScanner() {
-  if (animFrameId !== null) {
-    cancelAnimationFrame(animFrameId)
-    animFrameId = null
-  }
-  if (stream.value) {
-    stream.value.getTracks().forEach(t => t.stop())
-    stream.value = null
-  }
-}
-
-// --- html5-qrcode fallback path ---
-async function startFallbackScanner() {
-  await nextTick()
-  try {
-    html5Qrcode = new Html5Qrcode('dashboard-barcode-scanner')
-    await html5Qrcode.start(
-      { facingMode: 'environment' },
-      {
-        fps: 10,
-        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-          const w = Math.floor(viewfinderWidth * 0.8)
-          const h = Math.floor(viewfinderHeight * 0.4)
-          return { width: Math.max(w, 200), height: Math.max(h, 80) }
-        },
-      },
-      (decodedText) => {
-        onBarcodeDetected(decodedText)
-      },
-      () => {},
-    )
-    scannerActive.value = true
-  } catch {
-    showFeedback('Impossible d\'acceder a la camera', true)
-  }
-}
-
-async function stopFallbackScanner() {
-  if (html5Qrcode) {
-    try {
-      const state = html5Qrcode.getState()
-      if (state === 2) {
-        await html5Qrcode.stop()
-      }
-    } catch {
-      // ignore stop errors
-    }
-    html5Qrcode = null
-  }
-}
-
-// --- Unified start/stop ---
-async function startScanner() {
-  if (useNative.value) {
-    await startNativeScanner()
-  } else {
-    await startFallbackScanner()
-  }
-}
-
-async function stopScanner() {
-  scannerActive.value = false
-  if (useNative.value) {
-    stopNativeScanner()
-  } else {
-    await stopFallbackScanner()
-  }
 }
 
 async function handleManualScan() {
@@ -276,13 +168,15 @@ async function handleManualScan() {
   const shipment = shipmentList.value.find((s: UIShipment) => s.trackingNumber === code)
   if (shipment) {
     if (scannedIds.has(shipment.id)) {
-      showFeedback('Deja scanne', true)
+      scannerRef.value?.playErrorBeep()
+      showFeedback('Déjà scanné', true)
     } else {
       scannedIds.add(shipment.id)
       showFeedback(`${code} scanne !`)
       await markScanned(shipment)
     }
   } else {
+    scannerRef.value?.playErrorBeep()
     showFeedback('Aucun colis correspondant', true)
   }
   manualCode.value = ''
@@ -293,38 +187,17 @@ watch(() => props.show, (visible) => {
   if (visible) {
     scannedIds.clear()
     scanFeedback.value = ''
-    startScanner()
+    scannerActive.value = true
   } else {
-    stopScanner()
+    scannerActive.value = false
   }
 })
 
 onUnmounted(() => {
-  stopScanner()
+  scannerActive.value = false
 })
 </script>
 
 <style scoped>
-.dashboard-scanner-container {
-  width: 100%;
-  height: 100%;
-}
-.dashboard-scanner-container :deep(video) {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
-  min-height: 100% !important;
-}
-.dashboard-scanner-container :deep(#dashboard-barcode-scanner__scan_region) {
-  min-height: 100% !important;
-}
-.dashboard-scanner-container :deep(#dashboard-barcode-scanner__scan_region > img) {
-  display: none !important;
-}
-.dashboard-scanner-container :deep(#dashboard-barcode-scanner__dashboard_section) {
-  display: none !important;
-}
-.dashboard-scanner-container :deep(#dashboard-barcode-scanner__header_message) {
-  display: none !important;
-}
+
 </style>

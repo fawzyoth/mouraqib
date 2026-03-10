@@ -1032,4 +1032,5 @@ const activityLogs = computed(() => {
 
   // Sort by most recent first (by id descending, since we process oldest first)
   return logs.reverse().slice(0, 30)
-})</script>
+})
+</script>

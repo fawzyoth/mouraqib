@@ -149,8 +149,14 @@
           </button>
         </div>
         <!-- Camera Viewfinder -->
-        <div class="flex-1 relative overflow-hidden">
-          <div id="barcode-scanner" class="scanner-container"></div>
+        <div class="flex-1 relative overflow-hidden bg-black">
+          <BarcodeScanner
+            ref="scannerRef"
+            :active="cameraOpen"
+            container-id="barcode-scanner"
+            @scan="onBarcodeDetected"
+            @error="(msg) => cameraError = msg"
+          />
           <!-- Camera error -->
           <div v-if="cameraError" class="absolute inset-0 flex items-center justify-center bg-black/80">
             <div class="text-center px-6">
@@ -175,7 +181,7 @@
 
 <script setup lang="ts">
 import { ref, onBeforeUnmount, nextTick } from 'vue'
-import { Html5Qrcode } from 'html5-qrcode'
+import BarcodeScanner from '@/components/shared/BarcodeScanner.vue'
 import {
   ListFilter, Truck, ScanBarcode, CheckCircle, AlertCircle,
   Wallet, Package, X, Trash2, ArrowRight, Camera
@@ -239,59 +245,34 @@ function formatScanTime(shipment: any): string {
 
 // Camera scanner state
 const scanInputRef = ref<HTMLInputElement | null>(null)
+const scannerRef = ref<InstanceType<typeof BarcodeScanner> | null>(null)
 const cameraOpen = ref(false)
 const cameraError = ref<string | null>(null)
 const lastCameraScan = ref<string | null>(null)
-let html5Qrcode: Html5Qrcode | null = null
 
-async function openCamera() {
+function onBarcodeDetected(decodedText: string) {
+  // Check if shipment is already confirmed
+  const shipment = props.pickupCandidates.find(s => s.trackingNumber === decodedText)
+  if (shipment && shipment.confirmed) {
+    scannerRef.value?.playErrorBeep()
+    // Optional: could emit a specific scan error if needed, but for now just beep
+  }
+
+  lastCameraScan.value = decodedText
+  // Set the input and trigger scan
+  emit('update:scanInput', decodedText)
+  nextTick(() => emit('handle-scan'))
+  // Close camera after a short delay so user sees the result
+  setTimeout(() => closeCamera(), 600)
+}
+
+function openCamera() {
   cameraOpen.value = true
   cameraError.value = null
   lastCameraScan.value = null
-
-  await nextTick()
-
-  try {
-    html5Qrcode = new Html5Qrcode('barcode-scanner')
-    await html5Qrcode.start(
-      { facingMode: 'environment' },
-      {
-        fps: 10,
-        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-          const w = Math.floor(viewfinderWidth * 0.8)
-          const h = Math.floor(viewfinderHeight * 0.4)
-          return { width: Math.max(w, 200), height: Math.max(h, 100) }
-        },
-      },
-      (decodedText) => {
-        lastCameraScan.value = decodedText
-        // Set the input and trigger scan
-        emit('update:scanInput', decodedText)
-        nextTick(() => emit('handle-scan'))
-        // Close camera after a short delay so user sees the result
-        setTimeout(() => closeCamera(), 600)
-      },
-      () => {
-        // Ignore scan failures (no barcode found in frame)
-      }
-    )
-  } catch (err: any) {
-    cameraError.value = err?.message || 'Veuillez autoriser l\'acces a la camera'
-  }
 }
 
-async function closeCamera() {
-  if (html5Qrcode) {
-    try {
-      const state = html5Qrcode.getState()
-      if (state === 2) { // SCANNING
-        await html5Qrcode.stop()
-      }
-    } catch {
-      // ignore stop errors
-    }
-    html5Qrcode = null
-  }
+function closeCamera() {
   cameraOpen.value = false
   cameraError.value = null
   lastCameraScan.value = null
@@ -300,37 +281,10 @@ async function closeCamera() {
 }
 
 onBeforeUnmount(() => {
-  if (html5Qrcode) {
-    try {
-      html5Qrcode.stop()
-    } catch {
-      // ignore
-    }
-  }
+  cameraOpen.value = false
 })
 </script>
 
 <style scoped>
-.scanner-container {
-  width: 100%;
-  height: 100%;
-}
-.scanner-container :deep(video) {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
-  min-height: 100% !important;
-}
-.scanner-container :deep(#barcode-scanner__scan_region) {
-  min-height: 100% !important;
-}
-.scanner-container :deep(#barcode-scanner__scan_region > img) {
-  display: none !important;
-}
-.scanner-container :deep(#barcode-scanner__dashboard_section) {
-  display: none !important;
-}
-.scanner-container :deep(#barcode-scanner__header_message) {
-  display: none !important;
-}
+
 </style>
