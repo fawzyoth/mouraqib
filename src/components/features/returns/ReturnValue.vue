@@ -220,19 +220,21 @@ interface CarrierReturnStats {
   recoveryRate: number
 }
 
-const { returnsData, carriersReturnStats } = withDefaults(defineProps<{
+const props = defineProps<{
   returnsData?: ReturnsData
   carriersReturnStats?: CarrierReturnStats[]
-}>(), {
-  returnsData: () => ({
+}>()
+
+const { 
+  returnsData = {
     total: 0,
     totalValue: 0,
     recoveredValue: 0,
     pendingValue: 0,
     lostValue: 0,
-  }),
-  carriersReturnStats: () => [],
-})
+  }, 
+  carriersReturnStats = [] 
+} = props
 
 defineEmits<{
   'toggle-submenu': []

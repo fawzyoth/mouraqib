@@ -86,83 +86,118 @@ const reportPeriod = ref('month')
 const reportAnalytics = ref<any>({})
 
 // ---------------------------------------------------------------------------
-// syncReturns – fetch returned shipments and populate list + stats + carriers
+// Filtering helpers
+// ---------------------------------------------------------------------------
+const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000
+const returnStatuses = new Set([
+  'Retour Expéditeur', 'Rtn client/agence',
+  'Retour reçu', 'Rtn définitif', 'Retour assigné',
+  "Retour en cours d'expédition", 'Retour enlevé', 'Retour Annulé',
+])
+
+function populateDemoReturns() {
+  const section = activeSection.value
+  // Demo: recovered = status 'Récupéré', lost = status 'Perdu', active = 'En transit'
+  const all = demoReturnsList.map((r) => ({
+    id: r.id,
+    trackingNumber: r.trackingNumber,
+    status: r.status,
+    isDelayed: r.isDelayed,
+    daysDelayed: r.daysDelayed,
+    originalOrder: r.originalOrder,
+    customerName: r.customerName,
+    destination: r.destination,
+    expectedArrival: r.expectedArrival || '',
+    value: r.value,
+    inScannedAt: r.status === 'Récupéré' ? r.returnDate : null,
+    lastStatusAt: r.returnDate || null,
+    carrier: r.carrier,
+    reason: r.reason,
+  }))
+
+  if (section === 'recovered-returns') {
+    filteredReturns.value = all.filter(r => r.inScannedAt)
+  } else if (section === 'lost-returns') {
+    filteredReturns.value = all.filter(r => !r.inScannedAt && r.status === 'Perdu')
+  } else {
+    filteredReturns.value = all.filter(r => !r.inScannedAt && r.status !== 'Perdu')
+  }
+
+  updateStats(filteredReturns.value)
+}
+
+function applyModeFilter(rows: any[], section: string, getInScannedAt: (r: any) => string | null, getUpdatedAt: (r: any) => string | null) {
+  const now = Date.now()
+  if (section === 'recovered-returns') {
+    return rows.filter(r => !!getInScannedAt(r))
+  }
+  const withReturnStatus = rows.filter(r => returnStatuses.has(r.status))
+  if (section === 'lost-returns') {
+    return withReturnStatus.filter(r => {
+      if (getInScannedAt(r)) return false
+      const updated = getUpdatedAt(r)
+      return updated ? (now - new Date(updated).getTime()) > ONE_WEEK_MS : false
+    })
+  }
+  // active-returns
+  return withReturnStatus.filter(r => {
+    if (getInScannedAt(r)) return false
+    const updated = getUpdatedAt(r)
+    return updated ? (now - new Date(updated).getTime()) <= ONE_WEEK_MS : true
+  })
+}
+
+function updateStats(items: any[]) {
+  const total = items.length
+  activeReturnsStats.value = { total, delayed: 0, onTime: total, delayedPercent: 0, onTimePercent: 100 }
+  const carrierMap = new Map<string, { id: string; name: string }>()
+  for (const r of items) {
+    if (r.carrier && !carrierMap.has(r.carrier)) {
+      carrierMap.set(r.carrier, { id: r.carrier, name: r.carrier })
+    }
+  }
+  returnCarriers.value = Array.from(carrierMap.values())
+}
+
+// ---------------------------------------------------------------------------
+// syncReturns – re-fetch from API and repopulate based on current mode
 // ---------------------------------------------------------------------------
 async function syncReturns() {
   isSyncingReturns.value = true
   try {
-    // Demo mode: use static demo data
     if (authStore.isDemoMode) {
-      filteredReturns.value = demoReturnsList.map((r) => ({
-        id: r.id,
-        trackingNumber: r.trackingNumber,
-        status: r.status,
-        isDelayed: r.isDelayed,
-        daysDelayed: r.daysDelayed,
-        originalOrder: r.originalOrder,
-        customerName: r.customerName,
-        destination: r.destination,
-        expectedArrival: r.expectedArrival || '',
-        value: r.value,
-        returnDate: r.returnDate,
-        carrier: r.carrier,
-        reason: r.reason,
-      }))
+      populateDemoReturns()
     } else {
-      // Live mode: fetch returned shipments from the database
-      const rows = await shipmentsService.getAll(appStore.orgId, { status: 'Retour Expéditeur' })
+      // Fetch all shipments (no status filter) so all modes can be computed
+      const rows = await shipmentsService.getAll(appStore.orgId)
+      const section = activeSection.value
 
-      filteredReturns.value = rows.map((row: any) => {
-        const createdDate = new Date(row.created_at)
-        const returnedDate = row.returned_at ? new Date(row.returned_at) : createdDate
-        // Estimate: a return is "delayed" if it has been more than 5 days since returned_at
-        // without being recovered (status still 'returned' in transit back to sender)
-        const daysSinceReturn = Math.floor(
-          (Date.now() - returnedDate.getTime()) / 86_400_000
-        )
-        const isDelayed = daysSinceReturn > 5
+      const filtered = applyModeFilter(
+        rows,
+        section,
+        (r) => r.in_scanned_at || null,
+        (r) => r.updated_at || null,
+      )
 
-        return {
-          id: row.id,
-          trackingNumber: row.carrier_tracking_number || row.tracking_number,
-          status: row.returned_at ? 'En transit' : 'En transit',
-          isDelayed,
-          daysDelayed: isDelayed ? daysSinceReturn - 5 : 0,
-          originalOrder: row.reference || '-',
-          customerName: row.recipient_name,
-          destination: [row.locality, row.delegation, row.governorate].filter(Boolean).join(', ') || row.governorate,
-          expectedArrival: row.returned_at
-            ? new Date(returnedDate.getTime() + 5 * 86_400_000).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
-            : '',
-          value: row.cod_amount || 0,
-          returnDate: returnedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }),
-          carrier: row.carrier?.name || 'Non assigne',
-          reason: row.return_reason || 'Non specifie',
-        }
-      })
+      filteredReturns.value = filtered.map((row: any) => ({
+        id: row.id,
+        trackingNumber: row.carrier_tracking_number || row.tracking_number || '-',
+        status: row.status || '-',
+        isDelayed: false,
+        daysDelayed: 0,
+        originalOrder: row.reference || '-',
+        customerName: row.recipient_name || '-',
+        destination: [row.locality, row.delegation, row.governorate].filter(Boolean).join(', ') || '-',
+        expectedArrival: '',
+        value: row.cod_amount || 0,
+        inScannedAt: row.in_scanned_at || null,
+        lastStatusAt: row.updated_at || null,
+        carrier: typeof row.carrier === 'string' ? row.carrier : row.carrier?.name || row.old_carrier_name || 'Non assigné',
+        reason: row.return_reason || 'Non specifie',
+      }))
+
+      updateStats(filteredReturns.value)
     }
-
-    // Recalculate stats
-    const total = filteredReturns.value.length
-    const delayed = filteredReturns.value.filter((r: any) => r.isDelayed).length
-    const onTime = total - delayed
-
-    activeReturnsStats.value = {
-      total,
-      delayed,
-      onTime,
-      delayedPercent: total > 0 ? Math.round((delayed / total) * 100) : 0,
-      onTimePercent: total > 0 ? Math.round((onTime / total) * 100) : 0,
-    }
-
-    // Extract distinct carriers
-    const carrierMap = new Map<string, { id: string; name: string }>()
-    for (const r of filteredReturns.value) {
-      if (r.carrier && !carrierMap.has(r.carrier)) {
-        carrierMap.set(r.carrier, { id: r.carrier, name: r.carrier })
-      }
-    }
-    returnCarriers.value = Array.from(carrierMap.values())
   } finally {
     isSyncingReturns.value = false
   }
@@ -177,45 +212,7 @@ watchEffect(() => {
   // Provide initial data here so the view is not empty on first render.
 
   if (authStore.isDemoMode) {
-    // Initial list data (same mapping as syncReturns demo branch)
-    if (filteredReturns.value.length === 0) {
-      filteredReturns.value = demoReturnsList.map((r) => ({
-        id: r.id,
-        trackingNumber: r.trackingNumber,
-        status: r.status,
-        isDelayed: r.isDelayed,
-        daysDelayed: r.daysDelayed,
-        originalOrder: r.originalOrder,
-        customerName: r.customerName,
-        destination: r.destination,
-        expectedArrival: r.expectedArrival || '',
-        value: r.value,
-        returnDate: r.returnDate,
-        carrier: r.carrier,
-        reason: r.reason,
-      }))
-
-      // Stats
-      const total = filteredReturns.value.length
-      const delayed = filteredReturns.value.filter((r: any) => r.isDelayed).length
-      const onTime = total - delayed
-      activeReturnsStats.value = {
-        total,
-        delayed,
-        onTime,
-        delayedPercent: total > 0 ? Math.round((delayed / total) * 100) : 0,
-        onTimePercent: total > 0 ? Math.round((onTime / total) * 100) : 0,
-      }
-
-      // Carriers
-      const carrierMap = new Map<string, { id: string; name: string }>()
-      for (const r of filteredReturns.value) {
-        if (r.carrier && !carrierMap.has(r.carrier)) {
-          carrierMap.set(r.carrier, { id: r.carrier, name: r.carrier })
-        }
-      }
-      returnCarriers.value = Array.from(carrierMap.values())
-    }
+    populateDemoReturns()
 
     // ---- returnsData (ReturnValue summary cards) ----
     returnsData.value = { ...demoReturnsData }
@@ -286,133 +283,96 @@ watchEffect(() => {
   } else {
     // ---- Live mode: derive from appStore.shipments ----
     const allShipments = appStore.shipments as any[]
-    const returnStatuses = new Set([
-      'Retour Expéditeur', 'Rtn client/agence',
-      'Retour reçu', 'Rtn définitif', 'Retour assigné',
-      "Retour en cours d'expédition", 'Retour enlevé', 'Retour Annulé',
-    ])
-    const returnedShipments = allShipments.filter(
+    const allReturnShipments = allShipments.filter(
       (s: any) => returnStatuses.has(s.status)
     )
 
-    // Initial list population (if syncReturns hasn't run yet)
-    if (filteredReturns.value.length === 0 && returnedShipments.length > 0) {
-      filteredReturns.value = returnedShipments.map((row: any) => {
-        const createdDate = new Date(row.created_at)
-        const returnedDate = row.returned_at ? new Date(row.returned_at) : createdDate
-        const daysSinceReturn = Math.floor(
-          (Date.now() - returnedDate.getTime()) / 86_400_000
-        )
-        const isDelayed = daysSinceReturn > 5
+    // Re-compute whenever activeSection or shipments change
+    const section = activeSection.value
+    const filtered = applyModeFilter(
+      allShipments,
+      section,
+      (r) => r.inScannedAt || null,
+      (r) => r.updatedAt || null,
+    )
 
-        return {
-          id: row.id,
-          trackingNumber: row.carrier_tracking_number || row.tracking_number,
-          status: 'En transit',
-          isDelayed,
-          daysDelayed: isDelayed ? daysSinceReturn - 5 : 0,
-          originalOrder: row.reference || '-',
-          customerName: row.recipient_name,
-          destination: [row.locality, row.delegation, row.governorate].filter(Boolean).join(', ') || row.governorate || '',
-          expectedArrival: row.returned_at
-            ? new Date(new Date(row.returned_at).getTime() + 5 * 86_400_000).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
-            : '',
-          value: row.cod_amount || 0,
-          returnDate: returnedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }),
-          carrier: row.carrier?.name || 'Non assigne',
-          reason: row.return_reason || 'Non specifie',
-        }
-      })
+    filteredReturns.value = filtered.map((row: any) => ({
+      id: row.id,
+      trackingNumber: row.trackingNumber || '-',
+      status: row.status || '-',
+      isDelayed: false,
+      daysDelayed: 0,
+      originalOrder: row.reference || row.orderNumber || '-',
+      customerName: row.customerName || '-',
+      destination: row.destination || '-',
+      expectedArrival: '',
+      value: row.amount || 0,
+      inScannedAt: row.inScannedAt || null,
+      lastStatusAt: row.updatedAt || null,
+      carrier: row.carrier || 'Non assigné',
+      reason: 'Non specifie',
+    }))
 
-      const total = filteredReturns.value.length
-      const delayed = filteredReturns.value.filter((r: any) => r.isDelayed).length
-      const onTime = total - delayed
-      activeReturnsStats.value = {
-        total,
-        delayed,
-        onTime,
-        delayedPercent: total > 0 ? Math.round((delayed / total) * 100) : 0,
-        onTimePercent: total > 0 ? Math.round((onTime / total) * 100) : 0,
-      }
-
-      const carrierMap = new Map<string, { id: string; name: string }>()
-      for (const r of filteredReturns.value) {
-        if (r.carrier && !carrierMap.has(r.carrier)) {
-          carrierMap.set(r.carrier, { id: r.carrier, name: r.carrier })
-        }
-      }
-      returnCarriers.value = Array.from(carrierMap.values())
-    }
+    updateStats(filteredReturns.value)
 
     // ---- returnsData ----
-    const active = returnedShipments.filter((s: any) => !s.recovered_at && !s.lost_at).length
-    const recovered = returnedShipments.filter((s: any) => s.recovered_at).length
-    const lost = returnedShipments.filter((s: any) => s.lost_at).length
-    const totalValue = returnedShipments.reduce((sum: number, s: any) => sum + (s.cod_amount || 0), 0)
-    const recoveredValue = returnedShipments.filter((s: any) => s.recovered_at)
-      .reduce((sum: number, s: any) => sum + (s.cod_amount || 0), 0)
-    const lostValue = returnedShipments.filter((s: any) => s.lost_at)
-      .reduce((sum: number, s: any) => sum + (s.cod_amount || 0), 0)
-    const pendingValue = totalValue - recoveredValue - lostValue
+    const recoveredShipments = allShipments.filter((s: any) => !!s.inScannedAt)
+    const lostShipments = allReturnShipments.filter((s: any) => !s.inScannedAt && s.updatedAt && (Date.now() - new Date(s.updatedAt).getTime()) > ONE_WEEK_MS)
+    const activeShipments = allReturnShipments.filter((s: any) => !s.inScannedAt && s.updatedAt && (Date.now() - new Date(s.updatedAt).getTime()) <= ONE_WEEK_MS)
+    const totalValue = allReturnShipments.reduce((sum: number, s: any) => sum + (s.amount || 0), 0)
+    const recoveredValue = recoveredShipments.reduce((sum: number, s: any) => sum + (s.amount || 0), 0)
+    const lostValue = lostShipments.reduce((sum: number, s: any) => sum + (s.amount || 0), 0)
 
     returnsData.value = {
-      active,
-      recovered,
-      lost,
-      total: returnedShipments.length,
+      active: activeShipments.length,
+      recovered: recoveredShipments.length,
+      lost: lostShipments.length,
+      total: allReturnShipments.length,
       totalValue,
       recoveredValue,
-      pendingValue,
+      pendingValue: totalValue - recoveredValue - lostValue,
       lostValue,
     }
 
     // ---- carriersReturnStats ----
     const carrierGroups: Record<string, any[]> = {}
-    for (const s of returnedShipments) {
-      const name = s.carrier?.name || 'Non assigne'
+    for (const s of allReturnShipments) {
+      const name = s.carrier || 'Non assigne'
       if (!carrierGroups[name]) carrierGroups[name] = []
       carrierGroups[name].push(s)
     }
 
     carriersReturnStats.value = Object.entries(carrierGroups).map(([name, items]) => {
-      const carrierTotal = allShipments.filter((s: any) => (s.carrier?.name || 'Non assigne') === name).length || 1
-      const recoveredItems = items.filter((s: any) => s.recovered_at)
-      const lostItems = items.filter((s: any) => s.lost_at)
-      const inTransitItems = items.filter((s: any) => !s.recovered_at && !s.lost_at)
-
-      const reasons: Record<string, number> = {}
-      for (const s of items) {
-        const reason = s.return_reason || 'Non specifie'
-        reasons[reason] = (reasons[reason] || 0) + 1
-      }
+      const carrierTotal = allShipments.filter((s: any) => (s.carrier || 'Non assigne') === name).length || 1
+      const recoveredItems = items.filter((s: any) => !!s.inScannedAt)
+      const lostItems = items.filter((s: any) => !s.inScannedAt && s.updatedAt && (Date.now() - new Date(s.updatedAt).getTime()) > ONE_WEEK_MS)
+      const inTransitItems = items.filter((s: any) => !s.inScannedAt && (!s.updatedAt || (Date.now() - new Date(s.updatedAt).getTime()) <= ONE_WEEK_MS))
 
       return {
         name,
         totalReturns: items.length,
         returnRate: Math.round((items.length / carrierTotal) * 100),
-        totalValue: items.reduce((sum: number, s: any) => sum + (s.cod_amount || 0), 0),
+        totalValue: items.reduce((sum: number, s: any) => sum + (s.amount || 0), 0),
         recovered: recoveredItems.length,
-        recoveredValue: recoveredItems.reduce((sum: number, s: any) => sum + (s.cod_amount || 0), 0),
+        recoveredValue: recoveredItems.reduce((sum: number, s: any) => sum + (s.amount || 0), 0),
         inTransit: inTransitItems.length,
-        inTransitValue: inTransitItems.reduce((sum: number, s: any) => sum + (s.cod_amount || 0), 0),
+        inTransitValue: inTransitItems.reduce((sum: number, s: any) => sum + (s.amount || 0), 0),
         lost: lostItems.length,
-        lostValue: lostItems.reduce((sum: number, s: any) => sum + (s.cod_amount || 0), 0),
+        lostValue: lostItems.reduce((sum: number, s: any) => sum + (s.amount || 0), 0),
         returnFees: Math.round(items.length * 5),
-        reasons,
+        reasons: {},
         avgReturnDays: 3,
-        recoveryRate: items.length > 0
-          ? Math.round((recoveredItems.length / items.length) * 100)
-          : 0,
+        recoveryRate: items.length > 0 ? Math.round((recoveredItems.length / items.length) * 100) : 0,
       }
     })
 
     // ---- reportAnalytics ----
     const reasonCounts: Record<string, number> = {}
-    for (const s of returnedShipments) {
+    for (const s of allReturnShipments) {
       const reason = s.return_reason || 'Non specifie'
       reasonCounts[reason] = (reasonCounts[reason] || 0) + 1
     }
-    const totalReturns = returnedShipments.length || 1
+    const totalReturns = allReturnShipments.length || 1
 
     const liveSuggestions: Record<string, string> = {
       'Client absent': 'Contactez les clients par telephone avant livraison',
@@ -423,9 +383,9 @@ watchEffect(() => {
     }
 
     reportAnalytics.value = {
-      totalReturns: returnedShipments.length,
+      totalReturns: allReturnShipments.length,
       avgAttempts: 1.5,
-      multipleAttemptsCost: Math.round(returnedShipments.length * 3),
+      multipleAttemptsCost: Math.round(allReturnShipments.length * 3),
       reasonsBreakdown: Object.entries(reasonCounts)
         .map(([reason, count]) => ({
           name: reason,
@@ -440,9 +400,9 @@ watchEffect(() => {
         { attempts: 3, label: '3+ tentatives', count: Math.round(totalReturns * 0.25), percentage: 25 },
       ],
       carrierComparison: Object.entries(carrierGroups).map(([name, items]) => {
-        const carrierAllCount = allShipments.filter((s: any) => (s.carrier?.name || 'Non assigne') === name).length || 1
+        const carrierAllCount = allShipments.filter((s: any) => (s.carrier || 'Non assigne') === name).length || 1
         const rate = Math.round((items.length / carrierAllCount) * 100)
-        const recoveredCount = items.filter((s: any) => s.recovered_at).length
+        const recoveredCount = items.filter((s: any) => !!s.inScannedAt).length
         return {
           name,
           totalShipments: carrierAllCount,
@@ -457,13 +417,13 @@ watchEffect(() => {
       productIssues: [],
       problematicZones: (() => {
         const zoneCounts: Record<string, { returns: number; total: number }> = {}
-        for (const s of returnedShipments) {
-          const region = s.governorate || 'Inconnu'
+        for (const s of allReturnShipments) {
+          const region = (s.destination || '').split(', ').pop() || 'Inconnu'
           if (!zoneCounts[region]) zoneCounts[region] = { returns: 0, total: 0 }
           zoneCounts[region].returns++
         }
         for (const s of allShipments) {
-          const region = s.governorate || 'Inconnu'
+          const region = (s.destination || '').split(', ').pop() || 'Inconnu'
           if (!zoneCounts[region]) zoneCounts[region] = { returns: 0, total: 0 }
           zoneCounts[region].total++
         }
