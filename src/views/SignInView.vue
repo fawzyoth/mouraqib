@@ -79,15 +79,6 @@
             <Loader2 v-if="authStore.isLoading" class="w-5 h-5 animate-spin" />
             <span>{{ authStore.isLoading ? 'Connexion...' : 'Se connecter' }}</span>
           </button>
-
-          <!-- Demo Login -->
-          <button
-            type="button"
-            @click="handleDemoLogin"
-            class="w-full py-3 px-4 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg transition-colors flex items-center justify-center space-x-2"
-          >
-            <span>Accès Demo</span>
-          </button>
         </form>
 
         <!-- Sign Up Link -->
