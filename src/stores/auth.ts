@@ -72,6 +72,22 @@ export const useAuthStore = defineStore('auth', () => {
       isInitialized.value = true
     } catch (error) {
       console.error('Error initializing auth:', error)
+
+      // AbortError means Supabase's internal lock failed — typically caused by a
+      // corrupted/stale auth token in localStorage. Clear it and reload once.
+      if (error instanceof Error && error.name === 'AbortError') {
+        Object.keys(localStorage)
+          .filter(key => key.startsWith('sb-'))
+          .forEach(key => localStorage.removeItem(key))
+
+        // Use sessionStorage flag to avoid infinite reload loops
+        if (!sessionStorage.getItem('auth-abort-reload')) {
+          sessionStorage.setItem('auth-abort-reload', '1')
+          window.location.reload()
+          return
+        }
+      }
+
       isInitialized.value = true
     }
   }
