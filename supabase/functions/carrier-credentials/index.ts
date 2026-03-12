@@ -174,6 +174,8 @@ serve(async (req) => {
         let hasKey = false
         if (carrierNameLower === 'navex' || carrierNameLower === 'navex delivery') {
           hasKey = !!decrypted.tokenAdd
+        } else if (['colis express', 'colis-express', 'colisexpress', 'coliexpres'].includes(carrierNameLower)) {
+          hasKey = !!decrypted.code_api
         } else {
           hasKey = !!(decrypted.apiKey || decrypted.api_key)
         }

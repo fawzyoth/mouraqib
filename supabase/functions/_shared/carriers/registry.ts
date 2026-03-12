@@ -1,5 +1,6 @@
 import { FirstDeliveryAdapter } from './first-delivery.ts'
 import { NavexAdapter } from './navex.ts'
+import { ColisExpressAdapter } from './colis-express.ts'
 import type { CarrierAdapter, ApiCallLogger } from './types.ts'
 
 /**
@@ -42,10 +43,20 @@ export function getCarrierAdapter(
         onApiCall,
       })
 
+    case 'colis express':
+    case 'colis-express':
+    case 'colisexpress':
+    case 'coliexpres':
+      return new ColisExpressAdapter({
+        codeApi: credentials.code_api ?? credentials.codeApi ?? '',
+        cleApi: credentials.cle_api ?? credentials.cleApi ?? '',
+        onApiCall,
+      })
+
     default:
       throw new Error(
         `No adapter available for carrier: "${carrierName}". ` +
-        `Supported carriers: First Delivery, Navex. ` +
+        `Supported carriers: First Delivery, Navex, Colis Express. ` +
         `Contact support to request a new integration.`
       )
   }
@@ -65,5 +76,9 @@ export function isCarrierSupported(carrierName: string): boolean {
     'first delivery group',
     'navex',
     'navex delivery',
+    'colis express',
+    'colis-express',
+    'colisexpress',
+    'coliexpres',
   ].includes(name)
 }

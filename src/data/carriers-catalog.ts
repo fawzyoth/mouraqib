@@ -32,7 +32,12 @@ export const deliveryCarriers: DeliveryCarrier[] = [
   // C
   { id: 'calirex-tunisie', name: 'Calirex Tunisie', description: 'Service Calirex Tunisie', type: 'standard', deliveryTime: '48-72h', color: '#0D9488', bgColor: '#CCFBF1', configFields: standardConfigFields, pollIntervalSeconds: 1 },
   { id: 'ciblex-express', name: 'Ciblex Express', description: 'Livraison express Ciblex', type: 'express', deliveryTime: '24h', color: '#6366F1', bgColor: '#E0E7FF', configFields: standardConfigFields, pollIntervalSeconds: 1 },
-  { id: 'colis-express', name: 'Colis Express', description: 'Service Colis Express', type: 'express', deliveryTime: '24h', color: '#EC4899', bgColor: '#FCE7F3', configFields: standardConfigFields, pollIntervalSeconds: 1 },
+  {
+    id: 'colis-express', name: 'Colis Express', description: 'Service Colis Express', type: 'express', deliveryTime: '24h', color: '#EC4899', bgColor: '#FCE7F3', configFields: [
+      { key: 'code_api', label: 'Code API', type: 'text', placeholder: 'Votre code API', required: true },
+      { key: 'cle_api', label: 'Clé API', type: 'password', placeholder: 'Votre clé API', required: true },
+    ], pollIntervalSeconds: 1, enabled: true
+  },
   { id: 'colissimo', name: 'Colissimo', description: 'Service postal Colissimo', type: 'standard', deliveryTime: '48-72h', color: '#FFB800', bgColor: '#FEF3C7', configFields: standardConfigFields, pollIntervalSeconds: 1 },
   { id: 'cosmos', name: 'Cosmos', description: 'Livraison Cosmos', type: 'standard', deliveryTime: '24-48h', color: '#8B5CF6', bgColor: '#EDE9FE', configFields: standardConfigFields, pollIntervalSeconds: 1 },
 

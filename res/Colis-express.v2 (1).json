@@ -1,0 +1,208 @@
+{
+	"info": {
+		"_postman_id": "12c1601a-fc48-4c36-a407-4b82bab9298e",
+		"name": "Colis-express",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "8090726",
+		"_collection_link": "https://galactic-eclipse-880282.postman.co/workspace/devit~b548b7eb-cd9f-455e-ab9f-504fec3846b1/collection/8090726-12c1601a-fc48-4c36-a407-4b82bab9298e?action=share&source=collection_link&creator=8090726"
+	},
+	"item": [
+		{
+			"name": "v2",
+			"item": [
+				{
+					"name": "Create",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \r\n    // cet exemple concerne uniquement la partie développement\r\n\r\n    \"code_api\": \"1118\", // fourni par le responsable de colis express\r\n    \"cle_api\": \"3URCCGK9M52VRZ6\", // fourni par le responsable de colis express\r\n    \"tel\": \"12324567\",\r\n    \"nom_prenom\": \"vddsvsd\",\r\n    \"ville\": \"Béja\",\r\n    \"delegation\": \"Béja\",\r\n    \"cod\": \"1\",\r\n    \"libelle\": \"vdsdv\",\r\n    \"nb_piece\": \"1\", // Taille de colis => 0: petit; 1: moyen; 2: grand\r\n    \"adresse\": \"Béja ville\",\r\n    \"remarque\": \"\",\r\n    \"tel_2\": \"\",\r\n    \"service\": \"Livraison\" // Echange\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.coliexpres.com/v2/create",
+							"protocol": "https",
+							"host": [
+								"api",
+								"coliexpres",
+								"com"
+							],
+							"path": [
+								"v2",
+								"create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Read",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://api.coliexpres.com/v2/read?code_api=1118&cle_api=3URCCGK9M52VRZ6&code_barre=185219736",
+							"protocol": "https",
+							"host": [
+								"api",
+								"coliexpres",
+								"com"
+							],
+							"path": [
+								"v2",
+								"read"
+							],
+							"query": [
+								{
+									"key": " cet exemple concerne uniquement la partie développement",
+									"value": "",
+									"disabled": true
+								},
+								{
+									"key": "code_api",
+									"value": "1118",
+									"description": "fourni par le responsable de colis express"
+								},
+								{
+									"key": "cle_api",
+									"value": "3URCCGK9M52VRZ6",
+									"description": "fourni par le responsable de colis express"
+								},
+								{
+									"key": "code_barre",
+									"value": "185219736"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \r\n    // cet exemple concerne uniquement la partie développement\r\n\r\n    \"code_api\": \"1118\", // fourni par le responsable de colis express\r\n    \"cle_api\": \"3URCCGK9M52VRZ6\", // fourni par le responsable de colis express\r\n    \"code_barre\": \"183755205\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.coliexpres.com/v2/delete",
+							"protocol": "https",
+							"host": [
+								"api",
+								"coliexpres",
+								"com"
+							],
+							"path": [
+								"v2",
+								"delete"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "cle api",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"login\": \"\",\r\n    \"password\": \"\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.coliexpres.com/v2/cle",
+							"protocol": "https",
+							"host": [
+								"api",
+								"coliexpres",
+								"com"
+							],
+							"path": [
+								"v2",
+								"cle"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Ticket",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \r\n    // cet exemple concerne uniquement la partie développement\r\n\r\n    \"code_api\": \"1118\", // fourni par le responsable de colis express\r\n    \"cle_api\": \"3URCCGK9M52VRZ6\", // fourni par le responsable de colis express\r\n    \"reference\": \"183755205\",\r\n    \"motif\": \"Changer le prix du colis\", // motif doit être l'une des suivantes: Retard de livraison, Changer le prix du colis, Changer l'adresse du client, Changer le numéro de téléphone, Produit non conforme à la description, Autre.  \r\n    \"title\": \"Changement du prix à 2 DT\",\r\n    \"description\": \"\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.coliexpres.com/v2/ticket",
+							"protocol": "https",
+							"host": [
+								"api",
+								"coliexpres",
+								"com"
+							],
+							"path": [
+								"v2",
+								"ticket"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Pickup",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \r\n    // cet exemple concerne uniquement la partie développement\r\n\r\n    \"code_api\": \"1118\", // fourni par le responsable de colis express\r\n    \"cle_api\": \"3URCCGK9M52VRZ6\", // fourni par le responsable de colis express\r\n    \"references\": [\r\n        123456789,\r\n        987654321\r\n    ]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "https://api.coliexpres.com/v2/pickup",
+							"protocol": "https",
+							"host": [
+								"api",
+								"coliexpres",
+								"com"
+							],
+							"path": [
+								"v2",
+								"pickup"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
