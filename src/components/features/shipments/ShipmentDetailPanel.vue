@@ -322,14 +322,19 @@ const loadingEvents = ref(false)
 
 watch(
   () => props.show && props.shipment?.id,
-  async (shipmentId) => {
+  async (shipmentId, _, onCleanup) => {
+    let stale = false
+    onCleanup(() => { stale = true })
+
     if (!shipmentId) {
       events.value = []
+      loadingEvents.value = false
       return
     }
     loadingEvents.value = true
     try {
       const raw = await shipmentsService.getEvents(props.shipment!.id)
+      if (stale) return
       events.value = (raw ?? []).map((e: any) => ({
         id: e.id,
         status: e.status,
@@ -339,10 +344,11 @@ watch(
         createdAt: e.created_at,
       }))
     } catch (err) {
+      if (stale) return
       console.error('[detail] Failed to load events:', err)
       events.value = []
     } finally {
-      loadingEvents.value = false
+      if (!stale) loadingEvents.value = false
     }
   },
   { immediate: true }

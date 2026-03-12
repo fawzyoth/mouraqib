@@ -55,17 +55,19 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       // Listen for auth changes
-      supabase.auth.onAuthStateChange(async (event, newSession) => {
+      supabase.auth.onAuthStateChange((event, newSession) => {
         session.value = newSession
 
         if (event === 'SIGNED_IN' && newSession) {
-          await loadUserProfile(newSession.user)
+          // Defer out of the Supabase auth lock to avoid deadlock:
+          // _recoverAndRefresh() fires SIGNED_IN while holding the lock,
+          // and loadUserProfile() makes DB queries that also need the lock.
+          // Running it in a microtask breaks the circular wait.
+          Promise.resolve().then(() => loadUserProfile(newSession.user))
         } else if (event === 'SIGNED_OUT') {
           user.value = null
           profile.value = null
           organization.value = null
-        } else if (event === 'TOKEN_REFRESHED' && newSession) {
-          session.value = newSession
         }
       })
 
