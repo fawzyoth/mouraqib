@@ -14,6 +14,13 @@
         </div>
         <div class="flex items-center space-x-2 sm:space-x-3">
           <button
+            @click="$emit('open-pickup-modal')"
+            class="flex items-center gap-1.5 px-3 sm:px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-xs sm:text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            <Truck class="w-4 h-4" />
+            <span class="hidden sm:inline">Pickup</span>
+          </button>
+          <button
             @click="$emit('open-add-shipment')"
             class="btn-primary text-xs sm:text-sm px-3 sm:px-4 py-2"
           >
@@ -204,7 +211,24 @@
                 </template>
                 <template v-else>-</template>
               </td>
-              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Livraison">{{ formatDate(shipment.deliveryDate) }}</td>
+              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap" data-label="Livraison">
+                <template v-if="shipment.deliveryDate">
+                  <div>{{ formatDateShort(shipment.deliveryDate) }}</div>
+                  <div class="text-xs text-gray-400">{{ formatTime(shipment.deliveryDate) }}</div>
+                </template>
+                <template v-else>-</template>
+              </td>
+              <td class="px-4 py-3 text-sm whitespace-nowrap" data-label="Durée">
+                <template v-if="shipment.createdAt">
+                  <span :class="durationClass(shipment.createdAt, shipment.deliveryDate)" class="inline-flex items-center gap-1 font-medium">
+                    <CheckCircle2 v-if="durationHours(shipment.createdAt, shipment.deliveryDate) < 48" class="w-3.5 h-3.5" />
+                    <AlertTriangle v-else-if="durationHours(shipment.createdAt, shipment.deliveryDate) < 72" class="w-3.5 h-3.5" />
+                    <XCircle v-else class="w-3.5 h-3.5" />
+                    {{ formatDuration(shipment.createdAt, shipment.deliveryDate) }}
+                  </span>
+                </template>
+                <template v-else>-</template>
+              </td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Sync">{{ formatSyncDate(shipment.lastSyncedAt) }}</td>
               <td class="px-4 py-1" data-label="">
                 <button
@@ -262,6 +286,7 @@ import {
   Upload,
   Download,
   Plus,
+  Truck,
   Search,
   ArrowUpDown,
   ChevronLeft,
@@ -271,7 +296,10 @@ import {
   Filter,
   X,
   Trash2,
-  Clock
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
+  XCircle
 } from 'lucide-vue-next'
 import { getStatusLabel, getStatusTextClass, getStatusDotClass } from '@/composables/useStatusFormatting'
 import TypeaheadFilter from '@/components/shared/TypeaheadFilter.vue'
@@ -303,6 +331,7 @@ defineEmits<{
   (e: 'toggle-submenu'): void
   (e: 'open-bulk-import'): void
   (e: 'open-add-shipment'): void
+  (e: 'open-pickup-modal'): void
   (e: 'select-shipment', shipment: Shipment): void
   (e: 'request-deletion', shipment: Shipment): void
 }>()
@@ -320,6 +349,7 @@ const columns = computed(() => {
     { key: 'outScannedAt', label: 'Scan Pickup', filterable: true, type: 'date' },
     ...(showScanRetourColumn.value ? [{ key: 'inScannedAt', label: 'Scan Retour', filterable: true, type: 'date' }] : []),
     { key: 'deliveryDate', label: 'Livraison', filterable: true, type: 'date' },
+    { key: 'duration', label: 'Durée', filterable: false },
     { key: 'lastSyncedAt', label: 'Last Sync', filterable: true, type: 'date', width: 'w-24' },
   ]
   return base
@@ -576,6 +606,28 @@ function formatTime(dateStr: string): string {
   const d = new Date(dateStr)
   if (isNaN(d.getTime())) return ''
   return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+}
+
+function durationHours(createdAt: string, deliveryDate: string | null | undefined): number {
+  const start = new Date(createdAt).getTime()
+  const end = deliveryDate ? Math.min(new Date(deliveryDate).getTime(), now.value) : now.value
+  return (end - start) / 3_600_000
+}
+
+function formatDuration(createdAt: string, deliveryDate: string | null | undefined): string {
+  const h = durationHours(createdAt, deliveryDate)
+  if (h < 0) return '-'
+  const days = Math.floor(h / 24)
+  const hrs = Math.floor(h % 24)
+  if (days > 0) return `${days}j ${hrs}h`
+  return `${Math.floor(h)}h`
+}
+
+function durationClass(createdAt: string, deliveryDate: string | null | undefined): string {
+  const h = durationHours(createdAt, deliveryDate)
+  if (h < 48) return 'text-green-600 dark:text-green-400'
+  if (h < 72) return 'text-yellow-600 dark:text-yellow-400'
+  return 'text-red-600 dark:text-red-400'
 }
 
 // Reactive ticker for relative sync times

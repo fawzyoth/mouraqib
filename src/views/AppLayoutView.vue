@@ -78,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, provide } from 'vue'
+import { ref, computed, onMounted, onUnmounted, provide, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Loader2 } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
@@ -385,14 +385,25 @@ provide('openShipmentDetail', (shipment: any) => {
 provide('subMenuOpen', subMenuOpen)
 
 // Lifecycle
-onMounted(async () => {
+onMounted(() => {
   document.addEventListener('keydown', handleGlobalKeydown)
 
-  if (!authStore.isDemoMode) {
-    await loadFlags()
-    await appStore.loadAll()
-    appStore.subscribe()
-  }
+  if (authStore.isDemoMode) return
+
+  loadFlags()
+
+  // Watch orgId so loadAll() is called as soon as the org is available,
+  // even if loadUserProfile() was deferred past the router guard.
+  let stopWatch: (() => void) | undefined
+  stopWatch = watch(
+    () => appStore.orgId,
+    (orgId) => {
+      if (!orgId) return
+      stopWatch?.()
+      appStore.loadAll().then(() => appStore.subscribe())
+    },
+    { immediate: true },
+  )
 })
 
 onUnmounted(() => {

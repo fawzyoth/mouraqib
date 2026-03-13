@@ -1056,6 +1056,36 @@ export interface Database {
           created_at?: string
         }
       }
+      pickup_events: {
+        Row: {
+          id: string
+          organization_id: string
+          carrier_id: string
+          user_id: string | null
+          pickup_at: string
+          fee: number
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id: string
+          carrier_id: string
+          user_id?: string | null
+          pickup_at?: string
+          fee: number
+          notes?: string | null
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          carrier_id?: string
+          user_id?: string | null
+          pickup_at?: string
+          fee?: number
+          notes?: string | null
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -1143,3 +1173,6 @@ export type TrackingPageConfigUpdate = Database['public']['Tables']['tracking_pa
 export type ExportUpdate = Database['public']['Tables']['exports']['Update']
 export type FailedSearchUpdate = Database['public']['Tables']['failed_searches']['Update']
 export type FeatureFlagUpdate = Database['public']['Tables']['feature_flags']['Update']
+export type PickupEvent = Database['public']['Tables']['pickup_events']['Row']
+export type PickupEventInsert = Database['public']['Tables']['pickup_events']['Insert']
+export type PickupEventUpdate = Database['public']['Tables']['pickup_events']['Update']

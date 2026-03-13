@@ -11,8 +11,11 @@ const NAVEX_STATUS_MAP: Record<string, string> = {
   'en attente': 'En attente',
   // 1
   'en cours': 'En cours',
-  // 2
+  // 2 – various "delivered" variants Navex returns
   'livre': 'Livré',
+  'livrer': 'Livré',
+  'livrer paye': 'Livré',
+  'livrer impaye': 'Livré',
   // 3
   'echange': 'Echange',
   // 5

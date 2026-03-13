@@ -7,6 +7,7 @@
     @toggle-submenu="subMenuOpen = !subMenuOpen"
     @open-bulk-import="openBulkImport"
     @open-add-shipment="navigateTo('create-shipment')"
+    @open-pickup-modal="showPickupEventModal = true"
     @select-shipment="(s: any) => { selectedShipment = s; showShipmentDetail = true }"
     @request-deletion="openDeletionModal"
   />
@@ -94,6 +95,13 @@
     @confirm="handleSaveProductConfirm"
     @dismiss="showSaveProductModal = false"
   />
+
+  <!-- Pickup Event Modal -->
+  <PickupEventModal
+    :show="showPickupEventModal"
+    :carriers="appStore.carriers as UICarrier[]"
+    @close="showPickupEventModal = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -116,7 +124,9 @@ import PrintLabelModal from '@/components/modals/PrintLabelModal.vue'
 import RequestDeletionModal from '@/components/modals/RequestDeletionModal.vue'
 import UpdateClientDataModal from '@/components/modals/UpdateClientDataModal.vue'
 import SaveProductDataModal from '@/components/modals/SaveProductDataModal.vue'
+import PickupEventModal from '@/components/features/dashboard/PickupEventModal.vue'
 import type { ClientChange } from '@/components/modals/UpdateClientDataModal.vue'
+import type { UICarrier } from '@/mappers/carriers'
 
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/composables/useToast'
@@ -142,6 +152,8 @@ const openBulkImport = inject<() => void>('openBulkImport', () => {})
 // ---------------------------------------------------------------------------
 // Section-local state
 // ---------------------------------------------------------------------------
+
+const showPickupEventModal = ref(false)
 
 // Enrich clients with shipment-based delivery stats
 const enrichedClients = computed(() => {

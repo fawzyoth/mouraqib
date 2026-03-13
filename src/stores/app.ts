@@ -9,6 +9,8 @@ import { usePickupsData } from '@/composables/usePickupsData'
 import { useOrganizationData } from '@/composables/useOrganizationData'
 import { useFinanceData } from '@/composables/useFinanceData'
 import { useProductsData } from '@/composables/useProductsData'
+import { pickupEventsService } from '@/services/pickup-events'
+import type { PickupEvent, PickupEventInsert } from '@/types/database'
 
 export const useAppStore = defineStore('app', () => {
   const authStore = useAuthStore()
@@ -41,6 +43,9 @@ export const useAppStore = defineStore('app', () => {
   const payments = financeData.payments
   const products = productsData.products
 
+  // Pickup events (direct ref — no sub-composable needed)
+  const pickupEvents = ref<PickupEvent[]>([])
+
   // Derived counts for AppShell sidebar
   const deliveredCount = computed(() =>
     shipments.value.filter((s: any) => s.status === 'Livré').length
@@ -69,10 +74,22 @@ export const useAppStore = defineStore('app', () => {
         orgData.load(),
         financeData.load(),
         productsData.load(),
+        pickupEventsService.getAll(orgId.value).then(d => { pickupEvents.value = d }).catch(() => {}),
       ])
     } finally {
       isLoading.value = false
     }
+  }
+
+  async function createPickupEvent(payload: PickupEventInsert) {
+    const created = await pickupEventsService.create(payload)
+    pickupEvents.value = [created, ...pickupEvents.value]
+    return created
+  }
+
+  async function deletePickupEvent(id: string) {
+    await pickupEventsService.delete(id)
+    pickupEvents.value = pickupEvents.value.filter(e => e.id !== id)
   }
 
   function subscribe() {
@@ -116,6 +133,11 @@ export const useAppStore = defineStore('app', () => {
     invoices,
     payments,
     products,
+
+    // Pickup events
+    pickupEvents,
+    createPickupEvent,
+    deletePickupEvent,
 
     // Computed
     orgId,

@@ -45,6 +45,7 @@
     v-else-if="activeSection === 'financial-snapshot'"
     :financial-data="financialSnapshot"
     @toggle-sub-menu="subMenuOpen = !subMenuOpen"
+    @add-pickup="openPickupModal"
   />
 
   <!-- Dashboard: Activity Log -->
@@ -69,6 +70,14 @@
     :scan-type="scannerModal.scanType"
     :shipment-ids="scannerModal.shipmentIds"
     @close="closeScannerModal"
+  />
+
+  <!-- Pickup Event Modal -->
+  <PickupEventModal
+    :show="pickupModal.isOpen.value"
+    :carriers="appStore.carriers as UICarrier[]"
+    :preselected-carrier-id="pickupModalCarrierId"
+    @close="pickupModal.close()"
   />
 </template>
 
@@ -103,9 +112,11 @@ import DashboardFinancialSnapshot from '@/components/features/dashboard/Dashboar
 import DashboardActivityLog from '@/components/features/dashboard/DashboardActivityLog.vue'
 import UrgentActionModal from '@/components/features/dashboard/UrgentActionModal.vue'
 import DashboardScannerModal from '@/components/features/dashboard/DashboardScannerModal.vue'
+import PickupEventModal from '@/components/features/dashboard/PickupEventModal.vue'
 import { useModal } from '@/composables/useModal'
 import { useToast } from '@/composables/useToast'
 import { supabase } from '@/lib/supabase'
+import type { UICarrier } from '@/mappers/carriers'
 
 const route = useRoute()
 const router = useRouter()
@@ -134,6 +145,22 @@ function onHandleAction(action: any) {
 function onHandleAllActions() {
   selectedUrgentAction.value = null
   urgentModal.open()
+}
+
+// ---------------------------------------------------------------------------
+// Pickup Event Modal
+// ---------------------------------------------------------------------------
+
+const pickupModalCarrierId = ref<string>('')
+const pickupModal = useModal(() => { pickupModalCarrierId.value = '' })
+
+function openPickupModal(carrierNameOrId: string) {
+  // carrierNameOrId can be a carrier name (from financial snapshot) or empty string (from ShipmentsList)
+  const carrier = (appStore.carriers as UICarrier[]).find(
+    c => c.name === carrierNameOrId || c.id === carrierNameOrId
+  )
+  pickupModalCarrierId.value = carrier?.id || ''
+  pickupModal.open()
 }
 
 // ---------------------------------------------------------------------------
@@ -903,25 +930,107 @@ const financialSnapshot = computed(() => {
   const pendingCOD = activeShipments.reduce((sum, s) => sum + (s.cod || 0), 0)
   const pendingCODCount = activeShipments.length
 
-  // Delivery fees this month
-  const delivered = all.filter(s => s.status === 'Livré')
-  const deliveryFees = delivered.reduce((sum, s) => sum + (s.deliveryFee || 0), 0)
+  // Split into delivered-only and returned-only
+  const deliveredOnly = all.filter(s => s.status === 'Livré')
+  const returnedOnly = all.filter(s => isReturnStatus(s.status))
 
-  // Revenue from delivered
-  const revenue = delivered.reduce((sum, s) => sum + (s.totalPrice || 0), 0)
+  // Top cards: only delivered shipments (revenue / fees)
+  const deliveryFees = deliveredOnly.reduce((sum, s) => sum + (s.deliveryFee || 0), 0)
+  const revenue = deliveredOnly.reduce((sum, s) => sum + (s.totalPrice || 0), 0)
   const netMargin = revenue - deliveryFees
 
-  // Carriers with pending payments
-  const carrierSet = new Set(activeShipments.map(s => s.carrier))
-  const pendingCarriersCount = carrierSet.size
+  // Build carrier lookup maps (withholding rate + return fee)
+  const carrierWithholdingMap = new Map<string, number>()
+  const carrierReturnFeeMap = new Map<string, number>()
+  for (const c of appStore.carriers as any[]) {
+    if (c.id) {
+      carrierWithholdingMap.set(c.id, c.retenuPassage || 0)
+      carrierReturnFeeMap.set(c.id, c.fraisColisRetour || 0)
+    }
+    if (c.name) {
+      carrierWithholdingMap.set(c.name, c.retenuPassage || 0)
+      carrierReturnFeeMap.set(c.name, c.fraisColisRetour || 0)
+    }
+  }
 
-  // COD by carrier
-  const carrierCODMap = new Map<string, { count: number; amount: number }>()
-  for (const s of activeShipments) {
-    const c = carrierCODMap.get(s.carrier) || { count: 0, amount: 0 }
-    c.count++
-    c.amount += s.cod || 0
-    carrierCODMap.set(s.carrier, c)
+  // COD by carrier: separate delivered and returned
+  const carrierCODMap = new Map<string, {
+    totalCOD: number
+    totalDeliveryFees: number
+    totalWithholding: number
+    totalReturnFees: number
+    totalPickupFees: number
+    deliveredShipments: any[]
+    returnedShipments: any[]
+    pickupEvents: any[]
+  }>()
+
+  const getOrCreateEntry = (carrier: string) => {
+    if (!carrierCODMap.has(carrier)) {
+      carrierCODMap.set(carrier, {
+        totalCOD: 0,
+        totalDeliveryFees: 0,
+        totalWithholding: 0,
+        totalReturnFees: 0,
+        totalPickupFees: 0,
+        deliveredShipments: [],
+        returnedShipments: [],
+        pickupEvents: [],
+      })
+    }
+    return carrierCODMap.get(carrier)!
+  }
+
+  for (const s of deliveredOnly) {
+    const entry = getOrCreateEntry(s.carrier)
+    const cod = s.cod || 0
+    const deliveryFee = s.deliveryFee || 0
+    const withholdingRate = carrierWithholdingMap.get(s.carrierId) ?? carrierWithholdingMap.get(s.carrier) ?? 0
+    const otherFees = (cod - deliveryFee) * withholdingRate / 100
+    entry.totalCOD += cod
+    entry.totalDeliveryFees += deliveryFee
+    entry.totalWithholding += otherFees
+    entry.deliveredShipments.push({
+      id: s.id,
+      tracking: s.trackingNumber || '',
+      client: s.customerName || (s as any).recipientName || '',
+      deliveryDate: s.deliveryDate || '',
+      cod,
+      deliveryFee,
+      otherFees,
+      net: cod - deliveryFee - otherFees,
+      raw: s,
+    })
+  }
+
+  for (const s of returnedOnly) {
+    const entry = getOrCreateEntry(s.carrier)
+    const returnFee = carrierReturnFeeMap.get(s.carrierId) ?? carrierReturnFeeMap.get(s.carrier) ?? 0
+    entry.totalReturnFees += returnFee
+    entry.returnedShipments.push({
+      id: s.id,
+      tracking: s.trackingNumber || '',
+      client: s.customerName || (s as any).recipientName || '',
+      deliveryDate: s.updatedAt || '',
+      inScannedAt: s.inScannedAt || null,
+      cod: s.cod || 0,
+      returnFee,
+      raw: s,
+    })
+  }
+
+  // Add pickup events per carrier
+  for (const ev of appStore.pickupEvents) {
+    const carrier = (appStore.carriers as UICarrier[]).find(c => c.id === ev.carrier_id)
+    if (!carrier?.name) continue
+    const entry = getOrCreateEntry(carrier.name)
+    entry.totalPickupFees += ev.fee || 0
+    entry.pickupEvents.push({
+      id: ev.id,
+      pickupAt: ev.pickup_at,
+      fee: ev.fee,
+      notes: ev.notes ?? null,
+    })
   }
 
   const carrierColors: Record<string, { colorClass: string; iconColor: string }> = {
@@ -931,38 +1040,56 @@ const financialSnapshot = computed(() => {
   }
   const defaultColor = { colorClass: 'bg-gray-100 dark:bg-gray-800', iconColor: 'text-gray-600' }
 
-  const codByCarrier = Array.from(carrierCODMap.entries()).map(([name, data]) => ({
-    name,
-    count: data.count,
-    amount: data.amount,
-    overdue: 0,
-    ...(carrierColors[name] || defaultColor),
-  }))
+  const codByCarrier = Array.from(carrierCODMap.entries())
+    .map(([name, data]) => {
+      const totalFees = data.totalDeliveryFees + data.totalWithholding + data.totalReturnFees + data.totalPickupFees
+      return {
+        name,
+        count: data.deliveredShipments.length + data.returnedShipments.length,
+        amount: data.totalCOD,
+        totalCOD: data.totalCOD,
+        totalDeliveryFees: data.totalDeliveryFees,
+        totalWithholding: data.totalWithholding,
+        totalReturnFees: data.totalReturnFees,
+        totalPickupFees: data.totalPickupFees,
+        totalFees,
+        netAmount: data.totalCOD - totalFees,
+        deliveredShipments: data.deliveredShipments,
+        returnedShipments: data.returnedShipments,
+        pickupEvents: data.pickupEvents,
+        ...(carrierColors[name] || defaultColor),
+      }
+    })
+    .sort((a, b) => b.amount - a.amount)
 
-  // Cash flow projection (7 days)
-  const dayLabels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
-  const today = new Date()
-  const cashFlowProjection = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today)
-    d.setDate(d.getDate() + i)
+  // Revenue history: last 7 days of delivered shipments (by delivery date)
+  const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+  const revenueHistory = Array.from({ length: 7 }, (_, i) => {
+    const dayStart = daysAgo(6 - i)
+    const dayEnd = new Date(dayStart)
+    dayEnd.setDate(dayEnd.getDate() + 1)
+
+    const dayDelivered = deliveredOnly.filter(s => {
+      const delivDate = s.deliveryDate ? new Date(s.deliveryDate) : null
+      if (!delivDate) return false
+      return delivDate >= dayStart && delivDate < dayEnd
+    })
+
     return {
-      label: dayLabels[d.getDay() === 0 ? 6 : d.getDay() - 1],
-      incoming: Math.round(pendingCOD / 7 * (0.8 + Math.random() * 0.4)),
-      outgoing: Math.round(deliveryFees / 7 * (0.8 + Math.random() * 0.4)),
+      label: dayNames[dayStart.getDay()],
+      amount: dayDelivered.reduce((sum, s) => sum + (s.cod || 0), 0),
+      count: dayDelivered.length,
     }
   })
 
   return {
     pendingCOD,
     pendingCODCount,
-    pendingPayments: pendingCOD,
-    pendingCarriersCount,
     deliveryFees,
     netMargin,
     marginPercent: revenue > 0 ? Math.round((netMargin / revenue) * 100) : 0,
     codByCarrier,
-    overduePayments: [] as any[],
-    cashFlowProjection,
+    revenueHistory,
   }
 })
 
