@@ -330,12 +330,42 @@
                   Frais additionnels
                 </h5>
                 <div class="grid grid-cols-2 gap-4">
-                  <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
-                    <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Frais paiement COD</label>
+                  <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 col-span-2">
+                    <div class="flex items-center justify-between mb-2">
+                      <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Frais paiement COD</label>
+                      <button type="button" @click="$emit('add-payment-bracket')" class="text-xs text-orange-600 hover:text-orange-800 font-medium">+ Tranche</button>
+                    </div>
+                    <!-- Brackets table -->
+                    <div v-if="newCarrier.fraisPaiementTranches.length > 0" class="mb-3 space-y-1.5">
+                      <div class="grid grid-cols-[1fr_auto_1fr_auto] gap-x-2 items-center text-xs text-gray-400 font-medium px-1 mb-1">
+                        <span>Montant COD</span><span></span><span>Frais</span><span></span>
+                      </div>
+                      <div v-for="(bracket, i) in newCarrier.fraisPaiementTranches" :key="i" class="flex items-center gap-2">
+                        <span class="text-xs text-gray-400">&lt;</span>
+                        <input
+                          :value="bracket.upTo ?? ''"
+                          type="number" step="1" min="0" placeholder="∞"
+                          class="w-20 px-2 py-1 border border-gray-200 dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-orange-500"
+                          @change="onBracketUpToChange(i, $event)"
+                        />
+                        <span class="text-xs text-gray-400">DT →</span>
+                        <input
+                          :value="bracket.fee"
+                          type="number" step="0.001" min="0"
+                          class="w-20 px-2 py-1 border border-gray-200 dark:border-gray-600 rounded text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-orange-500"
+                          @change="$emit('update-payment-bracket', i, 'fee', Number(($event.target as HTMLInputElement).value))"
+                        />
+                        <span class="text-xs text-gray-400">DT</span>
+                        <button type="button" @click="$emit('remove-payment-bracket', i)" class="text-red-400 hover:text-red-600 text-xs ml-1">✕</button>
+                      </div>
+                    </div>
+                    <!-- Flat fee fallback -->
                     <div class="flex items-baseline gap-1">
+                      <span class="text-xs text-gray-400 mr-1">Fixe</span>
                       <input :value="newCarrier.fraisPaiement" @input="$emit('update:newCarrierField', 'fraisPaiement', Number(($event.target as HTMLInputElement).value))" type="number" step="0.01" min="0" class="w-full px-0 py-1 border-0 border-b-2 border-gray-200 dark:border-gray-600 bg-transparent text-xl font-bold text-gray-900 dark:text-white focus:ring-0 focus:border-orange-500" />
                       <span class="text-sm text-gray-400 font-medium">DT</span>
                     </div>
+                    <p class="text-xs text-gray-400 mt-1">Frais fixe utilisé si aucune tranche définie</p>
                   </div>
                   <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
                     <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Retenu passage</label>
@@ -473,6 +503,7 @@ interface NewCarrierForm {
   fraisColisBig: number
   fraisColisPickup: number
   fraisPaiement: number
+  fraisPaiementTranches: { upTo: number | null; fee: number }[]
   retenuPassage: number
   allRegions: boolean
   regions: string[]
@@ -508,7 +539,7 @@ interface Props {
 
 const props = defineProps<Props>()
 
-defineEmits<{
+const emit = defineEmits<{
   'toggle-sub-menu': []
   'close': []
   'save': []
@@ -516,6 +547,9 @@ defineEmits<{
   'update:modalCarrierSearchQuery': [query: string]
   'update:showApiKey': [show: boolean]
   'update:newCarrierField': [field: string, value: string | number]
+  'add-payment-bracket': []
+  'remove-payment-bracket': [index: number]
+  'update-payment-bracket': [index: number, field: 'upTo' | 'fee', value: number | null]
   'select-carrier-from-list': [carrier: ModalCarrier]
   'toggle-all-regions': []
   'select-all-regions': []
@@ -536,6 +570,11 @@ const STANDARD_CONFIG_KEYS = new Set(['apiKey', 'accountId', 'secretKey'])
 function hasCustomConfig(): boolean {
   if (!props.selectedModalCarrier?.configFields) return false
   return props.selectedModalCarrier.configFields.some(f => !STANDARD_CONFIG_KEYS.has(f.key))
+}
+
+function onBracketUpToChange(index: number, event: Event) {
+  const val = (event.target as HTMLInputElement).value
+  emit('update-payment-bracket', index, 'upTo', val === '' ? null : Number(val))
 }
 
 function canProceedFromStep2(): boolean {

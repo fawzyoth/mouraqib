@@ -36,6 +36,9 @@
     @select-all-regions="selectAllRegions"
     @clear-all-regions="clearAllRegions"
     @toggle-region="toggleRegion"
+    @add-payment-bracket="addPaymentBracket"
+    @remove-payment-bracket="removePaymentBracket"
+    @update-payment-bracket="updatePaymentBracket"
     @close="editingCarrier = null; carrierSyncSteps = []; resetNewCarrierForm(); navigateTo('connected-carriers')"
     @save="saveCarrierFromPage"
   />
@@ -62,6 +65,16 @@ import { carriersService } from '@/services'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import type { PaymentFeeBracket } from '@/mappers/carriers'
+
+const NAVEX_DEFAULT_BRACKETS: PaymentFeeBracket[] = [
+  { upTo: 50,   fee: 0 },
+  { upTo: 150,  fee: 2 },
+  { upTo: 300,  fee: 2.5 },
+  { upTo: 600,  fee: 4 },
+  { upTo: 1000, fee: 5.5 },
+  { upTo: null, fee: 8 },
+]
 
 // Feature components
 import ConnectedCarriers from '@/components/features/carriers/ConnectedCarriers.vue'
@@ -108,6 +121,7 @@ const newCarrier = reactive({
   fraisColisBig: 12,
   fraisColisPickup: 3,
   fraisPaiement: 1.5,
+  fraisPaiementTranches: [] as { upTo: number | null; fee: number }[],
   retenuPassage: 0,
   allRegions: true,
   regions: [] as string[],
@@ -138,6 +152,7 @@ function resetNewCarrierForm() {
     fraisColisBig: 12,
     fraisColisPickup: 3,
     fraisPaiement: 1.5,
+    fraisPaiementTranches: [],
     retenuPassage: 0,
     allRegions: true,
     regions: [],
@@ -167,6 +182,12 @@ function editCarrier(carrier: any) {
     fraisColisBig: carrier.fraisColisBig ?? 12,
     fraisColisPickup: carrier.fraisColisPickup ?? 3,
     fraisPaiement: carrier.fraisPaiement ?? 1.5,
+    fraisPaiementTranches: (() => {
+      const existing = carrier.fraisPaiementTranches ?? []
+      if (existing.length > 0) return existing.map((b: any) => ({ ...b }))
+      if ((carrier.name || '').toLowerCase().includes('navex')) return NAVEX_DEFAULT_BRACKETS.map(b => ({ ...b }))
+      return []
+    })(),
     retenuPassage: carrier.retenuPassage ?? 0,
     allRegions: carrier.allRegions ?? true,
     regions: carrier.regions ? [...carrier.regions] : [],
@@ -185,6 +206,18 @@ async function deleteCarrier(carrierId: string) {
   if (ok && selectedCarrier.value?.id === carrierId) {
     selectedCarrier.value = null
   }
+}
+
+function addPaymentBracket() {
+  newCarrier.fraisPaiementTranches.push({ upTo: null, fee: 0 })
+}
+
+function removePaymentBracket(index: number) {
+  newCarrier.fraisPaiementTranches.splice(index, 1)
+}
+
+function updatePaymentBracket(index: number, field: 'upTo' | 'fee', value: number | null) {
+  newCarrier.fraisPaiementTranches[index][field] = value as any
 }
 
 async function syncCarrier(carrier: any) {

@@ -277,10 +277,38 @@
                 <!-- Subsection: Frais de paiement -->
                 <div class="border-t border-gray-200 dark:border-gray-800">
                   <div class="px-5 py-2 bg-gray-50 dark:bg-gray-800/50 flex items-center">
-                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Frais de paiement</span>
+                    <span class="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      Frais de paiement ({{ carrier.paymentFeeRows.length }})
+                    </span>
                   </div>
-                  <div class="px-5 py-4 text-sm text-gray-400 dark:text-gray-500 italic">
-                    — À configurer
+                  <div v-if="carrier.paymentFeeRows.length > 0" class="overflow-x-auto border-t border-gray-200 dark:border-gray-800">
+                    <table class="w-full min-w-[300px]">
+                      <thead class="bg-gray-50/80 dark:bg-gray-800/40">
+                        <tr>
+                          <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Date</th>
+                          <th class="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Colis</th>
+                          <th class="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">COD du jour</th>
+                          <th class="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Frais</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+                        <tr v-for="(row, i) in carrier.paymentFeeRows" :key="i" class="even:bg-gray-50/50 even:dark:bg-gray-800/20">
+                          <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">{{ formatDateLong(row.date) }}</td>
+                          <td class="px-4 py-3 text-sm text-right text-gray-500 dark:text-gray-400">{{ row.dailyCount > 0 ? row.dailyCount : '—' }}</td>
+                          <td class="px-4 py-3 text-sm text-right text-gray-500 dark:text-gray-400">{{ row.dailyCOD > 0 ? row.dailyCOD.toFixed(2) + ' TND' : '—' }}</td>
+                          <td class="px-4 py-3 text-sm text-right font-medium text-red-600">{{ row.fee.toFixed(2) }} TND</td>
+                        </tr>
+                      </tbody>
+                      <tfoot class="bg-gray-50/80 dark:bg-gray-800/40">
+                        <tr class="border-t-2 border-gray-200 dark:border-gray-700">
+                          <td colspan="3" class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Total Frais de Paiement</td>
+                          <td class="px-4 py-3 text-sm text-right font-semibold text-red-600">{{ carrier.totalPaymentFees.toFixed(2) }} TND</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                  <div v-else class="px-5 py-3 text-sm text-gray-400 dark:text-gray-500 italic">
+                    Aucun frais de paiement
                   </div>
                 </div>
               </div>
@@ -312,8 +340,10 @@
                     <span class="text-sm font-medium text-red-600">-{{ carrier.totalPickupFees.toFixed(2) }} TND</span>
                   </div>
                   <div class="px-5 py-2.5 flex items-center justify-between">
-                    <span class="text-sm text-gray-400 dark:text-gray-500 italic">Frais de paiement</span>
-                    <span class="text-sm text-gray-400 italic">—</span>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">Frais de paiement</span>
+                    <span class="text-sm font-medium text-red-600">
+                      {{ carrier.totalPaymentFees > 0 ? '-' + carrier.totalPaymentFees.toFixed(2) + ' TND' : '—' }}
+                    </span>
                   </div>
                   <div class="px-5 py-4 flex items-center justify-between bg-green-50 dark:bg-green-900/20">
                     <span class="text-sm font-bold text-gray-900 dark:text-white">Total à récupérer</span>
@@ -449,6 +479,8 @@ interface CarrierCOD {
   totalWithholding: number
   totalReturnFees: number
   totalPickupFees: number
+  paymentFeeRows: { date: string; dailyCOD: number; dailyCount: number; fee: number }[]
+  totalPaymentFees: number
   totalFees: number
   netAmount: number
   deliveredShipments: DeliveredRow[]
@@ -500,6 +532,13 @@ const selectedShipment = ref<any>(null)
 
 function toggleCarrier(name: string) {
   expandedCarrier.value = expandedCarrier.value === name ? null : name
+}
+
+function formatDateLong(dateStr: string): string {
+  if (!dateStr || dateStr === '—') return '—'
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return dateStr
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 function formatDateTime(dateStr: string): string {

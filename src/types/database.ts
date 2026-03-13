@@ -219,6 +219,7 @@ export interface Database {
           fee_big: number
           fee_total_delivery: number
           fee_payment: number
+          fee_payment_brackets: { upTo: number | null; fee: number }[] | null
           fee_withholding: number
           all_regions: boolean
           regions: string[] | null
@@ -243,6 +244,7 @@ export interface Database {
           fee_big?: number
           fee_total_delivery?: number
           fee_payment?: number
+          fee_payment_brackets?: { upTo: number | null; fee: number }[] | null
           fee_withholding?: number
           all_regions?: boolean
           regions?: string[] | null
@@ -267,6 +269,7 @@ export interface Database {
           fee_big?: number
           fee_total_delivery?: number
           fee_payment?: number
+          fee_payment_brackets?: { upTo: number | null; fee: number }[] | null
           fee_withholding?: number
           all_regions?: boolean
           regions?: string[] | null

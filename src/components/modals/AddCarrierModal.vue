@@ -166,7 +166,41 @@
                     <input v-model.number="newCarrier.fraisPaiement" type="number" step="0.01" min="0" class="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-l-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                     <span class="inline-flex items-center px-3 py-2 border border-l-0 border-gray-200 dark:border-gray-700 rounded-r-lg bg-gray-100 dark:bg-gray-700 text-gray-500 text-sm">DT</span>
                   </div>
-                  <p class="text-xs text-gray-500 mt-1">Montant prélevé sur le paiement COD</p>
+                  <p class="text-xs text-gray-500 mt-1">Montant prélevé sur le paiement COD (utilisé si aucune tranche définie)</p>
+                  <!-- Brackets editor -->
+                  <div class="mt-3 space-y-2">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Tranches variables</span>
+                      <button type="button" @click="addBracket" class="text-xs text-orange-600 hover:text-orange-800 font-medium">+ Ajouter</button>
+                    </div>
+                    <div v-if="newCarrier.fraisPaiementTranches.length === 0" class="text-xs text-gray-400 italic">
+                      Aucune tranche — frais fixe utilisé
+                    </div>
+                    <div v-if="newCarrier.fraisPaiementTranches.length > 0" class="grid grid-cols-[1fr_auto_1fr_auto] gap-x-2 gap-y-1 items-center text-xs text-gray-500 font-medium mb-1 px-1">
+                      <span>Montant COD</span><span></span><span>Frais</span><span></span>
+                    </div>
+                    <div v-for="(bracket, i) in newCarrier.fraisPaiementTranches" :key="i" class="flex items-center gap-2">
+                      <span class="text-xs text-gray-400 whitespace-nowrap">&lt;</span>
+                      <input
+                        :value="bracket.upTo ?? ''"
+                        type="number" step="1" min="0"
+                        placeholder="∞"
+                        class="w-24 px-2 py-1 border border-gray-200 dark:border-gray-700 rounded text-xs focus:ring-1 focus:ring-orange-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        @change="onBracketUpToChange(bracket, $event)"
+                      />
+                      <span class="text-xs text-gray-400">DT →</span>
+                      <input
+                        v-model.number="bracket.fee"
+                        type="number" step="0.001" min="0"
+                        class="w-24 px-2 py-1 border border-gray-200 dark:border-gray-700 rounded text-xs focus:ring-1 focus:ring-orange-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                      />
+                      <span class="text-xs text-gray-400">DT</span>
+                      <button type="button" @click="removeBracket(i)" class="text-red-400 hover:text-red-600 text-xs ml-1">✕</button>
+                    </div>
+                    <p v-if="newCarrier.fraisPaiementTranches.length > 0" class="text-xs text-gray-400">
+                      Laisser "Montant" vide pour la dernière tranche (≥ tout)
+                    </p>
+                  </div>
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Retenu de passage</label>
@@ -258,6 +292,16 @@ import {
   MapPinned
 } from 'lucide-vue-next'
 import { DEFAULT_CARRIER_FEES } from '@/data/pricing'
+import type { PaymentFeeBracket } from '@/mappers/carriers'
+
+const NAVEX_DEFAULT_BRACKETS: PaymentFeeBracket[] = [
+  { upTo: 50,   fee: 0 },
+  { upTo: 150,  fee: 2 },
+  { upTo: 300,  fee: 2.5 },
+  { upTo: 600,  fee: 4 },
+  { upTo: 1000, fee: 5.5 },
+  { upTo: null, fee: 8 },
+]
 
 const props = defineProps<{
   show: boolean
@@ -280,9 +324,23 @@ const newCarrier = reactive({
   apiKey: '',
   senderId: '',
   ...DEFAULT_CARRIER_FEES,
+  fraisPaiementTranches: [] as PaymentFeeBracket[],
   allRegions: true,
   regions: [] as string[]
 })
+
+function addBracket() {
+  newCarrier.fraisPaiementTranches.push({ upTo: null, fee: 0 })
+}
+
+function removeBracket(index: number) {
+  newCarrier.fraisPaiementTranches.splice(index, 1)
+}
+
+function onBracketUpToChange(bracket: PaymentFeeBracket, event: Event) {
+  const val = (event.target as HTMLInputElement).value
+  bracket.upTo = val === '' ? null : Number(val)
+}
 
 const filteredModalCarriers = computed(() => {
   if (!modalCarrierSearchQuery.value) return props.availableCarriers
@@ -326,6 +384,7 @@ function resetForm() {
   newCarrier.apiKey = ''
   newCarrier.senderId = ''
   Object.assign(newCarrier, DEFAULT_CARRIER_FEES)
+  newCarrier.fraisPaiementTranches = []
   newCarrier.allRegions = true
   newCarrier.regions = []
   modalCarrierSearchQuery.value = ''
@@ -357,9 +416,22 @@ watch(() => props.editingCarrier, (carrier) => {
     newCarrier.fraisColisBig = carrier.fraisColisBig ?? DEFAULT_CARRIER_FEES.fraisColisBig
     newCarrier.fraisColisPickup = carrier.fraisColisPickup ?? DEFAULT_CARRIER_FEES.fraisColisPickup
     newCarrier.fraisPaiement = carrier.fraisPaiement ?? DEFAULT_CARRIER_FEES.fraisPaiement
+    const existingBrackets = carrier.fraisPaiementTranches ?? []
+    newCarrier.fraisPaiementTranches = existingBrackets.length > 0
+      ? existingBrackets.map((b: PaymentFeeBracket) => ({ ...b }))
+      : (carrier.name || '').toLowerCase().includes('navex')
+        ? NAVEX_DEFAULT_BRACKETS.map(b => ({ ...b }))
+        : []
     newCarrier.retenuPassage = carrier.retenuPassage ?? DEFAULT_CARRIER_FEES.retenuPassage
     newCarrier.allRegions = carrier.allRegions ?? true
     newCarrier.regions = carrier.regions ? [...carrier.regions] : []
   }
 }, { immediate: true })
+
+// Auto-populate Navex brackets when name is set and no brackets are configured yet
+watch(() => newCarrier.name, (name) => {
+  if (name.toLowerCase().includes('navex') && newCarrier.fraisPaiementTranches.length === 0) {
+    newCarrier.fraisPaiementTranches = NAVEX_DEFAULT_BRACKETS.map(b => ({ ...b }))
+  }
+})
 </script>

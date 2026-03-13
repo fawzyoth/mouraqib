@@ -89,6 +89,7 @@ import { computed, ref, inject, markRaw, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { isReturnStatus, CANCELLED_STATUSES } from '@/utils/shipment-statuses'
+import { getPaymentFeeStrategy } from '@/services/paymentFeeStrategies'
 import { useAuthStore } from '@/stores/auth'
 import { subSectionRoutes } from '@/composables/useNavigation'
 
@@ -981,17 +982,23 @@ const financialSnapshot = computed(() => {
   const revenue = deliveredOnly.reduce((sum, s) => sum + (s.totalPrice || 0), 0)
   const netMargin = revenue - deliveryFees
 
-  // Build carrier lookup maps (withholding rate + return fee)
+  // Build carrier lookup maps (withholding rate + return fee + payment fee)
   const carrierWithholdingMap = new Map<string, number>()
   const carrierReturnFeeMap = new Map<string, number>()
+  const carrierPaymentFeeMap = new Map<string, number>()
+  const carrierBracketsMap = new Map<string, { upTo: number | null; fee: number }[]>()
   for (const c of appStore.carriers as any[]) {
     if (c.id) {
       carrierWithholdingMap.set(c.id, c.retenuPassage || 0)
       carrierReturnFeeMap.set(c.id, c.fraisColisRetour || 0)
+      carrierPaymentFeeMap.set(c.id, c.fraisPaiement || 0)
+      carrierBracketsMap.set(c.id, c.fraisPaiementTranches || [])
     }
     if (c.name) {
       carrierWithholdingMap.set(c.name, c.retenuPassage || 0)
       carrierReturnFeeMap.set(c.name, c.fraisColisRetour || 0)
+      carrierPaymentFeeMap.set(c.name, c.fraisPaiement || 0)
+      carrierBracketsMap.set(c.name, c.fraisPaiementTranches || [])
     }
   }
 
@@ -1084,7 +1091,12 @@ const financialSnapshot = computed(() => {
 
   const codByCarrier = Array.from(carrierCODMap.entries())
     .map(([name, data]) => {
-      const totalFees = data.totalDeliveryFees + data.totalWithholding + data.totalReturnFees + data.totalPickupFees
+      const feePayment = carrierPaymentFeeMap.get(name) ?? 0
+      const brackets = carrierBracketsMap.get(name) ?? []
+      const strategy = getPaymentFeeStrategy(name)
+      const paymentFeeRows = strategy({ feePayment, brackets, deliveredShipments: data.deliveredShipments })
+      const totalPaymentFees = paymentFeeRows.reduce((sum, r) => sum + r.fee, 0)
+      const totalFees = data.totalDeliveryFees + data.totalWithholding + data.totalReturnFees + data.totalPickupFees + totalPaymentFees
       return {
         name,
         count: data.deliveredShipments.length + data.returnedShipments.length,
@@ -1094,6 +1106,8 @@ const financialSnapshot = computed(() => {
         totalWithholding: data.totalWithholding,
         totalReturnFees: data.totalReturnFees,
         totalPickupFees: data.totalPickupFees,
+        paymentFeeRows,
+        totalPaymentFees,
         totalFees,
         netAmount: data.totalCOD - totalFees,
         deliveredShipments: data.deliveredShipments,
@@ -1104,7 +1118,7 @@ const financialSnapshot = computed(() => {
     })
     .sort((a, b) => b.amount - a.amount)
 
-  // Revenue history: last 7 days of delivered shipments (by delivery date)
+  // Revenue history: last 7 days — delivered shipments grouped by creation date
   const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
   const revenueHistory = Array.from({ length: 7 }, (_, i) => {
     const dayStart = daysAgo(6 - i)
@@ -1112,14 +1126,14 @@ const financialSnapshot = computed(() => {
     dayEnd.setDate(dayEnd.getDate() + 1)
 
     const dayDelivered = deliveredOnly.filter(s => {
-      const delivDate = s.deliveryDate ? new Date(s.deliveryDate) : null
-      if (!delivDate) return false
-      return delivDate >= dayStart && delivDate < dayEnd
+      const created = s.createdAt ? new Date(s.createdAt) : null
+      if (!created) return false
+      return created >= dayStart && created < dayEnd
     })
 
     return {
       label: dayNames[dayStart.getDay()],
-      amount: dayDelivered.reduce((sum, s) => sum + (s.cod || 0), 0),
+      amount: dayDelivered.reduce((sum, s) => sum + (s.totalPrice || 0), 0),
       count: dayDelivered.length,
     }
   })

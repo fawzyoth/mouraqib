@@ -1,5 +1,10 @@
 import type { Carrier, CarrierInsert, CarrierUpdate } from '@/types/database'
 
+export interface PaymentFeeBracket {
+  upTo: number | null
+  fee: number
+}
+
 export interface UICarrier {
   id: string
   name: string
@@ -13,6 +18,7 @@ export interface UICarrier {
   fraisColisBig: number
   fraisColisPickup: number
   fraisPaiement: number
+  fraisPaiementTranches: PaymentFeeBracket[]
   retenuPassage: number
   allRegions: boolean
   regions: string[]
@@ -39,6 +45,7 @@ export function dbCarrierToUI(row: Carrier): UICarrier {
     fraisColisBig: row.fee_big,
     fraisColisPickup: row.fee_pickup,
     fraisPaiement: row.fee_payment,
+    fraisPaiementTranches: (row.fee_payment_brackets as PaymentFeeBracket[] | null) ?? [],
     retenuPassage: row.fee_withholding,
     allRegions: row.all_regions,
     regions: row.regions || [],
@@ -65,6 +72,7 @@ export function uiCarrierToInsert(form: Record<string, any>, orgId: string): Car
     fee_pickup: form.fraisColisPickup ?? 3,
     fee_total_delivery: 0,
     fee_payment: form.fraisPaiement ?? 1.5,
+    fee_payment_brackets: form.fraisPaiementTranches?.length ? form.fraisPaiementTranches : null,
     fee_withholding: form.retenuPassage ?? 0,
     all_regions: form.allRegions ?? true,
     regions: form.regions?.length ? form.regions : null,
@@ -85,6 +93,7 @@ export function uiCarrierToUpdate(form: Record<string, any>): CarrierUpdate {
     fee_big: form.fraisColisBig,
     fee_pickup: form.fraisColisPickup,
     fee_payment: form.fraisPaiement,
+    fee_payment_brackets: form.fraisPaiementTranches?.length ? form.fraisPaiementTranches : null,
     fee_withholding: form.retenuPassage,
     all_regions: form.allRegions,
     regions: form.regions?.length ? form.regions : null,
