@@ -45,14 +45,34 @@
           <span v-if="scannedAtDate" class="text-[10px] text-green-700/70 dark:text-green-300/70">
             {{ formatDateTime(scannedAtDate) }}
           </span>
+          <div
+            v-if="overdueLevel > 0"
+            :class="[
+              'flex items-center gap-1 font-medium text-xs leading-none mt-0.5',
+              overdueLevel === 1 ? 'text-red-600 dark:text-red-400' :
+              overdueLevel === 2 ? 'text-red-800 dark:text-red-300' :
+              'text-red-950 dark:text-red-200 animate-pulse'
+            ]"
+          >
+            <AlertTriangle :class="overdueLevel === 3 ? 'w-4 h-4' : 'w-3.5 h-3.5'" />
+            {{ overdueLevel === 1 ? '+24h !' : overdueLevel === 2 ? '+48h !!' : '+72h !!!' }}
+          </div>
         </div>
         <div
           v-else-if="actionType === 'confirm'"
           class="flex flex-col items-end justify-center"
         >
-          <div v-if="isOverdue" class="flex items-center gap-1 text-red-600 dark:text-red-400 font-medium text-xs mb-0.5 leading-none">
-            <AlertTriangle class="w-3.5 h-3.5" />
-            +24h !
+          <div
+            v-if="overdueLevel > 0"
+            :class="[
+              'flex items-center gap-1 font-medium text-xs mb-0.5 leading-none',
+              overdueLevel === 1 ? 'text-red-600 dark:text-red-400' :
+              overdueLevel === 2 ? 'text-red-800 dark:text-red-300' :
+              'text-red-950 dark:text-red-200 animate-pulse'
+            ]"
+          >
+            <AlertTriangle :class="overdueLevel === 3 ? 'w-4 h-4' : 'w-3.5 h-3.5'" />
+            {{ overdueLevel === 1 ? '+24h !' : overdueLevel === 2 ? '+48h !!' : '+72h !!!' }}
           </div>
           <span :class="['text-[10px]', isOverdue ? 'text-red-500/80 dark:text-red-400/80' : 'text-gray-500 dark:text-gray-400']">
             Créé le {{ formatDateTime(shipment.createdAt) }}
@@ -125,16 +145,18 @@ const scannedAtDate = computed(() => {
   return null
 })
 
-const isOverdue = computed(() => {
-  if (props.actionType !== 'confirm') return false
-  if (isRowScanned.value) return false
-  if (!props.shipment.createdAt) return false
-  
-  const createdTime = new Date(props.shipment.createdAt).getTime()
-  const now = Date.now()
-  const diffHours = (now - createdTime) / (1000 * 60 * 60)
-  return diffHours > 24
+const overdueLevel = computed(() => {
+  if (props.actionType !== 'confirm') return 0
+  if (!props.shipment.createdAt) return 0
+
+  const diffHours = (Date.now() - new Date(props.shipment.createdAt).getTime()) / (1000 * 60 * 60)
+  if (diffHours > 72) return 3
+  if (diffHours > 48) return 2
+  if (diffHours > 24) return 1
+  return 0
 })
+
+const isOverdue = computed(() => overdueLevel.value > 0)
 
 const statusBadgeClass = computed(() => {
   const s = props.shipment.status

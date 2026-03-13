@@ -4,6 +4,7 @@
     v-if="activeSection === 'overview'"
     :dashboard-stats="dashboardStats"
     :urgent-actions="urgentActions"
+    :overdue-groups="overduePickupGroups"
     :weather-regions="weatherRegions"
     :delayed-shipments-count="delayedShipmentsCount"
     :return-alerts-count="returnAlertsCount"
@@ -483,6 +484,41 @@ const urgentActions = computed(() => {
   }
 
   return actions
+})
+
+// ---------------------------------------------------------------------------
+// Overdue pickup groups (En attente shipments past 24 / 48 / 72 h)
+// ---------------------------------------------------------------------------
+
+const overduePickupGroups = computed(() => {
+  if (authStore.isDemoMode) return []
+
+  const pending = appStore.shipments.filter(s =>
+    s.status === 'En attente' ||
+    s.status === "Demande d'enlèvement" ||
+    s.status === "Demande d'enlèvement assignée"
+  )
+
+  const now = Date.now()
+  const hours = (s: any) =>
+    s.createdAt ? (now - new Date(s.createdAt).getTime()) / (1000 * 60 * 60) : 0
+
+  return ([
+    { level: 3 as const, min: 72, max: Infinity },
+    { level: 2 as const, min: 48, max: 72 },
+    { level: 1 as const, min: 24, max: 48 },
+  ]).map(({ level, min, max }) => {
+    const shipments = pending.filter(s => { const h = hours(s); return h > min && h <= max })
+    return {
+      level,
+      count: shipments.length,
+      type: 'overdue',
+      icon: markRaw(AlertTriangle),
+      title: `${shipments.length} colis en retard +${min}h`,
+      description: `En attente depuis plus de ${min}h`,
+      shipmentIds: shipments.map(s => s.id),
+    }
+  })
 })
 
 // Weather regions (static / not derived from shipments)

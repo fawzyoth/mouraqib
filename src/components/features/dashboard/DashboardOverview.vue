@@ -69,6 +69,66 @@
       </div>
     </div>
 
+    <!-- Colis En Retard -->
+    <div v-if="overdueGroups && overdueGroups.some(g => g.count > 0)" class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 mb-6">
+      <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center gap-2">
+        <Clock class="w-5 h-5 text-red-500" />
+        <h3 class="font-semibold text-gray-900 dark:text-white">Colis En Retard</h3>
+        <span class="px-2 py-0.5 bg-red-100 text-red-600 text-xs rounded-full font-medium">
+          {{ overdueGroups.reduce((s, g) => s + g.count, 0) }}
+        </span>
+      </div>
+      <div class="divide-y divide-gray-100 dark:divide-gray-800">
+        <div
+          v-for="group in overdueGroups"
+          :key="group.level"
+          :class="[
+            'px-5 py-3 flex items-center justify-between transition-colors',
+            group.count > 0
+              ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50'
+              : 'opacity-40 pointer-events-none'
+          ]"
+          @click="group.count > 0 && emit('handle-action', group)"
+        >
+          <div class="flex items-center gap-3">
+            <div :class="[
+              'w-10 h-10 rounded-lg flex items-center justify-center',
+              group.level === 1 ? 'bg-red-100 dark:bg-red-900/30' :
+              group.level === 2 ? 'bg-red-200 dark:bg-red-900/50' :
+              'bg-red-300 dark:bg-red-900/70'
+            ]">
+              <AlertTriangle :class="[
+                'w-5 h-5',
+                group.level === 1 ? 'text-red-500' :
+                group.level === 2 ? 'text-red-700 dark:text-red-400' :
+                'text-red-950 dark:text-red-200'
+              ]" />
+            </div>
+            <div>
+              <p :class="[
+                'text-sm font-semibold',
+                group.level === 1 ? 'text-red-600 dark:text-red-400' :
+                group.level === 2 ? 'text-red-800 dark:text-red-300' :
+                'text-red-950 dark:text-red-200'
+              ]">
+                Retard +{{ group.level === 1 ? '24' : group.level === 2 ? '48' : '72' }}h{{ group.level === 3 ? ' !!!' : group.level === 2 ? ' !!' : ' !' }}
+              </p>
+              <p class="text-xs text-gray-500">{{ group.count }} colis en attente</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span :class="[
+              'text-sm font-bold tabular-nums',
+              group.level === 1 ? 'text-red-600 dark:text-red-400' :
+              group.level === 2 ? 'text-red-800 dark:text-red-300' :
+              'text-red-950 dark:text-red-200 animate-pulse'
+            ]">{{ group.count }}</span>
+            <ChevronRight class="w-4 h-4 text-gray-400" />
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="mb-6">
       <!-- Today vs Yesterday Comparison -->
       <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
@@ -133,7 +193,9 @@ import {
   CheckCircle,
   Banknote,
   AlertTriangle,
-  Plus
+  Plus,
+  ChevronRight,
+  Clock
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -162,18 +224,30 @@ interface UrgentAction {
   description: string
   time: string
   actionLabel: string
+  shipmentIds?: string[]
+}
+
+interface OverdueGroup {
+  level: 1 | 2 | 3
+  count: number
+  type: string
+  icon: any
+  title: string
+  description: string
+  shipmentIds: string[]
 }
 
 interface Props {
   dashboardStats: DashboardStats
   urgentActions: UrgentAction[]
+  overdueGroups?: OverdueGroup[]
 }
 
 defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'toggle-sub-menu'): void
-  (e: 'handle-action', action: UrgentAction): void
+  (e: 'handle-action', action: any): void
   (e: 'handle-all-actions'): void
 }>()
 </script>
