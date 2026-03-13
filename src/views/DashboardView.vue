@@ -12,6 +12,7 @@
     @navigate="navigateTo"
     @handle-action="onHandleAction"
     @handle-all-actions="onHandleAllActions"
+    @add-pickup="openPickupModal"
   />
 
   <!-- Dashboard: Today's Tasks -->
@@ -24,6 +25,7 @@
     @complete-all-in-category="completeAllInCategory"
     @execute-task-action="executeTaskAction"
     @print-all-labels="printAllLabels"
+    @add-pickup="openPickupModal"
   />
 
   <!-- Dashboard: Delayed Shipments -->
@@ -557,20 +559,20 @@ watchEffect(() => {
     const taskMap = demoDailyTasks
     filteredTaskCategories.value = [
       {
+        id: 'labels',
+        name: 'Bordereaux à imprimer',
+        icon: markRaw(Package),
+        bgColor: 'bg-purple-100 dark:bg-purple-900/30',
+        iconColor: 'text-purple-600',
+        tasks: (taskMap.labels || []).map(t => ({ ...t })),
+      },
+      {
         id: 'orders',
         name: 'Pickups à scanner',
         icon: markRaw(FileCheck),
         bgColor: 'bg-blue-100 dark:bg-blue-900/30',
         iconColor: 'text-blue-600',
         tasks: (taskMap.orders || []).map(t => ({ ...t })),
-      },
-      {
-        id: 'labels',
-        name: 'Impressions',
-        icon: markRaw(Package),
-        bgColor: 'bg-purple-100 dark:bg-purple-900/30',
-        iconColor: 'text-purple-600',
-        tasks: (taskMap.labels || []).map(t => ({ ...t })),
       },
       {
         id: 'packages',
@@ -656,7 +658,7 @@ watchEffect(() => {
   if (toPrint.length > 0) {
     categories.push({
       id: 'labels',
-      name: 'Impressions',
+      name: 'Bordereaux à imprimer',
       icon: markRaw(Package),
       bgColor: 'bg-purple-100 dark:bg-purple-900/30',
       iconColor: 'text-purple-600',
@@ -721,7 +723,11 @@ watchEffect(() => {
     })
   }
 
-  filteredTaskCategories.value = categories
+  // Show Impressions first
+  filteredTaskCategories.value = [
+    ...categories.filter(c => c.id === 'labels'),
+    ...categories.filter(c => c.id !== 'labels'),
+  ]
   recalcDailyTasksStats()
 })
 

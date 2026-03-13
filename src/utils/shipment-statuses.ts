@@ -18,6 +18,7 @@ export const PICKUP_STATUSES = [
   "Demande d'enlèvement assignée",
   "En cours d'enlèvement",
   'Enlevé',
+  'Enlevé (client)',
 ]
 
 export const PENDING_STATUSES = ['En attente', 'A vérifier']

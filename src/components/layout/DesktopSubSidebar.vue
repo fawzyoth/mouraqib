@@ -36,20 +36,6 @@
         </li>
       </ul>
     </nav>
-
-    <!-- Quick Stats (contextual) -->
-    <div v-if="mainSection === 'dashboard'" class="border-t border-gray-200 dark:border-gray-800 p-4">
-      <div class="grid grid-cols-2 gap-2">
-        <div class="bg-white dark:bg-gray-800 rounded-lg p-3 text-center">
-          <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ shipmentsCount }}</p>
-          <p class="text-xs text-gray-500">Colis</p>
-        </div>
-        <div class="bg-white dark:bg-gray-800 rounded-lg p-3 text-center">
-          <p class="text-2xl font-bold text-green-600">{{ deliveredCount }}</p>
-          <p class="text-xs text-gray-500">Livrés</p>
-        </div>
-      </div>
-    </div>
   </aside>
 </template>
 

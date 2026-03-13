@@ -17,6 +17,7 @@ export function getStatusTextClass(status: string): string {
     "Demande d'enlèvement assignée": 'text-indigo-600',
     "En cours d'enlèvement": 'text-indigo-600',
     'Enlevé': 'text-indigo-600',
+    'Enlevé (client)': 'text-indigo-700',
     // Pending / verify
     'En attente': 'text-gray-600',
     'A vérifier': 'text-amber-600',
@@ -50,6 +51,7 @@ export function getStatusDotClass(status: string): string {
     "Demande d'enlèvement assignée": 'bg-indigo-400',
     "En cours d'enlèvement": 'bg-indigo-500',
     'Enlevé': 'bg-indigo-500',
+    'Enlevé (client)': 'bg-indigo-600',
     // Pending / verify
     'En attente': 'bg-gray-400',
     'A vérifier': 'bg-amber-400',

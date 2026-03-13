@@ -13,6 +13,13 @@
       </div>
       <div class="flex items-center space-x-3">
         <button
+          @click="emit('add-pickup', '')"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+        >
+          <Truck class="w-4 h-4" />
+          <span class="hidden sm:inline">Déclarer pickup</span>
+        </button>
+        <button
           @click="router.push('/shipments/create')"
           class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-primary-blue hover:bg-blue-700 rounded-lg transition-colors"
         >
@@ -195,7 +202,8 @@ import {
   AlertTriangle,
   Plus,
   ChevronRight,
-  Clock
+  Clock,
+  Truck
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -249,5 +257,6 @@ const emit = defineEmits<{
   (e: 'toggle-sub-menu'): void
   (e: 'handle-action', action: any): void
   (e: 'handle-all-actions'): void
+  (e: 'add-pickup', carrierId: string): void
 }>()
 </script>

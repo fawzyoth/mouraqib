@@ -33,6 +33,10 @@
             <Printer class="w-3 h-3" />
             <span>Imprimer tout</span>
           </button>
+          <button v-if="category.id === 'pickup'" @click.stop="$emit('add-pickup', '')" class="btn-primary btn-primary-sm flex items-center space-x-1">
+            <Truck class="w-4 h-4" />
+            <span>Déclarer pickup</span>
+          </button>
         </div>
 
         <!-- Tasks List -->
@@ -89,6 +93,7 @@ import { computed, ref } from 'vue'
 import {
   ListFilter,
   Printer,
+  Truck,
 } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import ShipmentDetailPanel from '@/components/features/shipments/ShipmentDetailPanel.vue'
@@ -138,6 +143,7 @@ defineEmits<{
   (e: 'complete-all-in-category', categoryId: string): void
   (e: 'execute-task-action', task: Task): void
   (e: 'print-all-labels'): void
+  (e: 'add-pickup', carrierId: string): void
 }>()
 
 const appStore = useAppStore()
