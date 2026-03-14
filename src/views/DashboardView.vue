@@ -1036,11 +1036,8 @@ const financialSnapshot = computed(() => {
     const entry = getOrCreateEntry(s.carrier)
     const cod = s.cod || 0
     const deliveryFee = s.deliveryFee || 0
-    const withholdingRate = carrierWithholdingMap.get(s.carrierId) ?? carrierWithholdingMap.get(s.carrier) ?? 0
-    const otherFees = (cod - deliveryFee) * withholdingRate / 100
     entry.totalCOD += cod
     entry.totalDeliveryFees += deliveryFee
-    entry.totalWithholding += otherFees
     entry.deliveredShipments.push({
       id: s.id,
       tracking: s.trackingNumber || '',
@@ -1048,8 +1045,8 @@ const financialSnapshot = computed(() => {
       deliveryDate: s.deliveryDate || '',
       cod,
       deliveryFee,
-      otherFees,
-      net: cod - deliveryFee - otherFees,
+      otherFees: 0,
+      net: cod - deliveryFee,
       raw: s,
     })
   }
@@ -1098,14 +1095,17 @@ const financialSnapshot = computed(() => {
       const strategy = getPaymentFeeStrategy(name)
       const paymentFeeRows = strategy({ feePayment, brackets, deliveredShipments: data.deliveredShipments })
       const totalPaymentFees = paymentFeeRows.reduce((sum, r) => sum + r.fee, 0)
-      const totalFees = data.totalDeliveryFees + data.totalWithholding + data.totalReturnFees + data.totalPickupFees + totalPaymentFees
+      const withholdingRate = carrierWithholdingMap.get(name) ?? 0
+      const retenuBase = Math.max(0, data.totalCOD - data.totalDeliveryFees - data.totalReturnFees - totalPaymentFees)
+      const totalWithholding = retenuBase * withholdingRate / 100
+      const totalFees = data.totalDeliveryFees + totalWithholding + data.totalReturnFees + data.totalPickupFees + totalPaymentFees
       return {
         name,
         count: data.deliveredShipments.length + data.returnedShipments.length,
         amount: data.totalCOD,
         totalCOD: data.totalCOD,
         totalDeliveryFees: data.totalDeliveryFees,
-        totalWithholding: data.totalWithholding,
+        totalWithholding,
         totalReturnFees: data.totalReturnFees,
         totalPickupFees: data.totalPickupFees,
         paymentFeeRows,
