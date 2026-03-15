@@ -41,6 +41,7 @@ export interface CarrierCOD {
   amount: number
   totalCOD: number
   totalDeliveryFees: number
+  withholdingRate: number
   totalWithholding: number
   totalReturnFees: number
   totalPickupFees: number
@@ -57,7 +58,8 @@ export interface CarrierCOD {
 
 export interface RevenueDay {
   label: string
-  amount: number
+  amount: number    // COD collected (revenue)
+  expenses: number  // delivery fees + return fees for that day
   count: number
 }
 
@@ -77,6 +79,7 @@ export type CarrierSectionKey =
   | 'pickups'
   | 'frais-paiement'
   | 'total'
+  | 'journees'
 
 export const DEFAULT_CARRIER_SECTIONS: CarrierSectionKey[] = [
   'livraisons',

@@ -217,9 +217,11 @@ async function pollCarrier(
         const errorCtx = { supabase, organizationId: carrier.organization_id, carrierId: carrier.id, trackingNumber: statusResult.trackingNumber }
         const newStatus = mapNavexStatus(statusResult.status, errorCtx)
         if (newStatus !== shipment.status) {
+          const statusUpdate: Record<string, unknown> = { status: newStatus, last_synced_at: new Date().toISOString() }
+          if (newStatus === 'Livré') statusUpdate.delivered_at = new Date().toISOString()
           const { error: updErr } = await supabase
             .from('shipments')
-            .update({ status: newStatus, last_synced_at: new Date().toISOString() })
+            .update(statusUpdate)
             .eq('id', shipment.id)
           if (updErr) {
             console.error(`[poll] Navex: update status failed for ${shipment.id} (${statusResult.trackingNumber}) status="${newStatus}":`, updErr.message)
@@ -258,9 +260,11 @@ async function pollCarrier(
           const now = new Date().toISOString()
           console.log(`[poll] ${carrier.name}: ${shipment.carrier_tracking_number} db="${shipment.status}" carrier="${newStatus}" changed=${newStatus !== shipment.status}`)
           if (newStatus !== shipment.status) {
+            const statusUpdate: Record<string, unknown> = { status: newStatus, last_synced_at: now }
+            if (newStatus === 'Livré') statusUpdate.delivered_at = now
             const { error: updErr } = await supabase
               .from('shipments')
-              .update({ status: newStatus, last_synced_at: now })
+              .update(statusUpdate)
               .eq('id', shipment.id)
             if (updErr) console.error(`[poll] update status failed for ${shipment.id}:`, updErr.message)
             await markEventSource(supabase, shipment.id, newStatus)

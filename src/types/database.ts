@@ -306,6 +306,7 @@ export interface Database {
           is_fragile: boolean
           out_scanned_at: string | null
           in_scanned_at: string | null
+          retour_recu_at: string | null
           reference: string | null
           allow_open: boolean
           exchange_allowed: boolean
@@ -354,6 +355,7 @@ export interface Database {
           is_fragile?: boolean
           out_scanned_at?: string | null
           in_scanned_at?: string | null
+          retour_recu_at?: string | null
           reference?: string | null
           allow_open?: boolean
           exchange_allowed?: boolean
@@ -402,6 +404,7 @@ export interface Database {
           is_fragile?: boolean
           out_scanned_at?: string | null
           in_scanned_at?: string | null
+          retour_recu_at?: string | null
           reference?: string | null
           allow_open?: boolean
           exchange_allowed?: boolean

@@ -17,7 +17,7 @@
         <CarrierExpanded
           v-if="expandedCarrier === carrier.name"
           :carrier="carrier"
-          :sections="carrierSections?.[carrier.name] ?? defaultSections"
+          :sections="carrierSections?.[carrier.name.toLowerCase()] ?? defaultSections"
           @select-shipment="$emit('select-shipment', $event)"
           @add-pickup="$emit('add-pickup', $event)"
         />

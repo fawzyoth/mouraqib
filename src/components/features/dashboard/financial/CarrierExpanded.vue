@@ -41,6 +41,15 @@
           :total-payment-fees="carrier.totalPaymentFees"
         />
       </template>
+      <NavexDayGroupedTable
+        v-else-if="section === 'journees'"
+        :delivered-shipments="carrier.deliveredShipments"
+        :returned-shipments="carrier.returnedShipments"
+        :payment-fee-rows="carrier.paymentFeeRows"
+        :pickup-events="carrier.pickupEvents"
+        :withholding-rate="carrier.withholdingRate"
+        @select-shipment="$emit('select-shipment', $event)"
+      />
       <CarrierTotalSummary
         v-else-if="section === 'total'"
         :total-c-o-d="carrier.totalCOD"
@@ -62,6 +71,7 @@ import RetoursTable from './RetoursTable.vue'
 import PickupsSubsection from './PickupsSubsection.vue'
 import PaymentFeesSubsection from './PaymentFeesSubsection.vue'
 import CarrierTotalSummary from './CarrierTotalSummary.vue'
+import NavexDayGroupedTable from './NavexDayGroupedTable.vue'
 import type { CarrierCOD, CarrierSectionKey } from './types'
 import { DEFAULT_CARRIER_SECTIONS } from './types'
 

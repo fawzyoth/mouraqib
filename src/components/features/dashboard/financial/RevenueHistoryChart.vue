@@ -2,25 +2,43 @@
   <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
     <div class="px-5 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
       <h3 class="font-semibold text-gray-900 dark:text-white">Historique de revenu</h3>
-      <span class="text-xs text-gray-500">7 derniers jours</span>
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block"></span>
+          <span class="text-xs text-gray-500">COD</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-sm bg-red-400 inline-block"></span>
+          <span class="text-xs text-gray-500">Frais</span>
+        </div>
+        <span class="text-xs text-gray-400">7 derniers jours</span>
+      </div>
     </div>
     <div class="p-5">
-      <div v-if="totalRevenue > 0" class="flex items-end justify-between gap-2 h-40 mb-3">
+      <div v-if="maxValue > 0" class="flex items-end justify-between gap-2 h-40 mb-3">
         <div
           v-for="(day, index) in history"
           :key="index"
-          class="flex-1 flex flex-col items-center justify-end group relative"
+          class="flex-1 flex items-end justify-center gap-0.5 group relative"
         >
           <!-- Tooltip -->
-          <div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs rounded-lg px-2 py-1.5 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-            <div class="font-semibold">{{ day.amount.toFixed(2) }} TND</div>
+          <div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs rounded-lg px-2.5 py-2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg">
+            <div class="font-semibold text-green-400">COD : {{ day.amount.toFixed(2) }} TND</div>
+            <div class="text-red-400">Frais : -{{ day.expenses.toFixed(2) }} TND</div>
+            <div class="text-gray-300 mt-0.5">Net : {{ (day.amount - day.expenses).toFixed(2) }} TND</div>
             <div class="text-gray-400">{{ day.count }} livraison{{ day.count !== 1 ? 's' : '' }}</div>
           </div>
-          <!-- Bar -->
+          <!-- Revenue bar -->
           <div
-            class="w-full rounded-t-md transition-all duration-300"
+            class="flex-1 rounded-t-sm transition-all duration-300"
             :class="index === todayIndex ? 'bg-green-500' : 'bg-green-200 dark:bg-green-900/50 group-hover:bg-green-400'"
-            :style="{ height: maxRevenue > 0 ? Math.max((day.amount / maxRevenue) * 100, day.amount > 0 ? 4 : 0) + '%' : '0%' }"
+            :style="{ height: barHeight(day.amount) }"
+          ></div>
+          <!-- Expenses bar -->
+          <div
+            class="flex-1 rounded-t-sm transition-all duration-300"
+            :class="index === todayIndex ? 'bg-red-400' : 'bg-red-200 dark:bg-red-900/40 group-hover:bg-red-400'"
+            :style="{ height: barHeight(day.expenses) }"
           ></div>
         </div>
       </div>
@@ -44,9 +62,21 @@
         </div>
       </div>
       <!-- Summary -->
-      <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-sm">
-        <span class="text-gray-500">Total 7 jours</span>
-        <span class="font-semibold text-gray-900 dark:text-white">{{ totalRevenue.toFixed(2) }} TND</span>
+      <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 grid grid-cols-3 gap-2 text-sm">
+        <div>
+          <div class="text-xs text-gray-400 mb-0.5">COD 7j</div>
+          <div class="font-semibold text-gray-900 dark:text-white">{{ totalRevenue.toFixed(2) }} TND</div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-400 mb-0.5">Frais 7j</div>
+          <div class="font-semibold text-red-600">-{{ totalExpenses.toFixed(2) }} TND</div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-400 mb-0.5">Net 7j</div>
+          <div class="font-semibold" :class="totalNet >= 0 ? 'text-green-600' : 'text-red-600'">
+            {{ totalNet.toFixed(2) }} TND
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -61,13 +91,25 @@ const props = defineProps<{
   history: RevenueDay[]
 }>()
 
-const maxRevenue = computed(() =>
-  Math.max(...props.history.map(d => d.amount), 0)
+const maxValue = computed(() =>
+  Math.max(...props.history.map(d => Math.max(d.amount, d.expenses)), 0)
 )
 
 const totalRevenue = computed(() =>
   props.history.reduce((sum, d) => sum + d.amount, 0)
 )
 
+const totalExpenses = computed(() =>
+  props.history.reduce((sum, d) => sum + d.expenses, 0)
+)
+
+const totalNet = computed(() => totalRevenue.value - totalExpenses.value)
+
 const todayIndex = computed(() => props.history.length - 1)
+
+function barHeight(value: number): string {
+  if (maxValue.value === 0) return '0%'
+  const pct = (value / maxValue.value) * 100
+  return Math.max(pct > 0 ? pct : 0, value > 0 ? 4 : 0) + '%'
+}
 </script>

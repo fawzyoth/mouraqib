@@ -54,15 +54,6 @@ import type { FinancialData, CarrierSectionKey } from './financial/types'
 
 interface Props {
   financialData: FinancialData
-  /**
-   * Optional per-carrier section config. Keys are carrier names.
-   * Controls which sections appear and in what order for each carrier.
-   * Falls back to DEFAULT_CARRIER_SECTIONS when not specified for a carrier.
-   *
-   * Example:
-   * { 'Aramex': ['livraisons', 'pickups', 'total'] }
-   */
-  carrierSectionsConfig?: Record<string, CarrierSectionKey[]>
 }
 
 withDefaults(defineProps<Props>(), {
@@ -76,6 +67,12 @@ withDefaults(defineProps<Props>(), {
     revenueHistory: [],
   }),
 })
+
+// Navex uses day-grouped billing view instead of flat tables
+const carrierSectionsConfig: Record<string, CarrierSectionKey[]> = {
+  'navex':          ['journees', 'pickups', 'total'],
+  'navex delivery': ['journees', 'pickups', 'total'],
+}
 
 defineEmits<{
   (e: 'toggle-sub-menu'): void

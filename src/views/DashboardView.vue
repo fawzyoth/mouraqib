@@ -1052,6 +1052,8 @@ const financialSnapshot = computed(() => {
   }
 
   for (const s of returnedOnly) {
+    const isNavex = s.carrier?.toLowerCase().startsWith('navex')
+    if (isNavex && s.status !== 'Retour reçu') continue
     const entry = getOrCreateEntry(s.carrier)
     const returnFee = carrierReturnFeeMap.get(s.carrierId) ?? carrierReturnFeeMap.get(s.carrier) ?? 0
     entry.totalReturnFees += returnFee
@@ -1059,7 +1061,7 @@ const financialSnapshot = computed(() => {
       id: s.id,
       tracking: s.trackingNumber || '',
       client: s.customerName || (s as any).recipientName || '',
-      deliveryDate: s.updatedAt || '',
+      deliveryDate: s.retourRecuAt || s.updatedAt || '',
       inScannedAt: s.inScannedAt || null,
       cod: s.cod || 0,
       returnFee,
@@ -1105,6 +1107,7 @@ const financialSnapshot = computed(() => {
         amount: data.totalCOD,
         totalCOD: data.totalCOD,
         totalDeliveryFees: data.totalDeliveryFees,
+        withholdingRate,
         totalWithholding,
         totalReturnFees: data.totalReturnFees,
         totalPickupFees: data.totalPickupFees,
@@ -1120,22 +1123,37 @@ const financialSnapshot = computed(() => {
     })
     .sort((a, b) => b.amount - a.amount)
 
-  // Revenue history: last 7 days — delivered shipments grouped by creation date
+  // Revenue history: last 7 days — grouped by delivery / return date
   const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
   const revenueHistory = Array.from({ length: 7 }, (_, i) => {
     const dayStart = daysAgo(6 - i)
     const dayEnd = new Date(dayStart)
     dayEnd.setDate(dayEnd.getDate() + 1)
 
-    const dayDelivered = deliveredOnly.filter(s => {
-      const created = s.createdAt ? new Date(s.createdAt) : null
-      if (!created) return false
-      return created >= dayStart && created < dayEnd
+    const inRange = (dateStr: string | null | undefined) => {
+      if (!dateStr) return false
+      const d = new Date(dateStr)
+      return d >= dayStart && d < dayEnd
+    }
+
+    const dayDelivered = deliveredOnly.filter(s => inRange(s.deliveryDate || s.updatedAt))
+    const dayReturned = returnedOnly.filter(s => {
+      const isNavex = s.carrier?.toLowerCase().startsWith('navex')
+      if (isNavex && s.status !== 'Retour reçu') return false
+      return inRange(s.retourRecuAt || s.updatedAt)
     })
+
+    const cod = dayDelivered.reduce((sum, s) => sum + (s.cod || 0), 0)
+    const delivFees = dayDelivered.reduce((sum, s) => sum + (s.deliveryFee || 0), 0)
+    const returnFees = dayReturned.reduce((sum, s) => {
+      const fee = carrierReturnFeeMap.get(s.carrierId ?? '') ?? carrierReturnFeeMap.get(s.carrier) ?? 0
+      return sum + fee
+    }, 0)
 
     return {
       label: dayNames[dayStart.getDay()],
-      amount: dayDelivered.reduce((sum, s) => sum + (s.totalPrice || 0), 0),
+      amount: cod,
+      expenses: delivFees + returnFees,
       count: dayDelivered.length,
     }
   })

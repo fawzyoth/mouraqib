@@ -51,6 +51,7 @@ export interface UIShipment {
   lastSyncedAt: string | null
   outScannedAt: string | null
   inScannedAt: string | null
+  retourRecuAt: string | null
   deletionRequestedAt: string | null
   deletionRequestedBy: string | null
   deletionReason: string | null
@@ -126,6 +127,7 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
     lastSyncedAt: row.last_synced_at ?? null,
     outScannedAt: row.out_scanned_at ?? null,
     inScannedAt: row.in_scanned_at ?? null,
+    retourRecuAt: row.retour_recu_at ?? null,
     deletionRequestedAt: row.deletion_requested_at ?? null,
     deletionRequestedBy: row.deletion_requested_by ?? null,
     deletionReason: row.deletion_reason ?? null,
