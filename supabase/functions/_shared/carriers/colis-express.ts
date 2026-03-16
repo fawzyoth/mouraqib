@@ -8,6 +8,7 @@ import type {
   ApiCallLogger,
 } from './types.ts'
 import { CarrierApiError } from './types.ts'
+import { mapColisExpressStatus } from './colis-express-status-map.ts'
 
 interface ColisExpressConfig {
   codeApi: string
@@ -84,7 +85,8 @@ export class ColisExpressAdapter implements CarrierAdapter {
     })
 
     // CE returns shipment info including an etat/state field
-    const status = String(data.etat ?? data.state ?? data.statut ?? 'unknown')
+    const rawStatus = String(data.dernier_statut ?? data.etat ?? data.state ?? data.statut ?? '').trim()
+    const status = rawStatus ? mapColisExpressStatus(rawStatus) : 'En attente'
 
     return { trackingNumber, status }
   }
