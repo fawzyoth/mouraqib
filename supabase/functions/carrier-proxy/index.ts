@@ -216,6 +216,7 @@ async function handleCreateShipment(
     articleCount: shipmentFields.articleCount ?? 1,
     comment: shipmentFields.comment,
     exchangeCount: shipmentFields.exchangeCount,
+    openPackage: shipmentFields.openPackage ?? false,
   }
 
   // ── Carrier-first path (no shipmentId) ──

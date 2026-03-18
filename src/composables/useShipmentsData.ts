@@ -80,6 +80,7 @@ export function useShipmentsData(orgId: Ref<string>) {
         articleCount: 1,
         comment: form.reference || undefined,
         exchangeCount: form.type === 'exchange' ? (form.exchangeItemCount || 1) : undefined,
+        openPackage: form.openPackage ?? false,
       }
 
       // ── Carrier-first: call carrier API before DB insert ──

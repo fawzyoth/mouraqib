@@ -108,8 +108,8 @@ const totalNet = computed(() => totalRevenue.value - totalExpenses.value)
 const todayIndex = computed(() => props.history.length - 1)
 
 function barHeight(value: number): string {
-  if (maxValue.value === 0) return '0%'
-  const pct = (value / maxValue.value) * 100
-  return Math.max(pct > 0 ? pct : 0, value > 0 ? 4 : 0) + '%'
+  if (maxValue.value === 0) return '0px'
+  const px = (value / maxValue.value) * 152
+  return Math.round(Math.max(px > 0 ? px : 0, value > 0 ? 4 : 0)) + 'px'
 }
 </script>

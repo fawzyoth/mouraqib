@@ -25,77 +25,82 @@
           <span class="ml-auto text-xs text-gray-400">Top {{ statsData.byGovernorate.length }}</span>
         </div>
         <div v-if="statsData.byGovernorate.length > 0" class="divide-y divide-gray-100 dark:divide-gray-800">
-          <div
-            v-for="row in statsData.byGovernorate"
-            :key="row.region"
-            class="px-6 py-3 flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-          >
-            <div class="w-32 text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{{ row.region }}</div>
-            <div class="w-14 text-right text-sm font-semibold text-gray-900 dark:text-white">{{ row.returns }}</div>
-            <div class="w-20 text-right">
-              <span
-                class="text-xs font-semibold px-2 py-0.5 rounded-full"
-                :class="row.returnRate >= 20 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                        row.returnRate >= 10 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
-                        'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'"
-              >{{ row.returnRate }}%</span>
-            </div>
-            <div class="flex-1">
-              <div class="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                <div
-                  class="h-full rounded-full transition-all duration-500"
-                  :class="row.returnRate >= 20 ? 'bg-red-500' : row.returnRate >= 10 ? 'bg-orange-400' : 'bg-green-500'"
-                  :style="{ width: barWidthGov(row.returns) }"
-                ></div>
+          <template v-for="row in statsData.byGovernorate" :key="row.region">
+            <!-- Governorate row -->
+            <div
+              class="px-6 py-3 flex items-center gap-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors select-none"
+              @click="toggleGov(row.region)"
+            >
+              <ChevronRight
+                class="w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-200"
+                :class="expandedGov === row.region ? 'rotate-90' : ''"
+              />
+              <div class="w-32 text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{{ row.region }}</div>
+              <div class="w-14 text-right text-sm font-semibold text-gray-900 dark:text-white">{{ row.returns }}</div>
+              <div class="w-20 text-right">
+                <span
+                  class="text-xs font-semibold px-2 py-0.5 rounded-full"
+                  :class="row.returnRate >= 20 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                          row.returnRate >= 10 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                          'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'"
+                >{{ row.returnRate }}%</span>
               </div>
+              <div class="flex-1">
+                <div class="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    class="h-full rounded-full transition-all duration-500"
+                    :class="row.returnRate >= 20 ? 'bg-red-500' : row.returnRate >= 10 ? 'bg-orange-400' : 'bg-green-500'"
+                    :style="{ width: barWidthGov(row.returns) }"
+                  ></div>
+                </div>
+              </div>
+              <div class="w-20 text-right text-xs text-gray-400">{{ row.total }} total</div>
             </div>
-            <div class="w-20 text-right text-xs text-gray-400">{{ row.total }} total</div>
-          </div>
+            <!-- Delegation sub-rows -->
+            <template v-if="expandedGov === row.region">
+              <div
+                v-if="!statsData.byDelegation?.[row.region]?.length"
+                class="px-8 py-2 text-xs text-gray-400 bg-gray-50 dark:bg-gray-800/30"
+              >
+                Pas de données de délégation disponibles
+              </div>
+              <div
+                v-for="d in statsData.byDelegation?.[row.region]"
+                :key="d.delegation"
+                class="px-6 py-2.5 flex items-center gap-4 bg-gray-50 dark:bg-gray-800/30 border-l-2 border-orange-200 dark:border-orange-800"
+              >
+                <div class="w-4 flex-shrink-0" />
+                <div class="w-32 text-sm text-gray-600 dark:text-gray-400 truncate pl-2">{{ d.delegation }}</div>
+                <div class="w-14 text-right text-sm font-medium text-gray-700 dark:text-gray-300">{{ d.returns }}</div>
+                <div class="w-20 text-right">
+                  <span
+                    class="text-xs font-medium px-2 py-0.5 rounded-full"
+                    :class="d.returnRate >= 20 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                            d.returnRate >= 10 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                            'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'"
+                  >{{ d.returnRate }}%</span>
+                </div>
+                <div class="flex-1">
+                  <div class="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      class="h-full rounded-full"
+                      :class="d.returnRate >= 20 ? 'bg-red-400' : d.returnRate >= 10 ? 'bg-orange-300' : 'bg-green-400'"
+                      :style="{ width: barWidthGov(d.returns) }"
+                    ></div>
+                  </div>
+                </div>
+                <div class="w-20 text-right text-xs text-gray-400">{{ d.total }} total</div>
+              </div>
+            </template>
+          </template>
         </div>
         <div v-else class="flex items-center justify-center h-32 text-sm text-gray-400">
           Aucune donnée disponible
         </div>
       </div>
 
-      <!-- Section 2: Par mois -->
-      <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center gap-2">
-          <CalendarDays class="w-4 h-4 text-blue-500" />
-          <h3 class="font-semibold text-gray-900 dark:text-white">Retours par mois</h3>
-          <span class="ml-auto text-xs text-gray-400">12 derniers mois</span>
-        </div>
-        <div class="p-6">
-          <div v-if="maxMonthCount > 0" class="flex items-end justify-between gap-2 h-40 mb-3">
-            <div
-              v-for="m in statsData.byMonth"
-              :key="m.month"
-              class="flex-1 flex flex-col items-center justify-end gap-1 group relative"
-            >
-              <!-- Tooltip -->
-              <div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs rounded-lg px-2.5 py-1.5 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg">
-                <div class="font-semibold">{{ m.count }} retour{{ m.count !== 1 ? 's' : '' }}</div>
-                <div class="text-gray-400">{{ m.month }}</div>
-              </div>
-              <div
-                class="w-full rounded-t-sm transition-all duration-300 bg-orange-400 dark:bg-orange-500 group-hover:bg-orange-500 dark:group-hover:bg-orange-400"
-                :style="{ height: barHeightMonth(m.count) }"
-              ></div>
-            </div>
-          </div>
-          <div v-else class="flex items-center justify-center h-40 mb-3">
-            <div class="text-center">
-              <BarChart3 class="w-10 h-10 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
-              <p class="text-sm text-gray-500">Aucun retour sur 12 mois</p>
-            </div>
-          </div>
-          <!-- Month labels -->
-          <div class="flex justify-between gap-2">
-            <div v-for="m in statsData.byMonth" :key="m.month" class="flex-1 text-center">
-              <span class="text-xs text-gray-400">{{ m.label }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- Section 2: Par mois / période -->
+      <ReturnsByMonth :shipments="props.shipments" />
 
       <!-- Section 3: Par transporteur -->
       <div class="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
@@ -162,11 +167,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { ListFilter, MapPin, CalendarDays, Truck, Building2, BarChart3 } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
+import { ListFilter, MapPin, Truck, Building2, ChevronRight } from 'lucide-vue-next'
+import ReturnsByMonth from './ReturnsByMonth.vue'
 
 interface GovernorateRow {
   region: string
+  returns: number
+  total: number
+  returnRate: number
+}
+
+interface DelegationRow {
+  delegation: string
   returns: number
   total: number
   returnRate: number
@@ -188,33 +201,30 @@ interface CarrierRow {
 
 interface ReturnStatsData {
   byGovernorate: GovernorateRow[]
+  byDelegation?: Record<string, DelegationRow[]>
   byMonth: MonthRow[]
   byCarrier: CarrierRow[]
 }
 
 const props = defineProps<{
   statsData?: ReturnStatsData
+  shipments?: string[]
 }>()
 
-const statsData = computed<ReturnStatsData>(() => props.statsData ?? { byGovernorate: [], byMonth: [], byCarrier: [] })
+const statsData = computed<ReturnStatsData>(() => props.statsData ?? { byGovernorate: [], byDelegation: {}, byMonth: [], byCarrier: [] })
+
+const expandedGov = ref<string | null>(null)
+function toggleGov(region: string) {
+  expandedGov.value = expandedGov.value === region ? null : region
+}
 
 const maxGovReturns = computed(() =>
   Math.max(...statsData.value.byGovernorate.map(r => r.returns), 1)
 )
 
-const maxMonthCount = computed(() =>
-  Math.max(...statsData.value.byMonth.map(m => m.count), 0)
-)
-
 function barWidthGov(value: number): string {
   const pct = (value / maxGovReturns.value) * 100
   return Math.max(pct, value > 0 ? 4 : 0) + '%'
-}
-
-function barHeightMonth(value: number): string {
-  if (maxMonthCount.value === 0) return '0%'
-  const pct = (value / maxMonthCount.value) * 100
-  return Math.max(pct > 0 ? pct : 0, value > 0 ? 4 : 0) + '%'
 }
 
 defineEmits<{

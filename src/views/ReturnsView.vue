@@ -34,6 +34,7 @@
   <ReturnStats
     v-else-if="activeSection === 'return-stats'"
     :stats-data="returnStatsData"
+    :shipments="returnShipmentDates"
     @toggle-submenu="subMenuOpen = !subMenuOpen"
   />
 </template>
@@ -94,7 +95,8 @@ const reportPeriod = ref('month')
 const reportAnalytics = ref<any>({})
 
 // ReturnStats props
-const returnStatsData = ref<any>({ byGovernorate: [], byMonth: [], byCarrier: [] })
+const returnStatsData = ref<any>({ byGovernorate: [], byDelegation: {}, byMonth: [], byCarrier: [] })
+const returnShipmentDates = ref<string[]>([])
 
 // ---------------------------------------------------------------------------
 // Filtering helpers
@@ -291,6 +293,19 @@ watchEffect(() => {
       { month: '2026-02', label: 'Fév', count: 8 },
     ]
 
+    // Generate ISO date strings for ReturnsByMonth component
+    const demoDates: string[] = []
+    for (const m of demoMonths) {
+      const [y, mo] = m.month.split('-').map(Number)
+      const daysInMonth = new Date(y, mo, 0).getDate()
+      const step = Math.floor(daysInMonth / (m.count + 1))
+      for (let i = 1; i <= m.count; i++) {
+        const day = Math.min(i * step, daysInMonth)
+        demoDates.push(`${m.month}-${String(day).padStart(2, '0')}`)
+      }
+    }
+    returnShipmentDates.value = demoDates
+
     returnStatsData.value = {
       byGovernorate,
       byMonth: demoMonths,
@@ -446,11 +461,22 @@ watchEffect(() => {
 
     // ---- returnStatsData ----
     const govMap: Record<string, { returns: number; total: number }> = {}
+    const delegMap: Record<string, Record<string, { returns: number; total: number }>> = {}
     for (const s of allShipments) {
-      const gov = (s.destination || '').split(', ').pop() || 'Inconnu'
+      const parts = (s.destination || '').split(', ').map((p: string) => p.trim()).filter(Boolean)
+      const gov = parts[parts.length - 1] || 'Inconnu'
+      const deleg = parts.length >= 2 ? parts[parts.length - 2] : null
       if (!govMap[gov]) govMap[gov] = { returns: 0, total: 0 }
       govMap[gov].total++
-      if (returnStatuses.has(s.status)) govMap[gov].returns++
+      if (!delegMap[gov]) delegMap[gov] = {}
+      if (deleg) {
+        if (!delegMap[gov][deleg]) delegMap[gov][deleg] = { returns: 0, total: 0 }
+        delegMap[gov][deleg].total++
+      }
+      if (returnStatuses.has(s.status)) {
+        govMap[gov].returns++
+        if (deleg && delegMap[gov][deleg]) delegMap[gov][deleg].returns++
+      }
     }
     const liveByGov = Object.entries(govMap)
       .filter(([, v]) => v.returns > 0)
@@ -462,6 +488,18 @@ watchEffect(() => {
       }))
       .sort((a, b) => b.returns - a.returns)
       .slice(0, 10)
+    const liveByDelegation: Record<string, { delegation: string; returns: number; total: number; returnRate: number }[]> = {}
+    for (const [gov, delegs] of Object.entries(delegMap)) {
+      liveByDelegation[gov] = Object.entries(delegs)
+        .filter(([, v]) => v.returns > 0)
+        .map(([delegation, v]) => ({
+          delegation,
+          returns: v.returns,
+          total: v.total,
+          returnRate: Math.round((v.returns / Math.max(v.total, 1)) * 100),
+        }))
+        .sort((a, b) => b.returns - a.returns)
+    }
 
     // by month: last 12 months
     const monthLabels: Record<string, string> = {
@@ -481,8 +519,13 @@ watchEffect(() => {
       return { month, label: monthLabels[mm] || mm, count: monthCounts[month] || 0 }
     })
 
+    returnShipmentDates.value = allReturnShipments
+      .map((s: any) => (s.createdAt || s.updatedAt || '') as string)
+      .filter(Boolean)
+
     returnStatsData.value = {
       byGovernorate: liveByGov,
+      byDelegation: liveByDelegation,
       byMonth: liveByMonth,
       byCarrier: carriersReturnStats.value.map((c: any) => ({
         name: c.name,

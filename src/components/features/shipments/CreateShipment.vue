@@ -322,42 +322,47 @@
             </div>
           </div>
           <div class="p-6 space-y-4">
-            <!-- Nom du produit + Fragile -->
-            <div class="flex flex-col md:flex-row md:items-end gap-4">
-              <div class="flex-1 relative">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Nom du Produit <span class="text-red-500">*</span>
-                </label>
-                <input
-                  v-model="newShipment.productName"
-                  @input="onProductNameInput"
-                  @focus="showProductSuggestions = true"
-                  @keydown.down.prevent="onProductSearchKey('down')"
-                  @keydown.up.prevent="onProductSearchKey('up')"
-                  @keydown.enter.prevent="onProductSearchKey('enter')"
-                  type="text"
-                  placeholder="Entrez le nom du produit"
-                  class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                />
-                <ProductSuggestionsDropdown
-                  v-if="showProductSuggestions && filteredProducts.length > 0"
-                  :products="filteredProducts"
-                  :selected-index="productSuggestIndex"
-                  @select="selectProduct"
-                />
-              </div>
-              <div class="flex items-center gap-2">
-                <label class="flex items-center space-x-2 cursor-pointer px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                  <input type="checkbox" v-model="newShipment.isFragile" class="w-4 h-4 text-primary-blue border-gray-300 rounded focus:ring-primary-blue" />
-                  <AlertTriangle class="w-4 h-4 text-yellow-500" />
-                  <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Produit Fragile</span>
-                </label>
-                <label class="flex items-center space-x-2 cursor-pointer px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                  <input type="checkbox" v-model="newShipment.isBig" class="w-4 h-4 text-primary-blue border-gray-300 rounded focus:ring-primary-blue" />
-                  <Package class="w-4 h-4 text-blue-500" />
-                  <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Grand Colis</span>
-                </label>
-              </div>
+            <!-- Nom du produit -->
+            <div class="relative">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Nom du Produit <span class="text-red-500">*</span>
+              </label>
+              <input
+                v-model="newShipment.productName"
+                @input="onProductNameInput"
+                @focus="showProductSuggestions = true"
+                @keydown.down.prevent="onProductSearchKey('down')"
+                @keydown.up.prevent="onProductSearchKey('up')"
+                @keydown.enter.prevent="onProductSearchKey('enter')"
+                type="text"
+                placeholder="Entrez le nom du produit"
+                class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              />
+              <ProductSuggestionsDropdown
+                v-if="showProductSuggestions && filteredProducts.length > 0"
+                :products="filteredProducts"
+                :selected-index="productSuggestIndex"
+                @select="selectProduct"
+              />
+            </div>
+
+            <!-- Options du colis -->
+            <div class="flex flex-wrap gap-2">
+              <label class="flex items-center space-x-2 cursor-pointer px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <input type="checkbox" v-model="newShipment.isFragile" class="w-4 h-4 text-primary-blue border-gray-300 rounded focus:ring-primary-blue" />
+                <AlertTriangle class="w-4 h-4 text-yellow-500" />
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Produit Fragile</span>
+              </label>
+              <label class="flex items-center space-x-2 cursor-pointer px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <input type="checkbox" v-model="newShipment.isBig" class="w-4 h-4 text-primary-blue border-gray-300 rounded focus:ring-primary-blue" />
+                <Package class="w-4 h-4 text-blue-500" />
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Grand Colis</span>
+              </label>
+              <label v-if="newShipment.carrier === 'Navex'" class="flex items-center space-x-2 cursor-pointer px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <input type="checkbox" v-model="newShipment.openPackage" class="w-4 h-4 text-primary-blue border-gray-300 rounded focus:ring-primary-blue" />
+                <PackageOpen class="w-4 h-4 text-green-500" />
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Autoriser l'ouverture</span>
+              </label>
             </div>
 
             <!-- Description -->
@@ -456,7 +461,8 @@ import {
   Plus,
   AlertTriangle,
   CheckCircle,
-  Loader2
+  Loader2,
+  PackageOpen
 } from 'lucide-vue-next'
 import ClientSuggestionsDropdown from './ClientSuggestionsDropdown.vue'
 import ProductSuggestionsDropdown from './ProductSuggestionsDropdown.vue'
@@ -520,6 +526,7 @@ const newShipment = reactive({
   productName: '',
   isFragile: false,
   isBig: false,
+  openPackage: false,
   description: '',
   productPrice: 0,
   deliveryFee: 7,
@@ -797,6 +804,7 @@ function resetForm() {
   newShipment.productName = ''
   newShipment.isFragile = false
   newShipment.isBig = false
+  newShipment.openPackage = false
   newShipment.description = ''
   newShipment.productPrice = 0
   newShipment.deliveryFee = 7

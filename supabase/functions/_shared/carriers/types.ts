@@ -21,6 +21,7 @@ export interface CreateShipmentPayload {
   comment?: string
   article?: string
   exchangeCount?: number
+  openPackage?: boolean
 }
 
 export interface FilterShipmentsPayload {

@@ -74,7 +74,7 @@ export class NavexAdapter implements CarrierAdapter {
       echange: payload.exchangeCount ? '1' : '0',
       article: payload.article || payload.designation,
       nb_echange: String(payload.exchangeCount || 0),
-      ouvrir: '0',
+      ouvrir: payload.openPackage ? 'Oui' : 'Non',
     })
 
     const data = await this.post(this.tokenAdd, params)
