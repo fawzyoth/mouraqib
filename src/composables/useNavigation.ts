@@ -83,6 +83,7 @@ export const subSectionRoutes: Record<string, { path: string; mainSection: strin
   'lost-returns': { path: '/returns/lost', mainSection: 'returns' },
   'return-value': { path: '/returns/value', mainSection: 'returns' },
   'return-reports': { path: '/returns/reports', mainSection: 'returns' },
+  'return-stats': { path: '/returns/stats', mainSection: 'returns' },
 
   // Carriers
   'connected-carriers': { path: '/carriers', mainSection: 'carriers' },
@@ -165,6 +166,7 @@ export const subNavigation: Record<string, NavItem[]> = {
     { id: 'lost-returns', label: 'Retours perdus', icon: markRaw(PackageX) },
     { id: 'return-value', label: 'Valeur des retours', icon: markRaw(DollarSign) },
     { id: 'return-reports', label: 'Rapports', icon: markRaw(FileBarChart) },
+    { id: 'return-stats', label: 'Statistiques', icon: markRaw(BarChart3) },
   ],
   carriers: [
     { id: 'connected-carriers', label: 'Transporteurs connectés', icon: markRaw(Building2) },

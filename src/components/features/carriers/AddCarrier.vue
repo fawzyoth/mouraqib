@@ -359,13 +359,15 @@
                         <button type="button" @click="$emit('remove-payment-bracket', i)" class="text-red-400 hover:text-red-600 text-xs ml-1">✕</button>
                       </div>
                     </div>
-                    <!-- Flat fee fallback -->
-                    <div class="flex items-baseline gap-1">
-                      <span class="text-xs text-gray-400 mr-1">Fixe</span>
-                      <input :value="newCarrier.fraisPaiement" @input="$emit('update:newCarrierField', 'fraisPaiement', Number(($event.target as HTMLInputElement).value))" type="number" step="0.01" min="0" class="w-full px-0 py-1 border-0 border-b-2 border-gray-200 dark:border-gray-600 bg-transparent text-xl font-bold text-gray-900 dark:text-white focus:ring-0 focus:border-orange-500" />
-                      <span class="text-sm text-gray-400 font-medium">DT</span>
-                    </div>
-                    <p class="text-xs text-gray-400 mt-1">Frais fixe utilisé si aucune tranche définie</p>
+                    <!-- Flat fee fallback — only shown when no brackets defined -->
+                    <template v-if="newCarrier.fraisPaiementTranches.length === 0">
+                      <div class="flex items-baseline gap-1">
+                        <span class="text-xs text-gray-400 mr-1">Fixe</span>
+                        <input :value="newCarrier.fraisPaiement" @input="$emit('update:newCarrierField', 'fraisPaiement', Number(($event.target as HTMLInputElement).value))" type="number" step="0.01" min="0" class="w-full px-0 py-1 border-0 border-b-2 border-gray-200 dark:border-gray-600 bg-transparent text-xl font-bold text-gray-900 dark:text-white focus:ring-0 focus:border-orange-500" />
+                        <span class="text-sm text-gray-400 font-medium">DT</span>
+                      </div>
+                      <p class="text-xs text-gray-400 mt-1">Frais fixe utilisé si aucune tranche définie</p>
+                    </template>
                   </div>
                   <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
                     <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Retenu passage</label>

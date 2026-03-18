@@ -2,7 +2,7 @@
   <!-- Carriers: Connected -->
   <ConnectedCarriers
     v-if="activeSection === 'connected-carriers'"
-    :carriers="appStore.carriers"
+    :carriers="appStore.carriersWithStats"
     :selected-carrier="selectedCarrier"
     :delivery-carriers-count="deliveryCarriersCount"
     :syncing-carrier-id="syncingCarrierId"
@@ -168,7 +168,7 @@ function selectCarrier(carrier: any) {
   selectedCarrier.value = carrier
 }
 
-function editCarrier(carrier: any) {
+async function editCarrier(carrier: any) {
   editingCarrier.value = carrier.id
   Object.assign(newCarrier, {
     name: carrier.name,
@@ -199,6 +199,17 @@ function editCarrier(carrier: any) {
   selectedModalCarrier.value = catalogMatch || null
   carrierWizardStep.value = 2
   navigateTo('add-carrier')
+  // Pre-fill token fields with masked values from encrypted store
+  if (!authStore.isDemoMode && carrier.id) {
+    const { data } = await supabase.functions.invoke('carrier-credentials', {
+      body: { action: 'get', carrierId: String(carrier.id) }
+    })
+    if (data?.credentials) {
+      for (const [key, value] of Object.entries(data.credentials)) {
+        ;(newCarrier as any)[key] = value
+      }
+    }
+  }
 }
 
 async function deleteCarrier(carrierId: string) {
@@ -260,6 +271,9 @@ async function syncCarrier(carrier: any) {
 function selectCarrierFromList(carrier: any) {
   selectedModalCarrier.value = carrier
   newCarrier.name = carrier.name
+  if (carrier.name.toLowerCase().includes('navex') && newCarrier.fraisPaiementTranches.length === 0) {
+    newCarrier.fraisPaiementTranches = NAVEX_DEFAULT_BRACKETS.map(b => ({ ...b }))
+  }
 }
 
 function selectAllRegions() {
@@ -291,7 +305,10 @@ async function saveCarrierFromPage() {
     }
     const allFilled = selectedModalCarrier.value!.configFields!
       .filter((f: any) => f.required)
-      .every((f: any) => !!(newCarrier as any)[f.key])
+      .every((f: any) => {
+        const val = (newCarrier as any)[f.key]
+        return !!val // masked values (****xxxx) count as filled
+      })
     if (!newCarrier.name || !allFilled || (newCarrier.name.toLowerCase().includes('navex') && !newCarrier.senderId)) {
       toast.error('Veuillez remplir tous les champs requis')
       return
@@ -315,10 +332,13 @@ async function saveCarrierFromPage() {
   if (editingCarrier.value) {
     const updated = await appStore.carriersData.update(editingCarrier.value, { ...newCarrier })
     if (updated) {
-      // Save encrypted credentials via edge function
-      if (Object.keys(credentials).length > 0 && !authStore.isDemoMode) {
+      // Only save credentials that were actually changed (skip masked placeholder values)
+      const changedCredentials = Object.fromEntries(
+        Object.entries(credentials).filter(([, v]) => !String(v).startsWith('****'))
+      )
+      if (Object.keys(changedCredentials).length > 0 && !authStore.isDemoMode) {
         await supabase.functions.invoke('carrier-credentials', {
-          body: { action: 'save', carrierId: String(editingCarrier.value), credentials }
+          body: { action: 'save', carrierId: String(editingCarrier.value), credentials: changedCredentials }
         })
       }
       if (selectedCarrier.value?.id === editingCarrier.value) {

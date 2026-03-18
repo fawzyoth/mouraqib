@@ -29,6 +29,13 @@
     @toggle-submenu="subMenuOpen = !subMenuOpen"
     @update:report-period="reportPeriod = $event"
   />
+
+  <!-- Returns: Stats -->
+  <ReturnStats
+    v-else-if="activeSection === 'return-stats'"
+    :stats-data="returnStatsData"
+    @toggle-submenu="subMenuOpen = !subMenuOpen"
+  />
 </template>
 
 <script setup lang="ts">
@@ -48,6 +55,7 @@ import {
 import ReturnsList from '@/components/features/returns/ReturnsList.vue'
 import ReturnValue from '@/components/features/returns/ReturnValue.vue'
 import ReturnReports from '@/components/features/returns/ReturnReports.vue'
+import ReturnStats from '@/components/features/returns/ReturnStats.vue'
 
 const route = useRoute()
 const appStore = useAppStore()
@@ -85,6 +93,9 @@ const carriersReturnStats = ref<any[]>([])
 const reportPeriod = ref('month')
 const reportAnalytics = ref<any>({})
 
+// ReturnStats props
+const returnStatsData = ref<any>({ byGovernorate: [], byMonth: [], byCarrier: [] })
+
 // ---------------------------------------------------------------------------
 // Filtering helpers
 // ---------------------------------------------------------------------------
@@ -111,6 +122,7 @@ function populateDemoReturns() {
     value: r.value,
     inScannedAt: r.status === 'Récupéré' ? r.returnDate : null,
     lastStatusAt: r.returnDate || null,
+    lastEventLabel: r.status || null,
     carrier: r.carrier,
     reason: r.reason,
   }))
@@ -191,7 +203,20 @@ async function syncReturns() {
         expectedArrival: '',
         value: row.cod_amount || 0,
         inScannedAt: row.in_scanned_at || null,
-        lastStatusAt: row.updated_at || null,
+        lastStatusAt: (() => {
+          const events: any[] = row.shipment_events ?? []
+          if (events.length === 0) return row.updated_at || null
+          return events.reduce((latest: any, e: any) =>
+            new Date(e.created_at) > new Date(latest.created_at) ? e : latest
+          ).created_at
+        })(),
+        lastEventLabel: (() => {
+          const events: any[] = row.shipment_events ?? []
+          if (events.length === 0) return row.status || null
+          return events.reduce((latest: any, e: any) =>
+            new Date(e.created_at) > new Date(latest.created_at) ? e : latest
+          ).status
+        })(),
         carrier: typeof row.carrier === 'string' ? row.carrier : row.carrier?.name || row.old_carrier_name || 'Non assigné',
         reason: row.return_reason || 'Non specifie',
       }))
@@ -225,6 +250,58 @@ watchEffect(() => {
         ? Math.round((c.recovered / c.totalReturns) * 100)
         : 0,
     }))
+
+    // ---- returnStatsData ----
+    const demoGovMap: Record<string, { returns: number; total: number }> = {}
+    for (const r of demoReturnsList) {
+      const gov = r.destination
+      if (!demoGovMap[gov]) demoGovMap[gov] = { returns: 0, total: 0 }
+      demoGovMap[gov].returns++
+      demoGovMap[gov].total++
+    }
+    // add a few total-only to make rates meaningful
+    const demoGovExtra: Record<string, number> = { Tunis: 5, Ariana: 3, Nabeul: 2, Sfax: 2, Sousse: 2 }
+    for (const [gov, extra] of Object.entries(demoGovExtra)) {
+      if (!demoGovMap[gov]) demoGovMap[gov] = { returns: 0, total: 0 }
+      demoGovMap[gov].total += extra
+    }
+    const byGovernorate = Object.entries(demoGovMap)
+      .map(([region, v]) => ({
+        region,
+        returns: v.returns,
+        total: v.total,
+        returnRate: Math.round((v.returns / Math.max(v.total, 1)) * 100),
+      }))
+      .sort((a, b) => b.returns - a.returns)
+      .slice(0, 10)
+
+    // last 12 months ending Feb 2026
+    const demoMonths = [
+      { month: '2025-03', label: 'Mar', count: 2 },
+      { month: '2025-04', label: 'Avr', count: 3 },
+      { month: '2025-05', label: 'Mai', count: 1 },
+      { month: '2025-06', label: 'Jun', count: 4 },
+      { month: '2025-07', label: 'Jul', count: 2 },
+      { month: '2025-08', label: 'Aoû', count: 5 },
+      { month: '2025-09', label: 'Sep', count: 3 },
+      { month: '2025-10', label: 'Oct', count: 6 },
+      { month: '2025-11', label: 'Nov', count: 4 },
+      { month: '2025-12', label: 'Déc', count: 7 },
+      { month: '2026-01', label: 'Jan', count: 5 },
+      { month: '2026-02', label: 'Fév', count: 8 },
+    ]
+
+    returnStatsData.value = {
+      byGovernorate,
+      byMonth: demoMonths,
+      byCarrier: demoCarriersReturnStats.map((c) => ({
+        name: c.name,
+        totalReturns: c.totalReturns,
+        returnRate: c.returnRate,
+        recovered: c.recovered,
+        recoveryRate: c.totalReturns > 0 ? Math.round((c.recovered / c.totalReturns) * 100) : 0,
+      })),
+    }
 
     // ---- reportAnalytics (ReturnReports) ----
     const suggestions: Record<string, string> = {
@@ -308,7 +385,8 @@ watchEffect(() => {
       expectedArrival: '',
       value: row.amount || 0,
       inScannedAt: row.inScannedAt || null,
-      lastStatusAt: row.updatedAt || null,
+      lastStatusAt: row.lastEventAt || row.updatedAt || null,
+      lastEventLabel: row.lastEventStatus || row.status || null,
       carrier: row.carrier || 'Non assigné',
       reason: 'Non specifie',
     }))
@@ -365,6 +443,55 @@ watchEffect(() => {
         recoveryRate: items.length > 0 ? Math.round((recoveredItems.length / items.length) * 100) : 0,
       }
     })
+
+    // ---- returnStatsData ----
+    const govMap: Record<string, { returns: number; total: number }> = {}
+    for (const s of allShipments) {
+      const gov = (s.destination || '').split(', ').pop() || 'Inconnu'
+      if (!govMap[gov]) govMap[gov] = { returns: 0, total: 0 }
+      govMap[gov].total++
+      if (returnStatuses.has(s.status)) govMap[gov].returns++
+    }
+    const liveByGov = Object.entries(govMap)
+      .filter(([, v]) => v.returns > 0)
+      .map(([region, v]) => ({
+        region,
+        returns: v.returns,
+        total: v.total,
+        returnRate: Math.round((v.returns / Math.max(v.total, 1)) * 100),
+      }))
+      .sort((a, b) => b.returns - a.returns)
+      .slice(0, 10)
+
+    // by month: last 12 months
+    const monthLabels: Record<string, string> = {
+      '01': 'Jan', '02': 'Fév', '03': 'Mar', '04': 'Avr', '05': 'Mai', '06': 'Jun',
+      '07': 'Jul', '08': 'Aoû', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Déc',
+    }
+    const monthCounts: Record<string, number> = {}
+    for (const s of allReturnShipments) {
+      const m = (s.createdAt || s.updatedAt || '').substring(0, 7)
+      if (m) monthCounts[m] = (monthCounts[m] || 0) + 1
+    }
+    const now = new Date()
+    const liveByMonth = Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1)
+      const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      const mm = String(d.getMonth() + 1).padStart(2, '0')
+      return { month, label: monthLabels[mm] || mm, count: monthCounts[month] || 0 }
+    })
+
+    returnStatsData.value = {
+      byGovernorate: liveByGov,
+      byMonth: liveByMonth,
+      byCarrier: carriersReturnStats.value.map((c: any) => ({
+        name: c.name,
+        totalReturns: c.totalReturns,
+        returnRate: c.returnRate,
+        recovered: c.recovered,
+        recoveryRate: c.recoveryRate,
+      })),
+    }
 
     // ---- reportAnalytics ----
     const reasonCounts: Record<string, number> = {}

@@ -175,16 +175,6 @@
       </div>
     </div>
 
-    <!-- Monthly Trend Chart Placeholder -->
-    <div class="mt-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">
-      <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Evolution des retours</h3>
-      <div class="h-48 flex items-center justify-center border border-dashed border-gray-300 dark:border-gray-700 rounded-xl">
-        <div class="text-center">
-          <BarChart3 class="w-10 h-10 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
-          <p class="text-sm text-gray-500">Graphique d'evolution mensuelle</p>
-        </div>
-      </div>
-    </div>
   </main>
   </div>
 </template>
@@ -192,7 +182,7 @@
 <script setup lang="ts">
 import {
   ListFilter, Download, RotateCcw, DollarSign, Clock, AlertTriangle,
-  Building2, PackageCheck, Truck, PackageX, Receipt, BarChart3
+  Building2, PackageCheck, Truck, PackageX, Receipt
 } from 'lucide-vue-next'
 
 interface ReturnsData {

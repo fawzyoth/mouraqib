@@ -193,12 +193,15 @@
                   v-for="carrier in filteredCarriersLocal"
                   :key="carrier.id"
                   type="button"
-                  @click="selectShipmentCarrier(carrier)"
+                  :disabled="!carrierCoversGov(carrier)"
+                  @click="carrierCoversGov(carrier) && selectShipmentCarrier(carrier)"
                   :class="[
-                    'p-3 rounded-xl border-2 text-center transition-all hover:shadow-md',
-                    newShipment.carrier === carrier.name
-                      ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                    'p-3 rounded-xl border-2 text-center transition-all',
+                    !carrierCoversGov(carrier)
+                      ? 'border-gray-100 dark:border-gray-800 opacity-40 cursor-not-allowed'
+                      : newShipment.carrier === carrier.name
+                        ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md'
                   ]"
                 >
                   <div class="w-10 h-10 rounded-xl mx-auto mb-2 flex items-center justify-center font-bold text-sm" :style="{ backgroundColor: carrier.color + '20', color: carrier.color }">
@@ -343,11 +346,16 @@
                   @select="selectProduct"
                 />
               </div>
-              <div class="flex items-center">
+              <div class="flex items-center gap-2">
                 <label class="flex items-center space-x-2 cursor-pointer px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                   <input type="checkbox" v-model="newShipment.isFragile" class="w-4 h-4 text-primary-blue border-gray-300 rounded focus:ring-primary-blue" />
                   <AlertTriangle class="w-4 h-4 text-yellow-500" />
                   <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Produit Fragile</span>
+                </label>
+                <label class="flex items-center space-x-2 cursor-pointer px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  <input type="checkbox" v-model="newShipment.isBig" class="w-4 h-4 text-primary-blue border-gray-300 rounded focus:ring-primary-blue" />
+                  <Package class="w-4 h-4 text-blue-500" />
+                  <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Grand Colis</span>
                 </label>
               </div>
             </div>
@@ -511,6 +519,7 @@ const newShipment = reactive({
   postalCode: '',
   productName: '',
   isFragile: false,
+  isBig: false,
   description: '',
   productPrice: 0,
   deliveryFee: 7,
@@ -602,6 +611,12 @@ const filteredCarriersLocal = computed(() => {
   )
 })
 
+function carrierCoversGov(carrier: any): boolean {
+  if (!newShipment.gouvernorat) return true
+  if (carrier.allRegions) return true
+  return (carrier.regions || []).includes(newShipment.gouvernorat)
+}
+
 function getCarrierInitials(name: string): string {
   const words = name.split(' ')
   if (words.length >= 2) {
@@ -631,6 +646,11 @@ watch(() => newShipment.gouvernorat, () => {
   newShipment.delegation = ''
   newShipment.locality = ''
   newShipment.postalCode = ''
+  // Auto-select if only one carrier covers this governorate
+  const validCarriers = filteredCarriersLocal.value.filter(carrierCoversGov)
+  if (validCarriers.length === 1) {
+    selectShipmentCarrier(validCarriers[0])
+  }
 })
 
 watch(() => newShipment.delegation, () => {
@@ -716,8 +736,18 @@ function useNewClientName() {
 
 function selectShipmentCarrier(carrier: DeliveryCarrier) {
   newShipment.carrier = carrier.name
-  newShipment.deliveryFee = carrierDeliveryFees[carrier.name] || 7
+  const baseFee = carrier.fraisColisLivres ?? carrierDeliveryFees[carrier.name] ?? 7
+  const bigFee = carrier.fraisColisBig ?? baseFee
+  newShipment.deliveryFee = newShipment.isBig ? bigFee : baseFee
 }
+
+watch(() => newShipment.isBig, (isBig) => {
+  const carrier = props.carriers.find((c: any) => c.name === newShipment.carrier)
+  if (!carrier) return
+  const baseFee = carrier.fraisColisLivres ?? carrierDeliveryFees[carrier.name] ?? 7
+  const bigFee = carrier.fraisColisBig ?? baseFee
+  newShipment.deliveryFee = isBig ? bigFee : baseFee
+})
 
 // Pre-select carrier when coming back via "Create another"
 onMounted(() => {
@@ -766,6 +796,7 @@ function resetForm() {
   newShipment.postalCode = ''
   newShipment.productName = ''
   newShipment.isFragile = false
+  newShipment.isBig = false
   newShipment.description = ''
   newShipment.productPrice = 0
   newShipment.deliveryFee = 7

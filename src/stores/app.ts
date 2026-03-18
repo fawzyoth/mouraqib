@@ -51,6 +51,22 @@ export const useAppStore = defineStore('app', () => {
     shipments.value.filter((s: any) => s.status === 'Livré').length
   )
 
+  // Carriers enriched with real stats from shipments
+  const carriersWithStats = computed(() =>
+    carriers.value.map(carrier => {
+      const carrierShipments = shipments.value.filter((s: any) => s.carrierId === carrier.id)
+      const deliveredShipments = carrierShipments.filter((s: any) => s.status === 'Livré')
+      const total = carrierShipments.length
+      const delivered = deliveredShipments.length
+      const deliveryRate = total > 0 ? Math.round((delivered / total) * 100) : 0
+      const deliveredWithTime = deliveredShipments.filter((s: any) => s.transitDays > 0)
+      const avgTime = deliveredWithTime.length > 0
+        ? Math.round(deliveredWithTime.reduce((sum: number, s: any) => sum + s.transitDays, 0) / deliveredWithTime.length)
+        : 0
+      return { ...carrier, shipments: total, delivered, deliveryRate, avgTime }
+    })
+  )
+
   // Loading state
   const isLoading = ref(false)
 
@@ -143,6 +159,7 @@ export const useAppStore = defineStore('app', () => {
     orgId,
     orgContext,
     deliveredCount,
+    carriersWithStats,
     isLoading,
 
     // Actions

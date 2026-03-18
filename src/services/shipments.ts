@@ -23,7 +23,8 @@ export const shipmentsService = {
         *,
         boutique:boutiques(id, name, color),
         carrier:carriers(id, name, sender_id),
-        client:clients(id, name, phone)
+        client:clients(id, name, phone),
+        shipment_events(status, created_at)
       `)
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })

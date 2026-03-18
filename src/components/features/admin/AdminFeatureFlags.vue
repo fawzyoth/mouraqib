@@ -234,6 +234,7 @@ const FEATURE_TREE: FeatureNode[] = [
       { id: 'returns.lost-returns', label: 'Retours perdus' },
       { id: 'returns.return-value', label: 'Valeur des retours' },
       { id: 'returns.return-reports', label: 'Rapports' },
+      { id: 'returns.return-stats', label: 'Statistiques' },
     ],
   },
   {

@@ -52,6 +52,8 @@ export interface UIShipment {
   outScannedAt: string | null
   inScannedAt: string | null
   retourRecuAt: string | null
+  lastEventStatus: string | null
+  lastEventAt: string | null
   deletionRequestedAt: string | null
   deletionRequestedBy: string | null
   deletionReason: string | null
@@ -82,6 +84,10 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
   const uiStatus = row.status
   const createdDate = new Date(row.created_at)
   const latestEvent = `${createdDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} : Colis créé`
+  const sortedEvents = [...(row.shipment_events ?? [])].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  )
+  const lastEvent = sortedEvents[0] ?? null
 
   return {
     id: row.id,
@@ -128,6 +134,8 @@ export function dbShipmentToUI(row: Shipment & { carrier?: { name: string } | nu
     outScannedAt: row.out_scanned_at ?? null,
     inScannedAt: row.in_scanned_at ?? null,
     retourRecuAt: row.retour_recu_at ?? null,
+    lastEventStatus: lastEvent?.status ?? null,
+    lastEventAt: lastEvent?.created_at ?? null,
     deletionRequestedAt: row.deletion_requested_at ?? null,
     deletionRequestedBy: row.deletion_requested_by ?? null,
     deletionReason: row.deletion_reason ?? null,

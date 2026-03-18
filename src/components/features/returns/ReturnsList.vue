@@ -86,7 +86,7 @@
         <table class="w-full min-w-[1000px]">
             <thead>
               <tr>
-                <th v-for="col in columns" :key="col.key" :class="['px-4 py-0 text-left', col.width]">
+                <th v-for="col in columns.filter(c => !(c as any).hideForMode || (c as any).hideForMode !== props.mode)" :key="col.key" :class="['px-4 py-0 text-left', col.width]">
                 <div class="relative">
                   <!-- Sort button -->
                   <button
@@ -196,12 +196,28 @@
                 </template>
                 <template v-else>-</template>
               </td>
-              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap" data-label="Dern. Statut">
-                <template v-if="ret.lastStatusAt">
-                  <div>{{ formatDateShort(ret.lastStatusAt) }}</div>
-                  <div class="text-xs text-gray-400">{{ formatTime(ret.lastStatusAt) }}</div>
+              <td class="px-4 py-3 text-sm whitespace-nowrap" data-label="Dern. Statut">
+                <template v-if="ret.lastEventLabel">
+                  <div class="font-medium text-gray-900 dark:text-white">{{ ret.lastEventLabel }}</div>
+                  <div v-if="ret.lastStatusAt" class="text-xs text-gray-400">{{ formatDateShort(ret.lastStatusAt) }} {{ formatTime(ret.lastStatusAt) }}</div>
                 </template>
                 <template v-else>-</template>
+              </td>
+              <td v-if="props.mode !== 'recovered'" class="px-3 py-3 text-center" data-label="Alerte">
+                <template v-if="getEventAge(ret.lastStatusAt)">
+                  <div
+                    :class="[
+                      'inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold',
+                      getEventAge(ret.lastStatusAt)!.level === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                      getEventAge(ret.lastStatusAt)!.level === 'danger'   ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                                                                            'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                    ]"
+                    :title="`Aucune mise à jour depuis ${Math.floor(getEventAge(ret.lastStatusAt)!.hours)}h`"
+                  >
+                    <AlertTriangle class="w-3.5 h-3.5 flex-shrink-0" />
+                    {{ getEventAge(ret.lastStatusAt)!.label }}
+                  </div>
+                </template>
               </td>
             </tr>
           </tbody>
@@ -260,6 +276,7 @@ interface ReturnItem {
   value: number
   inScannedAt: string | null
   lastStatusAt: string | null
+  lastEventLabel: string | null
   carrier: string
   reason: string
 }
@@ -299,8 +316,18 @@ const columns = [
   { key: 'status', label: 'Statut', filterable: true },
   { key: 'value', label: 'Valeur', filterable: false },
   { key: 'inScannedAt', label: 'Scan Retour', filterable: true, type: 'date' as const },
-  { key: 'lastStatusAt', label: 'Dern. Statut', filterable: true, type: 'date' as const }
+  { key: 'lastStatusAt', label: 'Dern. Statut', filterable: true, type: 'date' as const },
+  { key: '_alert', label: '', filterable: false, hideForMode: 'recovered' },
 ]
+
+function getEventAge(lastStatusAt: string | null): { hours: number; label: string; level: 'warn' | 'danger' | 'critical' } | null {
+  if (!lastStatusAt) return null
+  const hours = (Date.now() - new Date(lastStatusAt).getTime()) / 3600000
+  if (hours >= 72) return { hours, label: '+72h', level: 'critical' }
+  if (hours >= 48) return { hours, label: '+48h', level: 'danger' }
+  if (hours >= 24) return { hours, label: '+24h', level: 'warn' }
+  return null
+}
 
 const localFilter = ref<'all'>('all')
 const searchQuery = ref('')
