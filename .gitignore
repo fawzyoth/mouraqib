@@ -21,3 +21,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+res/navex_retours.xlsx
+res/navex_livres_payes.xlsx

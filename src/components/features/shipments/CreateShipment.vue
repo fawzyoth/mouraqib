@@ -322,28 +322,82 @@
             </div>
           </div>
           <div class="p-6 space-y-4">
-            <!-- Nom du produit -->
-            <div class="relative">
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Nom du Produit <span class="text-red-500">*</span>
+            <!-- Produits -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Produits <span class="text-red-500">*</span>
               </label>
-              <input
-                v-model="newShipment.productName"
-                @input="onProductNameInput"
-                @focus="showProductSuggestions = true"
-                @keydown.down.prevent="onProductSearchKey('down')"
-                @keydown.up.prevent="onProductSearchKey('up')"
-                @keydown.enter.prevent="onProductSearchKey('enter')"
-                type="text"
-                placeholder="Entrez le nom du produit"
-                class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              />
-              <ProductSuggestionsDropdown
-                v-if="showProductSuggestions && filteredProducts.length > 0"
-                :products="filteredProducts"
-                :selected-index="productSuggestIndex"
-                @select="selectProduct"
-              />
+              <div class="space-y-2">
+                <!-- Header row -->
+                <div class="grid grid-cols-12 gap-2 px-1">
+                  <span class="col-span-7 text-xs text-gray-500">Nom du produit</span>
+                  <span class="col-span-1 text-xs text-gray-500 text-center">Qté</span>
+                  <span class="col-span-2 text-xs text-gray-500 text-right">Prix unit.</span>
+                  <span class="col-span-1 text-xs text-gray-500 text-right">Total</span>
+                  <span class="col-span-1"></span>
+                </div>
+                <!-- Product rows -->
+                <div v-for="(product, idx) in shipmentProducts" :key="idx" class="grid grid-cols-12 gap-2 items-center">
+                  <!-- Name with autocomplete -->
+                  <div class="col-span-7 relative">
+                    <input
+                      v-model="product.name"
+                      @input="onProductNameInput(idx)"
+                      @focus="activeProductIndex = idx; showProductSuggestions = true"
+                      @keydown.down.prevent="onProductSearchKey('down')"
+                      @keydown.up.prevent="onProductSearchKey('up')"
+                      @keydown.enter.prevent="onProductSearchKey('enter')"
+                      type="text"
+                      placeholder="Nom du produit"
+                      class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    />
+                    <ProductSuggestionsDropdown
+                      v-if="showProductSuggestions && activeProductIndex === idx && filteredProducts.length > 0"
+                      :products="filteredProducts"
+                      :selected-index="productSuggestIndex"
+                      @select="selectProduct($event, idx)"
+                    />
+                  </div>
+                  <!-- Quantity -->
+                  <div class="col-span-1">
+                    <input
+                      v-model.number="product.quantity"
+                      type="number"
+                      min="1"
+                      placeholder="1"
+                      class="w-full px-1 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-center focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <!-- Unit price -->
+                  <div class="col-span-2">
+                    <input
+                      v-model.number="product.unitPrice"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      class="w-full px-2 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-right focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <!-- Row total -->
+                  <div class="col-span-1 text-right">
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ ((Number(product.quantity) || 1) * (Number(product.unitPrice) || 0)).toFixed(2) }} DT
+                    </span>
+                  </div>
+                  <!-- Remove button -->
+                  <div class="col-span-1 flex justify-center">
+                    <button
+                      v-if="shipmentProducts.length > 1"
+                      type="button"
+                      @click="removeProduct(idx)"
+                      class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    >
+                      <X class="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Options du colis -->
@@ -376,11 +430,8 @@
               <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Prix</h3>
               <div class="space-y-3">
                 <div class="flex items-center justify-between">
-                  <label class="text-sm text-gray-600 dark:text-gray-400">Prix produit</label>
-                  <div class="flex items-center space-x-2">
-                    <input v-model.number="newShipment.productPrice" type="number" min="0" step="0.01" placeholder="0.00" class="w-28 px-3 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-right focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
-                    <span class="text-sm text-gray-500">DT</span>
-                  </div>
+                  <label class="text-sm text-gray-600 dark:text-gray-400">Sous-total produits</label>
+                  <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ totalProductsPrice.toFixed(2) }} DT</span>
                 </div>
                 <div class="flex items-center justify-between">
                   <label class="text-sm text-gray-600 dark:text-gray-400">Frais livraison <span class="text-xs text-orange-500">({{ newShipment.carrier || 'Aucun transporteur' }})</span></label>
@@ -420,8 +471,8 @@
       <div class="max-w-3xl mx-auto flex items-center justify-between">
         <div class="flex items-center gap-6">
           <div>
-            <span class="text-sm text-gray-500">Prix produit</span>
-            <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ (Number(newShipment.productPrice) || 0).toFixed(2) }} DT</p>
+            <span class="text-sm text-gray-500">Produits</span>
+            <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ totalProductsPrice.toFixed(2) }} DT</p>
           </div>
           <div class="text-gray-300 dark:text-gray-600">+</div>
           <div>
@@ -582,27 +633,56 @@ const filteredShipmentClients = computed(() => {
   ).slice(0, 5)
 })
 
+// Multi-product list
+interface ShipmentProduct {
+  name: string
+  quantity: number
+  unitPrice: number
+}
+const shipmentProducts = ref<ShipmentProduct[]>([{ name: '', quantity: 1, unitPrice: 0 }])
+const activeProductIndex = ref(-1)
+
+function addProduct() {
+  shipmentProducts.value.push({ name: '', quantity: 1, unitPrice: 0 })
+}
+
+watch(shipmentProducts, (products) => {
+  const last = products[products.length - 1]
+  if (last && last.name.trim()) {
+    products.push({ name: '', quantity: 1, unitPrice: 0 })
+  }
+}, { deep: true })
+function removeProduct(idx: number) {
+  shipmentProducts.value.splice(idx, 1)
+}
+
 // Product autocomplete
 const showProductSuggestions = ref(false)
 const productSuggestIndex = ref(-1)
 
 const filteredProducts = computed(() => {
   if (!props.products) return []
-  const search = newShipment.productName.toLowerCase()
+  const idx = activeProductIndex.value
+  if (idx < 0 || idx >= shipmentProducts.value.length) return []
+  const search = shipmentProducts.value[idx].name.toLowerCase()
   if (!search) return props.products.slice(0, 5)
   return props.products.filter(p =>
     p.name.toLowerCase().includes(search)
   ).slice(0, 5)
 })
 
-function onProductNameInput() {
+function onProductNameInput(idx: number) {
+  activeProductIndex.value = idx
   showProductSuggestions.value = true
   productSuggestIndex.value = -1
 }
 
-function selectProduct(product: any) {
-  newShipment.productName = product.name
-  newShipment.productPrice = product.price
+function selectProduct(product: any, idx?: number) {
+  const targetIdx = idx ?? activeProductIndex.value
+  if (targetIdx >= 0 && targetIdx < shipmentProducts.value.length) {
+    shipmentProducts.value[targetIdx].name = product.name
+    shipmentProducts.value[targetIdx].unitPrice = product.price
+  }
   showProductSuggestions.value = false
 }
 
@@ -676,9 +756,11 @@ watch(() => newShipment.locality, () => {
   }
 })
 
-const totalPrice = computed(() => {
-  return (Number(newShipment.productPrice) || 0) + (Number(newShipment.deliveryFee) || 0)
-})
+const totalProductsPrice = computed(() =>
+  shipmentProducts.value.reduce((sum, p) => sum + (Number(p.quantity) || 1) * (Number(p.unitPrice) || 0), 0)
+)
+
+const totalPrice = computed(() => totalProductsPrice.value + (Number(newShipment.deliveryFee) || 0))
 
 function generateReference() {
   const prefix = 'REF'
@@ -801,13 +883,12 @@ function resetForm() {
   newShipment.delegation = ''
   newShipment.locality = ''
   newShipment.postalCode = ''
-  newShipment.productName = ''
   newShipment.isFragile = false
   newShipment.isBig = false
   newShipment.openPackage = false
   newShipment.description = ''
-  newShipment.productPrice = 0
   newShipment.deliveryFee = 7
+  shipmentProducts.value = [{ name: '', quantity: 1, unitPrice: 0 }]
   newShipment.reference = ''
   newShipment.type = 'normal'
   newShipment.exchangeReason = ''
@@ -839,9 +920,19 @@ function handleSubmit() {
       }
     }
   }
+  const filledProducts = shipmentProducts.value.filter(p => p.name.trim())
+  const productsLines = filledProducts
+    .map(p => `- ${p.name} x${p.quantity} (${Number(p.unitPrice).toFixed(2)} DT/u) = ${(Number(p.quantity) * Number(p.unitPrice)).toFixed(2)} DT`)
+    .join('\n')
+  const fullDescription = [productsLines, newShipment.description].filter(Boolean).join('\n\n')
+
   emit('submit', {
     ...newShipment,
+    productName: filledProducts.map(p => p.name).join(', '),
+    productPrice: totalProductsPrice.value,
+    description: fullDescription,
     totalPrice: totalPrice.value,
+    products: filledProducts,
     clientChanges: clientChanges.length > 0 ? clientChanges : undefined,
   })
 }

@@ -71,11 +71,11 @@ const productName = ref('')
 const productPrice = ref(0)
 
 watch(
-  () => props.show,
-  (newVal) => {
-    if (newVal) {
-      productName.value = props.initialName
-      productPrice.value = props.initialPrice
+  () => [props.show, props.initialName, props.initialPrice],
+  ([show, name, price]) => {
+    if (show) {
+      productName.value = name as string
+      productPrice.value = price as number
     }
   }
 )

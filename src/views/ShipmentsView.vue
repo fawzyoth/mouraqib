@@ -107,7 +107,7 @@
     :initial-name="productToSaveName"
     :initial-price="productToSavePrice"
     @confirm="handleSaveProductConfirm"
-    @dismiss="showSaveProductModal = false"
+    @dismiss="showSaveProductModal = false; newProductQueue.value = []"
   />
 
   <!-- Pickup Event Modal -->
@@ -304,15 +304,25 @@ const createdShipment = ref<any>(null)
 const creatingShipment = ref(false)
 const stickyCarrier = ref('')
 let pendingNewProduct: any = null
+const newProductQueue = ref<{ name: string; price: number }[]>([])
+
+function buildNewProductQueue(data: any) {
+  const products: { name: string; price: number }[] = data.products && data.products.length > 0
+    ? data.products.filter((p: any) => p.name?.trim()).map((p: any) => ({ name: p.name, price: p.unitPrice ?? p.price ?? 0 }))
+    : data.productName ? [{ name: data.productName, price: data.productPrice || 0 }] : []
+
+  return products.filter(p =>
+    !appStore.products.some((existing: any) => existing.name.toLowerCase() === p.name.toLowerCase())
+  )
+}
 
 function checkAndPromptNewProduct(data: any) {
-  if (!data.productName) return
-  const exists = appStore.products.some((p: any) => p.name.toLowerCase() === data.productName.toLowerCase())
-  if (!exists) {
-    productToSaveName.value = data.productName
-    productToSavePrice.value = data.productPrice || 0
-    showSaveProductModal.value = true
-  }
+  const queue = buildNewProductQueue(data)
+  if (queue.length === 0) return
+  newProductQueue.value = queue
+  productToSaveName.value = queue[0].name
+  productToSavePrice.value = queue[0].price
+  showSaveProductModal.value = true
 }
 
 async function handleCreateShipment(data: any) {
@@ -509,7 +519,13 @@ const productToSavePrice = ref(0)
 
 async function handleSaveProductConfirm(payload: { name: string; price: number }) {
   await appStore.productsData.create(payload.name, payload.price)
-  showSaveProductModal.value = false
   toast.success('Produit ajouté au catalogue')
+  newProductQueue.value.shift()
+  if (newProductQueue.value.length > 0) {
+    productToSaveName.value = newProductQueue.value[0].name
+    productToSavePrice.value = newProductQueue.value[0].price
+  } else {
+    showSaveProductModal.value = false
+  }
 }
 </script>
