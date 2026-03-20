@@ -20,15 +20,24 @@ export function useFinanceData(orgId: Ref<string>) {
       const [credits, invoiceRows, paymentRows] = await Promise.all([
         transactionsService.getCredits(orgId.value),
         invoicesService.getAll(orgId.value),
-        supabase
-          .from('service_payments')
-          .select('*')
-          .eq('organization_id', orgId.value)
-          .order('date', { ascending: false })
-          .then(({ data, error }) => {
+        (async () => {
+          const PAGE_SIZE = 1000
+          const allPayments: any[] = []
+          let from = 0
+          while (true) {
+            const { data, error } = await supabase
+              .from('service_payments')
+              .select('*')
+              .eq('organization_id', orgId.value)
+              .order('date', { ascending: false })
+              .range(from, from + PAGE_SIZE - 1)
             if (error) throw error
-            return data || []
-          }),
+            allPayments.push(...data)
+            if (data.length < PAGE_SIZE) break
+            from += PAGE_SIZE
+          }
+          return allPayments
+        })(),
       ])
 
       if (credits) {

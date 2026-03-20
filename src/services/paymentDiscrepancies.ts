@@ -2,18 +2,29 @@ import { supabase } from '@/lib/supabase'
 
 export const paymentDiscrepanciesService = {
   async getAll(organizationId: string) {
-    const { data, error } = await supabase
-      .from('payment_discrepancies')
-      .select(`
-        *,
-        carrier:carriers(id, name),
-        shipment:shipments(id, tracking_number, recipient_name)
-      `)
-      .eq('organization_id', organizationId)
-      .order('created_at', { ascending: false })
+    const PAGE_SIZE = 1000
+    const allData: any[] = []
+    let from = 0
 
-    if (error) throw error
-    return data
+    while (true) {
+      const { data, error } = await supabase
+        .from('payment_discrepancies')
+        .select(`
+          *,
+          carrier:carriers(id, name),
+          shipment:shipments(id, tracking_number, recipient_name)
+        `)
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1)
+
+      if (error) throw error
+      allData.push(...data)
+      if (data.length < PAGE_SIZE) break
+      from += PAGE_SIZE
+    }
+
+    return allData
   },
 
   async updateStatus(id: string, status: 'pending' | 'resolved' | 'disputed', notes?: string) {
@@ -33,13 +44,6 @@ export const paymentDiscrepanciesService = {
   },
 
   async getStats(organizationId: string) {
-    const { data, error } = await supabase
-      .from('payment_discrepancies')
-      .select('expected_amount, actual_amount, difference, status')
-      .eq('organization_id', organizationId)
-
-    if (error) throw error
-
     const stats = {
       ourTotal: 0,
       theirTotal: 0,
@@ -52,8 +56,19 @@ export const paymentDiscrepanciesService = {
       recovered: 0,
     }
 
-    if (data) {
-      data.forEach(d => {
+    const PAGE_SIZE = 1000
+    let from = 0
+
+    while (true) {
+      const { data, error } = await supabase
+        .from('payment_discrepancies')
+        .select('expected_amount, actual_amount, difference, status')
+        .eq('organization_id', organizationId)
+        .range(from, from + PAGE_SIZE - 1)
+
+      if (error) throw error
+
+      for (const d of data) {
         stats.ourTotal += d.expected_amount
         stats.theirTotal += d.actual_amount
         stats.totalDifference += Math.abs(d.difference)
@@ -68,11 +83,15 @@ export const paymentDiscrepanciesService = {
         if (d.status === 'resolved') {
           stats.recovered += Math.abs(d.difference)
         }
-      })
-      stats.differencePercent = stats.ourTotal > 0
-        ? Math.round((stats.totalDifference / stats.ourTotal) * 100 * 10) / 10
-        : 0
+      }
+
+      if (data.length < PAGE_SIZE) break
+      from += PAGE_SIZE
     }
+
+    stats.differencePercent = stats.ourTotal > 0
+      ? Math.round((stats.totalDifference / stats.ourTotal) * 100 * 10) / 10
+      : 0
 
     return stats
   },

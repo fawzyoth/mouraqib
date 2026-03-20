@@ -385,6 +385,9 @@ verify_jwt = false
 [functions.confirm-deletion]
 verify_jwt = false
 
+[functions.import-navex-shipment]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

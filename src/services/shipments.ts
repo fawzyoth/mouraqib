@@ -17,44 +17,55 @@ export interface ShipmentFilters {
 
 export const shipmentsService = {
   async getAll(organizationId: string, filters?: ShipmentFilters) {
-    let query = supabase
-      .from('shipments')
-      .select(`
-        *,
-        boutique:boutiques(id, name, color),
-        carrier:carriers(id, name, sender_id),
-        client:clients(id, name, phone),
-        shipment_events(status, created_at)
-      `)
-      .eq('organization_id', organizationId)
-      .order('created_at', { ascending: false })
+    const PAGE_SIZE = 1000
+    const allData: Shipment[] = []
+    let from = 0
 
-    if (filters?.status && filters.status !== 'all') {
-      query = query.eq('status', filters.status)
-    }
-    if (filters?.boutiqueId) {
-      query = query.eq('boutique_id', filters.boutiqueId)
-    }
-    if (filters?.carrierId) {
-      query = query.eq('carrier_id', filters.carrierId)
-    }
-    if (filters?.governorate) {
-      query = query.eq('governorate', filters.governorate)
-    }
-    if (filters?.dateFrom) {
-      query = query.gte('created_at', filters.dateFrom)
-    }
-    if (filters?.dateTo) {
-      query = query.lte('created_at', filters.dateTo)
-    }
-    if (filters?.search) {
-      query = query.or(`tracking_number.ilike.%${filters.search}%,recipient_name.ilike.%${filters.search}%,recipient_phone.ilike.%${filters.search}%`)
+    while (true) {
+      let query = supabase
+        .from('shipments')
+        .select(`
+          *,
+          boutique:boutiques(id, name, color),
+          carrier:carriers(id, name, sender_id),
+          client:clients(id, name, phone),
+          shipment_events(status, created_at)
+        `)
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1)
+
+      if (filters?.status && filters.status !== 'all') {
+        query = query.eq('status', filters.status)
+      }
+      if (filters?.boutiqueId) {
+        query = query.eq('boutique_id', filters.boutiqueId)
+      }
+      if (filters?.carrierId) {
+        query = query.eq('carrier_id', filters.carrierId)
+      }
+      if (filters?.governorate) {
+        query = query.eq('governorate', filters.governorate)
+      }
+      if (filters?.dateFrom) {
+        query = query.gte('created_at', filters.dateFrom)
+      }
+      if (filters?.dateTo) {
+        query = query.lte('created_at', filters.dateTo)
+      }
+      if (filters?.search) {
+        query = query.or(`tracking_number.ilike.%${filters.search}%,recipient_name.ilike.%${filters.search}%,recipient_phone.ilike.%${filters.search}%`)
+      }
+
+      const { data, error } = await query
+
+      if (error) throw error
+      allData.push(...(data as Shipment[]))
+      if (data.length < PAGE_SIZE) break
+      from += PAGE_SIZE
     }
 
-    const { data, error } = await query.limit(10000)
-
-    if (error) throw error
-    return data
+    return allData
   },
 
   async getById(id: string) {

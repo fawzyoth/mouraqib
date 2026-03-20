@@ -10,32 +10,43 @@ export interface ClientFilters {
 
 export const clientsService = {
   async getAll(organizationId: string, filters?: ClientFilters) {
-    let query = supabase
-      .from('clients')
-      .select(`
-        *,
-        boutique:boutiques(id, name, color)
-      `)
-      .eq('organization_id', organizationId)
-      .order('created_at', { ascending: false })
+    const PAGE_SIZE = 1000
+    const allData: Client[] = []
+    let from = 0
 
-    if (filters?.status && filters.status !== 'all') {
-      query = query.eq('status', filters.status)
-    }
-    if (filters?.boutiqueId) {
-      query = query.eq('boutique_id', filters.boutiqueId)
-    }
-    if (filters?.governorate) {
-      query = query.eq('governorate', filters.governorate)
-    }
-    if (filters?.search) {
-      query = query.or(`name.ilike.%${filters.search}%,phone.ilike.%${filters.search}%,email.ilike.%${filters.search}%`)
+    while (true) {
+      let query = supabase
+        .from('clients')
+        .select(`
+          *,
+          boutique:boutiques(id, name, color)
+        `)
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1)
+
+      if (filters?.status && filters.status !== 'all') {
+        query = query.eq('status', filters.status)
+      }
+      if (filters?.boutiqueId) {
+        query = query.eq('boutique_id', filters.boutiqueId)
+      }
+      if (filters?.governorate) {
+        query = query.eq('governorate', filters.governorate)
+      }
+      if (filters?.search) {
+        query = query.or(`name.ilike.%${filters.search}%,phone.ilike.%${filters.search}%,email.ilike.%${filters.search}%`)
+      }
+
+      const { data, error } = await query
+
+      if (error) throw error
+      allData.push(...(data as Client[]))
+      if (data.length < PAGE_SIZE) break
+      from += PAGE_SIZE
     }
 
-    const { data, error } = await query
-
-    if (error) throw error
-    return data
+    return allData
   },
 
   async getById(id: string) {
@@ -97,26 +108,26 @@ export const clientsService = {
   },
 
   async getStats(organizationId: string) {
-    const { data, error } = await supabase
-      .from('clients')
-      .select('status')
-      .eq('organization_id', organizationId)
+    const statuses = ['active', 'vip', 'inactive', 'blocked'] as const
+    const stats = { total: 0, active: 0, vip: 0, inactive: 0, blocked: 0 }
 
-    if (error) throw error
+    const results = await Promise.all(
+      statuses.map(status =>
+        supabase
+          .from('clients')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', organizationId)
+          .eq('status', status)
+      )
+    )
 
-    const stats = {
-      total: data.length,
-      active: 0,
-      vip: 0,
-      inactive: 0,
-      blocked: 0
+    for (let i = 0; i < statuses.length; i++) {
+      const { count, error } = results[i]
+      if (error) throw error
+      const n = count ?? 0
+      stats[statuses[i]] = n
+      stats.total += n
     }
-
-    data.forEach(c => {
-      if (c.status in stats) {
-        stats[c.status as keyof typeof stats]++
-      }
-    })
 
     return stats
   },

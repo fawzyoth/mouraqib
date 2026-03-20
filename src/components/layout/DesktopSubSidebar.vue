@@ -7,7 +7,7 @@
         class="w-full flex items-center gap-3 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-500 hover:border-[#4959b4] hover:text-[#4959b4] transition-colors"
       >
         <Search class="w-4 h-4" />
-        <span>Rechercher un colis...</span>
+        <span>Rechercher colis</span>
         <kbd class="ml-auto hidden sm:inline-flex px-2 py-0.5 text-xs font-medium text-gray-400 bg-gray-100 dark:bg-gray-700 rounded">⌘K</kbd>
       </button>
     </div>

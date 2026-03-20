@@ -9,26 +9,37 @@ export interface TransactionFilters {
 
 export const transactionsService = {
   async getAll(organizationId: string, filters?: TransactionFilters) {
-    let query = supabase
-      .from('transactions')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .order('created_at', { ascending: false })
+    const PAGE_SIZE = 1000
+    const allData: Transaction[] = []
+    let from = 0
 
-    if (filters?.type) {
-      query = query.eq('type', filters.type)
-    }
-    if (filters?.dateFrom) {
-      query = query.gte('created_at', filters.dateFrom)
-    }
-    if (filters?.dateTo) {
-      query = query.lte('created_at', filters.dateTo)
+    while (true) {
+      let query = supabase
+        .from('transactions')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1)
+
+      if (filters?.type) {
+        query = query.eq('type', filters.type)
+      }
+      if (filters?.dateFrom) {
+        query = query.gte('created_at', filters.dateFrom)
+      }
+      if (filters?.dateTo) {
+        query = query.lte('created_at', filters.dateTo)
+      }
+
+      const { data, error } = await query
+
+      if (error) throw error
+      allData.push(...(data as Transaction[]))
+      if (data.length < PAGE_SIZE) break
+      from += PAGE_SIZE
     }
 
-    const { data, error } = await query
-
-    if (error) throw error
-    return data
+    return allData
   },
 
   async getCredits(organizationId: string) {
@@ -174,10 +185,6 @@ export const transactionsService = {
 
   async getSummary(organizationId: string) {
     const credits = await this.getCredits(organizationId)
-    const { data: transactions } = await supabase
-      .from('transactions')
-      .select('type, amount')
-      .eq('organization_id', organizationId)
 
     const summary = {
       totalCredits: 0,
@@ -189,13 +196,29 @@ export const transactionsService = {
       unbilledReturned: credits?.unbilled_returned ?? 0
     }
 
-    transactions?.forEach(t => {
-      if (t.type === 'credit') {
-        summary.totalCredits += t.amount
-      } else {
-        summary.totalDebits += t.amount
+    const PAGE_SIZE = 1000
+    let from = 0
+
+    while (true) {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('type, amount')
+        .eq('organization_id', organizationId)
+        .range(from, from + PAGE_SIZE - 1)
+
+      if (error) throw error
+
+      for (const t of data) {
+        if (t.type === 'credit') {
+          summary.totalCredits += t.amount
+        } else {
+          summary.totalDebits += t.amount
+        }
       }
-    })
+
+      if (data.length < PAGE_SIZE) break
+      from += PAGE_SIZE
+    }
 
     return summary
   }

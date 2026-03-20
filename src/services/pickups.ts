@@ -12,36 +12,47 @@ export interface PickupFilters {
 
 export const pickupsService = {
   async getAll(organizationId: string, filters?: PickupFilters) {
-    let query = supabase
-      .from('pickup_requests')
-      .select(`
-        *,
-        boutique:boutiques(id, name, color),
-        carrier:carriers(id, name)
-      `)
-      .eq('organization_id', organizationId)
-      .order('scheduled_date', { ascending: false })
+    const PAGE_SIZE = 1000
+    const allData: PickupRequest[] = []
+    let from = 0
 
-    if (filters?.status && filters.status !== 'all') {
-      query = query.eq('status', filters.status)
-    }
-    if (filters?.boutiqueId) {
-      query = query.eq('boutique_id', filters.boutiqueId)
-    }
-    if (filters?.carrierId) {
-      query = query.eq('carrier_id', filters.carrierId)
-    }
-    if (filters?.dateFrom) {
-      query = query.gte('scheduled_date', filters.dateFrom)
-    }
-    if (filters?.dateTo) {
-      query = query.lte('scheduled_date', filters.dateTo)
+    while (true) {
+      let query = supabase
+        .from('pickup_requests')
+        .select(`
+          *,
+          boutique:boutiques(id, name, color),
+          carrier:carriers(id, name)
+        `)
+        .eq('organization_id', organizationId)
+        .order('scheduled_date', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1)
+
+      if (filters?.status && filters.status !== 'all') {
+        query = query.eq('status', filters.status)
+      }
+      if (filters?.boutiqueId) {
+        query = query.eq('boutique_id', filters.boutiqueId)
+      }
+      if (filters?.carrierId) {
+        query = query.eq('carrier_id', filters.carrierId)
+      }
+      if (filters?.dateFrom) {
+        query = query.gte('scheduled_date', filters.dateFrom)
+      }
+      if (filters?.dateTo) {
+        query = query.lte('scheduled_date', filters.dateTo)
+      }
+
+      const { data, error } = await query
+
+      if (error) throw error
+      allData.push(...(data as PickupRequest[]))
+      if (data.length < PAGE_SIZE) break
+      from += PAGE_SIZE
     }
 
-    const { data, error } = await query
-
-    if (error) throw error
-    return data
+    return allData
   },
 
   async getById(id: string) {
@@ -138,27 +149,26 @@ export const pickupsService = {
   },
 
   async getStats(organizationId: string) {
-    const { data, error } = await supabase
-      .from('pickup_requests')
-      .select('status')
-      .eq('organization_id', organizationId)
+    const statuses = ['pending', 'confirmed', 'completed', 'cancelled', 'failed'] as const
+    const stats = { total: 0, pending: 0, confirmed: 0, completed: 0, cancelled: 0, failed: 0 }
 
-    if (error) throw error
+    const results = await Promise.all(
+      statuses.map(status =>
+        supabase
+          .from('pickup_requests')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', organizationId)
+          .eq('status', status)
+      )
+    )
 
-    const stats = {
-      total: data.length,
-      pending: 0,
-      confirmed: 0,
-      completed: 0,
-      cancelled: 0,
-      failed: 0
+    for (let i = 0; i < statuses.length; i++) {
+      const { count, error } = results[i]
+      if (error) throw error
+      const n = count ?? 0
+      stats[statuses[i]] = n
+      stats.total += n
     }
-
-    data.forEach(p => {
-      if (p.status in stats) {
-        stats[p.status as keyof typeof stats]++
-      }
-    })
 
     return stats
   },
