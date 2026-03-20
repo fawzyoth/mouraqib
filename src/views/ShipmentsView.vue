@@ -61,6 +61,20 @@
     @close="selectedShipment = null; showShipmentDetail = false"
     @request-deletion="openDeletionModal"
     @cancel-deletion-request="handleCancelDeletionRequest"
+    @view-client="openClientDetail"
+  />
+
+  <!-- Client Detail Panel (opened from shipment detail) -->
+  <ClientDetailPanel
+    :show="showClientDetail"
+    :client="selectedClient"
+    :is-editing="isEditingClient"
+    :edit-form="editClientForm"
+    :is-saving="isSavingClient"
+    @close="selectedClient = null; showClientDetail = false; isEditingClient = false"
+    @enter-edit="enterEditMode(selectedClient)"
+    @cancel-edit="isEditingClient = false"
+    @save="saveClientEdit"
   />
 
   <!-- Request Deletion Modal -->
@@ -105,7 +119,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, inject } from 'vue'
+import { computed, ref, reactive, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
@@ -117,6 +131,7 @@ import CreateShipment from '@/components/features/shipments/CreateShipment.vue'
 import ShipmentCreatedSuccess from '@/components/features/shipments/ShipmentCreatedSuccess.vue'
 import ShipmentLabels from '@/components/features/shipments/ShipmentLabels.vue'
 import ShipmentDetailPanel from '@/components/features/shipments/ShipmentDetailPanel.vue'
+import ClientDetailPanel from '@/components/features/clients/ClientDetailPanel.vue'
 import DeletionRequests from '@/components/features/shipments/DeletionRequests.vue'
 
 // Modal components
@@ -201,6 +216,60 @@ const statusTabs = computed(() => {
 // Shipment detail panel
 const selectedShipment = ref<any>(null)
 const showShipmentDetail = ref(false)
+
+// Client detail panel (opened from shipment detail)
+const selectedClient = ref<any>(null)
+const showClientDetail = ref(false)
+const isEditingClient = ref(false)
+const isSavingClient = ref(false)
+const editClientForm = reactive({
+  name: '', phone: '', phoneSecondary: '', email: '',
+  address: '', region: '', delegation: '', locality: '', postalCode: '',
+  status: 'active', notes: '',
+})
+
+function enterEditMode(client: any) {
+  if (!client) return
+  Object.assign(editClientForm, {
+    name: client.name || '', phone: client.phone || '', phoneSecondary: client.phoneSecondary || '',
+    email: client.email || '', address: client.address || '', region: client.region || '',
+    delegation: client.delegation || '', locality: client.locality || '',
+    postalCode: client.postalCode || '', status: client.status || 'active', notes: client.notes || '',
+  })
+  isEditingClient.value = true
+}
+
+async function saveClientEdit() {
+  if (!selectedClient.value?.id) return
+  isSavingClient.value = true
+  try {
+    const updated = await appStore.clientsData.update(selectedClient.value.id, editClientForm)
+    if (updated) {
+      selectedClient.value = { ...selectedClient.value, ...updated }
+      isEditingClient.value = false
+    }
+  } finally {
+    isSavingClient.value = false
+  }
+}
+
+function openClientDetail(clientId: string) {
+  const shipments = appStore.shipments
+  const statsMap = new Map<string, { totalOrders: number; deliveredOrders: number; totalSpent: number }>()
+  for (const s of shipments) {
+    if (!s.clientId) continue
+    let entry = statsMap.get(s.clientId)
+    if (!entry) { entry = { totalOrders: 0, deliveredOrders: 0, totalSpent: 0 }; statsMap.set(s.clientId, entry) }
+    entry.totalOrders++
+    if (s.status === 'Livré') { entry.deliveredOrders++; entry.totalSpent += s.cod || 0 }
+  }
+  const client = appStore.clients.find((c: any) => c.id === clientId)
+  if (!client) return
+  const stats = statsMap.get(clientId) ?? { totalOrders: 0, deliveredOrders: 0, totalSpent: 0 }
+  const deliveryRate = stats.totalOrders > 0 ? Math.round((stats.deliveredOrders / stats.totalOrders) * 100) : 0
+  selectedClient.value = { ...client, ...stats, deliveryRate }
+  showClientDetail.value = true
+}
 
 // Deletion request
 const showDeletionModal = ref(false)

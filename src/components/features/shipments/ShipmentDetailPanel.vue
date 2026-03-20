@@ -72,7 +72,17 @@
 
       <!-- Destinataire (Recipient) -->
       <div>
-        <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Destinataire</p>
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Destinataire</p>
+          <button
+            v-if="shipment.clientId"
+            @click="$emit('view-client', shipment.clientId)"
+            class="flex items-center gap-1 text-xs text-primary-blue hover:underline"
+          >
+            <ExternalLink class="w-3 h-3" />
+            Voir le client
+          </button>
+        </div>
         <div class="space-y-3">
           <div class="flex items-start gap-3">
             <User class="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0" />
@@ -114,36 +124,6 @@
 
       <div class="border-t border-gray-200 dark:border-gray-800"></div>
 
-      <!-- Expéditeur (Sender) -->
-      <div>
-        <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Expéditeur</p>
-        <div class="space-y-3">
-          <div v-if="shipment.senderName" class="flex items-start gap-3">
-            <User class="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0" />
-            <div class="min-w-0">
-              <p class="text-xs text-gray-500 dark:text-gray-400">Nom</p>
-              <p class="text-sm font-medium text-gray-900 dark:text-white">{{ shipment.senderName }}</p>
-            </div>
-          </div>
-          <div v-if="shipment.senderPhone" class="flex items-start gap-3">
-            <PhoneIcon class="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0" />
-            <div class="min-w-0">
-              <p class="text-xs text-gray-500 dark:text-gray-400">Téléphone</p>
-              <p class="text-sm font-medium text-gray-900 dark:text-white">{{ shipment.senderPhone }}</p>
-            </div>
-          </div>
-          <div v-if="shipment.senderAddress" class="flex items-start gap-3">
-            <MapPin class="w-4 h-4 text-gray-400 dark:text-gray-500 mt-0.5 shrink-0" />
-            <div class="min-w-0">
-              <p class="text-xs text-gray-500 dark:text-gray-400">Adresse</p>
-              <p class="text-sm font-medium text-gray-900 dark:text-white">{{ shipment.senderAddress }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="border-t border-gray-200 dark:border-gray-800"></div>
-
       <!-- Colis (Package) -->
       <div>
         <p class="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Colis</p>
@@ -160,11 +140,7 @@
             <span class="text-gray-500 dark:text-gray-400">Poids</span>
             <span class="font-semibold text-gray-900 dark:text-white">{{ shipment.weight }} kg</span>
           </div>
-          <div v-if="shipment.dimensions" class="flex justify-between text-sm">
-            <span class="text-gray-500 dark:text-gray-400">Dimensions</span>
-            <span class="font-semibold text-gray-900 dark:text-white">{{ shipment.dimensions }}</span>
-          </div>
-          <div v-if="shipment.fragile" class="flex justify-between text-sm items-center">
+<div v-if="shipment.fragile" class="flex justify-between text-sm items-center">
             <span class="text-gray-500 dark:text-gray-400">Fragile</span>
             <span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
               <AlertTriangle class="w-3 h-3 inline-block mr-0.5 -mt-0.5" /> Fragile
@@ -301,7 +277,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
-import { X, User, Phone as PhoneIcon, MapPin, Globe, AlertTriangle, Printer, Trash2, Clock } from 'lucide-vue-next'
+import { X, User, Phone as PhoneIcon, MapPin, Globe, AlertTriangle, Printer, Trash2, Clock, ExternalLink } from 'lucide-vue-next'
 import { getStatusLabel, getStatusTextClass, getStatusDotClass } from '@/composables/useStatusFormatting'
 import { shipmentsService } from '@/services/shipments'
 import type { UIShipmentEvent } from '@/mappers/shipments'
@@ -315,6 +291,7 @@ defineEmits<{
   (e: 'close'): void
   (e: 'request-deletion', shipment: Record<string, any>): void
   (e: 'cancel-deletion-request', shipment: Record<string, any>): void
+  (e: 'view-client', clientId: string): void
 }>()
 
 const events = ref<UIShipmentEvent[]>([])

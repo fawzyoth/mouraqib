@@ -150,8 +150,8 @@
                       </button>
                     </div>
                   </template>
-                  <!-- Plain text input for trackingNumber -->
-                  <template v-else-if="col.key === 'trackingNumber'">
+                  <!-- Plain text input for trackingNumber and recipientPhone -->
+                  <template v-else-if="col.key === 'trackingNumber' || col.key === 'recipientPhone'">
                     <input
                       ref="filterInputRef"
                       v-model="columnFilters[col.key]"
@@ -181,6 +181,7 @@
               </td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Transporteur">{{ shipment.carrier }}</td>
               <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400" data-label="Client">{{ shipment.client || '-' }}</td>
+              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 font-mono" data-label="Téléphone">{{ shipment.recipientPhone || '-' }}</td>
               <td class="px-4 py-3" data-label="Statut">
                 <span :class="['inline-flex items-center space-x-1 text-sm font-medium whitespace-nowrap', getStatusTextClass(shipment.status)]">
                   <span :class="['w-2 h-2 rounded-full flex-shrink-0', getStatusDotClass(shipment.status)]"></span>
@@ -343,6 +344,7 @@ const columns = computed(() => {
     { key: 'trackingNumber', label: 'Numero de suivi', filterable: true },
     { key: 'carrier', label: 'Trans.', filterable: true, width: 'w-16' },
     { key: 'client', label: 'Client', filterable: true },
+    { key: 'recipientPhone', label: 'Téléphone', filterable: true },
     { key: 'status', label: 'Statut', filterable: true },
     { key: 'amount', label: 'Prix', filterable: false },
     { key: 'createdAt', label: 'Création', filterable: true, type: 'date' },
@@ -362,7 +364,7 @@ const router = useRouter()
 // Filter state — initialized from URL query params
 // ---------------------------------------------------------------------------
 const q = route.query
-const columnFilterKeys = ['trackingNumber', 'carrier', 'client', 'status']
+const columnFilterKeys = ['trackingNumber', 'carrier', 'client', 'status', 'recipientPhone']
 const dateFilterKeys = ['createdAt', 'outScannedAt', 'inScannedAt', 'deliveryDate', 'lastSyncedAt']
 
 const activeStatusTab = ref((q.tab as string) || 'active')

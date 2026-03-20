@@ -129,7 +129,7 @@
           <div class="space-y-2.5">
             <div
               class="flex justify-between text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 -mx-2 px-2 py-1 rounded-lg transition-colors"
-              @click="router.push({ path: '/shipments', query: { f_client: client.name } })"
+              @click="router.push({ path: '/shipments', query: { tab: 'all', f_recipientPhone: client.phone } })"
             >
               <span class="text-gray-500 dark:text-gray-400">Total commandes</span>
               <span class="font-semibold text-primary-blue flex items-center gap-1">
