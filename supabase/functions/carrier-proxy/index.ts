@@ -117,6 +117,17 @@ serve(async (req) => {
       const errorCtx = { supabase, organizationId: carrier.organization_id, carrierId }
 
       if (action === 'create-shipment') {
+        // Validate mandatory fields unless it's a skip-carrier-create (auto-pickup only) call
+        if (!payload.skipCarrierCreate) {
+          const requiredFields = ['clientName', 'governorate', 'city', 'address', 'phone', 'designation']
+          const missing = requiredFields.filter(f => !payload[f])
+          if (missing.length > 0) {
+            return new Response(
+              JSON.stringify({ error: `Missing required shipment fields: ${missing.join(', ')}` }),
+              { status: 400, headers: JSON_HEADERS }
+            )
+          }
+        }
         result = await handleCreateShipment(adapter, payload, supabase, errorCtx)
       } else if (action === 'request-pickup') {
         result = await handleRequestPickup(adapter, payload, supabase)

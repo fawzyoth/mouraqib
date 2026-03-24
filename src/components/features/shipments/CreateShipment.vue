@@ -35,7 +35,7 @@
               <div class="relative">
                 <Search class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                 <input
-                  v-model="shipmentClientSearch"
+                  v-model="newShipment.customerName"
                   @input="onShipmentClientSearch"
                   @focus="showClientSuggestions = true"
                   @keydown.down.prevent="onClientSearchKey('down')"
@@ -52,14 +52,6 @@
                 :selected-index="clientSuggestIndex"
                 @select="selectClientForShipment"
               />
-              <!-- No results - option to create new -->
-              <div v-if="showClientSuggestions && shipmentClientSearch.length >= 2 && filteredShipmentClients.length === 0" class="absolute z-20 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
-                <p class="text-sm text-gray-500 text-center mb-2">Aucun client trouve</p>
-                <button @click="useNewClientName" class="w-full px-3 py-2 text-sm font-medium bg-primary-blue/10 text-primary-blue hover:bg-primary-blue/20 rounded-lg flex items-center justify-center space-x-2">
-                  <Plus class="w-4 h-4" />
-                  <span>Utiliser "{{ shipmentClientSearch }}" comme nouveau client</span>
-                </button>
-              </div>
             </div>
 
             <!-- Selected Client Card -->
@@ -489,7 +481,7 @@
           <button @click="resetForm" type="button" class="px-6 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
             Annuler
           </button>
-          <button @click="handleSubmit" :disabled="!newShipment.carrier || loading" :class="['px-6 py-2.5 bg-[#4959b4] hover:bg-[#3a4791] text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2', (!newShipment.carrier || loading) && 'opacity-50 cursor-not-allowed']">
+          <button @click="handleSubmit" :disabled="!isFormValid || loading" :class="['px-6 py-2.5 bg-[#4959b4] hover:bg-[#3a4791] text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2', (!isFormValid || loading) && 'opacity-50 cursor-not-allowed']">
             <Loader2 v-if="loading" class="w-4 h-4 animate-spin" />
             <Plus v-else class="w-4 h-4" />
             {{ loading ? 'Création...' : 'Creer le colis' }}
@@ -587,13 +579,26 @@ const newShipment = reactive({
 })
 
 // Client autocomplete
-const shipmentClientSearch = ref('')
 const showClientSuggestions = ref(false)
 const selectedShipmentClient = ref<Client | null>(null)
 const clientSuggestIndex = ref(-1)
 
 // Snapshot of original client data to detect changes
 const originalClientData = ref<Record<string, string> | null>(null)
+
+const isFormValid = computed(() => {
+  const base =
+    !!newShipment.customerName.trim() &&
+    !!newShipment.phone.trim() &&
+    !!newShipment.address.trim() &&
+    !!newShipment.gouvernorat &&
+    !!newShipment.delegation &&
+    !!newShipment.carrier &&
+    shipmentProducts.value.some(p => p.name.trim() !== '')
+  if (!base) return false
+  if (newShipment.type === 'exchange') return !!newShipment.exchangeReason
+  return true
+})
 
 // Phone-based client match (exact)
 const phoneMatchedClient = computed(() => {
@@ -624,8 +629,8 @@ function selectClientFromPhone(client: Client) {
 }
 
 const filteredShipmentClients = computed(() => {
-  if (shipmentClientSearch.value.length < 1) return []
-  const search = shipmentClientSearch.value.toLowerCase()
+  if (newShipment.customerName.length < 1) return []
+  const search = newShipment.customerName.toLowerCase()
   return props.clients.filter(client =>
     client.name.toLowerCase().includes(search) ||
     client.phone.includes(search) ||
@@ -777,7 +782,6 @@ function onShipmentClientSearch() {
 
 function selectClientForShipment(client: Client) {
   selectedShipmentClient.value = client
-  shipmentClientSearch.value = client.name
   showClientSuggestions.value = false
 
   // Prevent watchers from cascading-resetting the prefilled values
@@ -809,7 +813,6 @@ function selectClientForShipment(client: Client) {
 
 function clearSelectedClient() {
   selectedShipmentClient.value = null
-  shipmentClientSearch.value = ''
   newShipment.customerName = ''
   newShipment.phone = ''
   newShipment.address = ''
@@ -817,11 +820,6 @@ function clearSelectedClient() {
   originalClientData.value = null
 }
 
-function useNewClientName() {
-  newShipment.customerName = shipmentClientSearch.value
-  selectedShipmentClient.value = null
-  showClientSuggestions.value = false
-}
 
 function selectShipmentCarrier(carrier: DeliveryCarrier) {
   newShipment.carrier = carrier.name
@@ -900,6 +898,7 @@ function resetForm() {
 }
 
 function handleSubmit() {
+  if (!isFormValid.value) return
   // Compute client data changes if an existing client was selected
   const clientChanges: { field: string; label: string; oldValue: string; newValue: string }[] = []
   if (selectedShipmentClient.value && originalClientData.value) {
