@@ -40,5 +40,30 @@ export function useProductsData(orgId: Ref<string>) {
         }
     }
 
-    return { products, isLoading, load, create }
+    async function update(id: string, name: string, price: number) {
+        try {
+            const updated = await productsService.update(id, { name, price })
+            const idx = products.value.findIndex(p => p.id === id)
+            if (idx !== -1) {
+                products.value[idx] = updated
+                products.value.sort((a, b) => a.name.localeCompare(b.name))
+            }
+            return updated
+        } catch (e: any) {
+            toast.error('Erreur mise à jour produit: ' + (e.message || e))
+            return null
+        }
+    }
+
+    async function remove(id: string) {
+        try {
+            await productsService.delete(id)
+            const idx = products.value.findIndex(p => p.id === id)
+            if (idx !== -1) products.value.splice(idx, 1)
+        } catch (e: any) {
+            toast.error('Erreur suppression produit: ' + (e.message || e))
+        }
+    }
+
+    return { products, isLoading, load, create, update, remove }
 }

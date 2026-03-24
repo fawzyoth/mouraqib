@@ -12,6 +12,7 @@ const sectionComponents: Record<string, () => Promise<any>> = {
   pickups:        () => import('@/views/PickupsView.vue'),
   returns:        () => import('@/views/ReturnsView.vue'),
   carriers:       () => import('@/views/CarriersView.vue'),
+  products:       () => import('@/views/ProductsView.vue'),
   finance:        () => import('@/views/FinanceView.vue'),
   analytics:      () => import('@/views/AnalyticsView.vue'),
   settings:       () => import('@/views/SettingsView.vue'),

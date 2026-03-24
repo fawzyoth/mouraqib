@@ -218,6 +218,14 @@ const FEATURE_TREE: FeatureNode[] = [
     ],
   },
   {
+    id: 'products',
+    label: 'Produits',
+    children: [
+      { id: 'products.all-products', label: 'Tous les produits' },
+      { id: 'products.add-product', label: 'Ajouter produit' },
+    ],
+  },
+  {
     id: 'pickups',
     label: 'Enlèvements',
     children: [

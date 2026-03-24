@@ -40,6 +40,7 @@ import {
   Lock,
   CreditCard,
   ToggleLeft,
+  Tag,
 } from 'lucide-vue-next'
 
 export interface NavItem {
@@ -89,6 +90,10 @@ export const subSectionRoutes: Record<string, { path: string; mainSection: strin
   'connected-carriers': { path: '/carriers', mainSection: 'carriers' },
   'add-carrier': { path: '/carriers/add', mainSection: 'carriers' },
 
+  // Products
+  'all-products': { path: '/products', mainSection: 'products' },
+  'add-product': { path: '/products/add', mainSection: 'products' },
+
   // Finance
   'expected-payments': { path: '/finance', mainSection: 'finance' },
   'received-payments': { path: '/finance/received', mainSection: 'finance' },
@@ -128,6 +133,7 @@ export const mainNavigation: NavItem[] = [
   { id: 'pickups', label: 'Enlèvements', icon: markRaw(Truck) },
   { id: 'returns', label: 'Retours', icon: markRaw(RotateCcw) },
   { id: 'carriers', label: 'Transporteurs', icon: markRaw(Building2) },
+  { id: 'products', label: 'Produits', icon: markRaw(Tag) },
   { id: 'finance', label: 'Finance', icon: markRaw(Wallet) },
   { id: 'analytics', label: 'Analytiques', icon: markRaw(BarChart3) },
   { id: 'administration', label: 'Administration', icon: markRaw(Shield) },
@@ -171,6 +177,10 @@ export const subNavigation: Record<string, NavItem[]> = {
   carriers: [
     { id: 'connected-carriers', label: 'Transporteurs connectés', icon: markRaw(Building2) },
     { id: 'add-carrier', label: 'Ajouter transporteur', icon: markRaw(Plus) },
+  ],
+  products: [
+    { id: 'all-products', label: 'Tous les produits', icon: markRaw(Tag) },
+    { id: 'add-product', label: 'Ajouter produit', icon: markRaw(Plus) },
   ],
   finance: [
     { id: 'expected-payments', label: 'Paiements attendus', icon: markRaw(Clock) },
