@@ -70,9 +70,9 @@ export class ColisExpressAdapter implements CarrierAdapter {
 
     const data = await this.post('/create', body)
 
-    // CE returns: { code_barre: "...", lien: "https://...print URL" }
-    const trackingNumber = String(data.code_barre ?? data.barcode ?? data.reference ?? '')
-    const printUrl = data.lien ? String(data.lien) : (data.link ? String(data.link) : undefined)
+    // CE returns: { reference: 106154750, link: "https://...print URL" }
+    const trackingNumber = String(data.reference ?? data.code_barre ?? data.barcode ?? '')
+    const printUrl = data.link ? String(data.link) : (data.lien ? String(data.lien) : undefined)
 
     return { trackingNumber, printUrl }
   }
