@@ -18,6 +18,14 @@ interface ColisExpressConfig {
 
 const BASE_URL = 'https://api.coliexpres.com/v2'
 
+const GOVERNORATE_TO_CE_VILLE: Record<string, string> = {
+  'Beja': 'Béja',
+  'Gabes': 'Gabès',
+  'Kef': 'LE Kef',
+  'Mannouba': 'La Manouba',
+  'Sidi Bouzid': 'Sidi',
+}
+
 /**
  * Colis Express carrier API adapter.
  *
@@ -56,7 +64,7 @@ export class ColisExpressAdapter implements CarrierAdapter {
       code_api: this.codeApi,
       cle_api: this.cleApi,
       nom_prenom: payload.clientName,
-      ville: payload.governorate,
+      ville: GOVERNORATE_TO_CE_VILLE[payload.governorate] ?? payload.governorate,
       delegation: payload.city,
       adresse: payload.address,
       tel: payload.phone,
