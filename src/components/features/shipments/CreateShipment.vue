@@ -823,7 +823,7 @@ function clearSelectedClient() {
 
 function selectShipmentCarrier(carrier: DeliveryCarrier) {
   newShipment.carrier = carrier.name
-  const baseFee = carrier.fraisColisLivres ?? carrierDeliveryFees[carrier.name] ?? 7
+  const baseFee = carrier.fraisColisLivresClient ?? carrier.fraisColisLivres ?? carrierDeliveryFees[carrier.name] ?? 7
   const bigFee = carrier.fraisColisBig ?? baseFee
   newShipment.deliveryFee = newShipment.isBig ? bigFee : baseFee
 }
@@ -831,7 +831,7 @@ function selectShipmentCarrier(carrier: DeliveryCarrier) {
 watch(() => newShipment.isBig, (isBig) => {
   const carrier = props.carriers.find((c: any) => c.name === newShipment.carrier)
   if (!carrier) return
-  const baseFee = carrier.fraisColisLivres ?? carrierDeliveryFees[carrier.name] ?? 7
+  const baseFee = carrier.fraisColisLivresClient ?? carrier.fraisColisLivres ?? carrierDeliveryFees[carrier.name] ?? 7
   const bigFee = carrier.fraisColisBig ?? baseFee
   newShipment.deliveryFee = isBig ? bigFee : baseFee
 })
@@ -921,7 +921,7 @@ function handleSubmit() {
   }
   const filledProducts = shipmentProducts.value.filter(p => p.name.trim())
   const productsLines = filledProducts
-    .map(p => `- ${p.name} x${p.quantity} (${Number(p.unitPrice).toFixed(2)} DT/u) = ${(Number(p.quantity) * Number(p.unitPrice)).toFixed(2)} DT`)
+    .map(p => `- ${p.name} x${p.quantity}`)
     .join('\n')
   const fullDescription = [productsLines, newShipment.description].filter(Boolean).join('\n\n')
 

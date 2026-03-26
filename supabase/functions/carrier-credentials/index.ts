@@ -119,13 +119,26 @@ serve(async (req) => {
       }
 
       const encrypted = encryptCredentials(credentials)
-      console.log('[CARRIER-CREDS] encrypted credentials, updating carrier...')
+
+      // Determine status by checking if the relevant key is present
+      const carrierNameLower = (carrier.name || '').toLowerCase().trim()
+      let hasKey = false
+      if (carrierNameLower === 'navex' || carrierNameLower === 'navex delivery') {
+        hasKey = !!credentials.tokenAdd
+      } else if (['colis express', 'colis-express', 'colisexpress', 'coliexpres'].includes(carrierNameLower)) {
+        hasKey = !!credentials.code_api
+      } else {
+        hasKey = !!(credentials.apiKey || credentials.api_key)
+      }
+      const newStatus = hasKey ? 'connected' : 'error'
+
+      console.log('[CARRIER-CREDS] encrypted credentials, updating carrier with status:', newStatus)
       const { error: updateError } = await supabase
         .from('carriers')
         .update({
           api_key: encrypted,
           api_id: credentials.apiId ?? carrier.api_id,
-          api_status: 'disconnected', // reset status, user should test after saving
+          api_status: newStatus,
         })
         .eq('id', carrierId)
 
@@ -149,7 +162,7 @@ serve(async (req) => {
 
       console.log('[CARRIER-CREDS] SUCCESS: credentials saved')
       return new Response(
-        JSON.stringify({ success: true, message: 'Credentials saved' }),
+        JSON.stringify({ success: true, message: 'Credentials saved', status: newStatus }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -219,14 +232,10 @@ serve(async (req) => {
 
       try {
         const decrypted = decryptCredentials(carrier.api_key)
-        const masked: Record<string, string> = {}
-        for (const [key, value] of Object.entries(decrypted)) {
-          masked[key] = value ? maskValue(value) : ''
-        }
 
-        console.log('[CARRIER-CREDS] SUCCESS: returning masked credentials')
+        console.log('[CARRIER-CREDS] SUCCESS: returning credentials')
         return new Response(
-          JSON.stringify({ credentials: masked, status: carrier.api_status }),
+          JSON.stringify({ credentials: decrypted, status: carrier.api_status }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       } catch {

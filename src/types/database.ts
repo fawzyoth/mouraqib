@@ -213,6 +213,7 @@ export interface Database {
           api_key: string | null
           api_status: 'connected' | 'disconnected' | 'error'
           fee_delivered: number
+          fee_delivered_client: number | null
           fee_returned: number
           fee_exchange: number
           fee_pickup: number
@@ -238,6 +239,7 @@ export interface Database {
           api_key?: string | null
           api_status?: 'connected' | 'disconnected' | 'error'
           fee_delivered?: number
+          fee_delivered_client?: number | null
           fee_returned?: number
           fee_exchange?: number
           fee_pickup?: number
@@ -263,6 +265,7 @@ export interface Database {
           api_key?: string | null
           api_status?: 'connected' | 'disconnected' | 'error'
           fee_delivered?: number
+          fee_delivered_client?: number | null
           fee_returned?: number
           fee_exchange?: number
           fee_pickup?: number

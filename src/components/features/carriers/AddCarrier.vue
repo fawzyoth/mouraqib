@@ -221,20 +221,14 @@
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     {{ field.label }} <span v-if="field.required" class="text-red-500">*</span>
                   </label>
-                  <div class="relative">
-                    <input
-                      :value="(newCarrier as any)[field.key] || ''"
-                      @input="$emit('update:newCarrierField', field.key, ($event.target as HTMLInputElement).value)"
-                      :type="field.type === 'password' && !showApiKey ? 'password' : 'text'"
-                      autocomplete="off"
-                      :placeholder="field.placeholder || ''"
-                      class="w-full px-4 py-3 pr-12 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                    />
-                    <button v-if="field.type === 'password'" type="button" @click="$emit('update:showApiKey', !showApiKey)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                      <Eye v-if="!showApiKey" class="w-5 h-5" />
-                      <EyeOff v-else class="w-5 h-5" />
-                    </button>
-                  </div>
+                  <input
+                    :value="(newCarrier as any)[field.key] || ''"
+                    @input="$emit('update:newCarrierField', field.key, ($event.target as HTMLInputElement).value)"
+                    type="text"
+                    autocomplete="off"
+                    :placeholder="field.placeholder || ''"
+                    class="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  />
                 </div>
               </div>
               <!-- Standard apiId/apiKey fields -->
@@ -245,13 +239,7 @@
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">API Key <span class="text-red-500">*</span></label>
-                  <div class="relative">
-                    <input :value="newCarrier.apiKey" @input="$emit('update:newCarrierField', 'apiKey', ($event.target as HTMLInputElement).value)" :type="showApiKey ? 'text' : 'password'" autocomplete="off" placeholder="Votre cl&eacute; API secr&egrave;te" class="w-full px-4 py-3 pr-12 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
-                    <button type="button" @click="$emit('update:showApiKey', !showApiKey)" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                      <Eye v-if="!showApiKey" class="w-5 h-5" />
-                      <EyeOff v-else class="w-5 h-5" />
-                    </button>
-                  </div>
+                  <input :value="newCarrier.apiKey" @input="$emit('update:newCarrierField', 'apiKey', ($event.target as HTMLInputElement).value)" type="text" autocomplete="off" placeholder="Votre cl&eacute; API secr&egrave;te" class="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                 </div>
               </div>
             </div>
@@ -293,6 +281,14 @@
                     <input :value="newCarrier.fraisColisLivres" @input="$emit('update:newCarrierField', 'fraisColisLivres', Number(($event.target as HTMLInputElement).value))" type="number" step="0.01" min="0" class="w-full px-0 py-1 border-0 border-b-2 border-gray-200 dark:border-gray-600 bg-transparent text-xl font-bold text-gray-900 dark:text-white focus:ring-0 focus:border-orange-500" />
                     <span class="text-sm text-gray-400 font-medium">DT</span>
                   </div>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
+                  <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Prix livraison client</label>
+                  <div class="flex items-baseline gap-1">
+                    <input :value="newCarrier.fraisColisLivresClient" @input="$emit('update:newCarrierField', 'fraisColisLivresClient', ($event.target as HTMLInputElement).value === '' ? null : Number(($event.target as HTMLInputElement).value))" type="number" step="0.01" :min="newCarrier.fraisColisLivres" class="w-full px-0 py-1 border-0 border-b-2 border-gray-200 dark:border-gray-600 bg-transparent text-xl font-bold text-gray-900 dark:text-white focus:ring-0 focus:border-orange-500" />
+                    <span class="text-sm text-gray-400 font-medium">DT</span>
+                  </div>
+                  <p class="text-xs text-gray-400 mt-1">Frais affich&eacute;s au client (≥ frais transporteur)</p>
                 </div>
                 <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
                   <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Colis retour</label>
@@ -500,6 +496,7 @@ interface NewCarrierForm {
   apiKey: string
   senderId: string
   fraisColisLivres: number
+  fraisColisLivresClient: number | null
   fraisColisRetour: number
   fraisColisEchange: number
   fraisColisBig: number

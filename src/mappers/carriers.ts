@@ -13,6 +13,7 @@ export interface UICarrier {
   apiKey: string
   apiStatus: 'connected' | 'disconnected' | 'error'
   fraisColisLivres: number
+  fraisColisLivresClient: number | null
   fraisColisRetour: number
   fraisColisEchange: number
   fraisColisBig: number
@@ -40,6 +41,7 @@ export function dbCarrierToUI(row: Carrier): UICarrier {
     apiKey: row.api_key || '',
     apiStatus: row.api_status,
     fraisColisLivres: row.fee_delivered,
+    fraisColisLivresClient: row.fee_delivered_client,
     fraisColisRetour: row.fee_returned,
     fraisColisEchange: row.fee_exchange,
     fraisColisBig: row.fee_big,
@@ -66,6 +68,7 @@ export function uiCarrierToInsert(form: Record<string, any>, orgId: string): Car
     api_key: form.apiKey || null,
     api_status: 'disconnected',
     fee_delivered: form.fraisColisLivres ?? 7,
+    fee_delivered_client: form.fraisColisLivresClient ?? null,
     fee_returned: form.fraisColisRetour ?? 5,
     fee_exchange: form.fraisColisEchange ?? 8,
     fee_big: form.fraisColisBig ?? 12,
@@ -88,6 +91,7 @@ export function uiCarrierToUpdate(form: Record<string, any>): CarrierUpdate {
     api_id: form.apiId || null,
     api_key: form.apiKey || null,
     fee_delivered: form.fraisColisLivres,
+    fee_delivered_client: form.fraisColisLivresClient ?? null,
     fee_returned: form.fraisColisRetour,
     fee_exchange: form.fraisColisEchange,
     fee_big: form.fraisColisBig,

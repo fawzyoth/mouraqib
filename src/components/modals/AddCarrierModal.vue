@@ -95,7 +95,7 @@
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       API Key <span class="text-red-500">*</span>
                     </label>
-                    <input v-model="newCarrier.apiKey" type="password" placeholder="Clé API secrète" class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-mono focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                    <input v-model="newCarrier.apiKey" type="text" autocomplete="off" placeholder="Clé API secrète" class="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-mono focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                   </div>
                 </div>
                 <div v-if="newCarrier.name.toLowerCase().includes('navex')">
@@ -121,6 +121,14 @@
                     <input v-model.number="newCarrier.fraisColisLivres" type="number" step="0.01" min="0" class="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-l-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                     <span class="inline-flex items-center px-3 py-2 border border-l-0 border-gray-200 dark:border-gray-700 rounded-r-lg bg-gray-100 dark:bg-gray-700 text-gray-500 text-sm">DT</span>
                   </div>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Prix livraison client</label>
+                  <div class="flex">
+                    <input v-model.number="newCarrier.fraisColisLivresClient" type="number" step="0.01" :min="newCarrier.fraisColisLivres" placeholder="Optionnel" class="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-l-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                    <span class="inline-flex items-center px-3 py-2 border border-l-0 border-gray-200 dark:border-gray-700 rounded-r-lg bg-gray-100 dark:bg-gray-700 text-gray-500 text-sm">DT</span>
+                  </div>
+                  <p class="text-xs text-gray-400 mt-1">Frais affichés au client (≥ frais transporteur)</p>
                 </div>
                 <div>
                   <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Frais colis retour</label>
@@ -324,6 +332,7 @@ const newCarrier = reactive({
   apiKey: '',
   senderId: '',
   ...DEFAULT_CARRIER_FEES,
+  fraisColisLivresClient: null as number | null,
   fraisPaiementTranches: [] as PaymentFeeBracket[],
   allRegions: true,
   regions: [] as string[]
@@ -411,6 +420,7 @@ watch(() => props.editingCarrier, (carrier) => {
     newCarrier.apiKey = carrier.apiKey || ''
     newCarrier.senderId = carrier.senderId || ''
     newCarrier.fraisColisLivres = carrier.fraisColisLivres ?? DEFAULT_CARRIER_FEES.fraisColisLivres
+    newCarrier.fraisColisLivresClient = carrier.fraisColisLivresClient ?? null
     newCarrier.fraisColisRetour = carrier.fraisColisRetour ?? DEFAULT_CARRIER_FEES.fraisColisRetour
     newCarrier.fraisColisEchange = carrier.fraisColisEchange ?? DEFAULT_CARRIER_FEES.fraisColisEchange
     newCarrier.fraisColisBig = carrier.fraisColisBig ?? DEFAULT_CARRIER_FEES.fraisColisBig
